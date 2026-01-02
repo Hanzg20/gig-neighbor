@@ -1,5 +1,6 @@
 import { MapPin, Clock, Star, Shield, Heart } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface ServiceTier {
   name: string;
@@ -23,6 +24,7 @@ interface ServiceCardProps {
 }
 
 const ServiceCard = ({
+  id,
   title,
   provider,
   avatar,
@@ -35,11 +37,19 @@ const ServiceCard = ({
   verified,
   urgent,
 }: ServiceCardProps) => {
+  const navigate = useNavigate();
   const [selectedTier, setSelectedTier] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
 
+  const handleCardClick = () => {
+    navigate(`/service/${id}`);
+  };
+
   return (
-    <div className="card-warm overflow-hidden group animate-fade-in hover:shadow-elevated transition-all duration-500">
+    <div 
+      onClick={handleCardClick}
+      className="card-warm overflow-hidden group animate-fade-in hover:shadow-elevated transition-all duration-500 cursor-pointer"
+    >
       {/* Image Section */}
       <div className="relative h-44 overflow-hidden">
         <img
@@ -65,7 +75,10 @@ const ServiceCard = ({
 
         {/* Like button */}
         <button 
-          onClick={() => setIsLiked(!isLiked)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsLiked(!isLiked);
+          }}
           className="absolute top-3 right-3 w-9 h-9 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center shadow-warm hover:scale-110 transition-all"
         >
           <Heart 
@@ -119,7 +132,7 @@ const ServiceCard = ({
         </div>
 
         {/* Tier Selection */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-4" onClick={(e) => e.stopPropagation()}>
           {tiers.map((tier, index) => (
             <button
               key={tier.name}
