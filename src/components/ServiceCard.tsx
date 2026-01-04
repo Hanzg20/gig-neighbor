@@ -1,4 +1,4 @@
-import { MapPin, Clock, Star, Shield, Heart } from "lucide-react";
+import { MapPin, Clock, Star, Shield, Heart, Store, User } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -6,7 +6,10 @@ interface ServiceTier {
   name: string;
   price: number;
   description: string;
+  unit?: string;
 }
+
+type ProviderType = "neighbor" | "verified" | "merchant";
 
 interface ServiceCardProps {
   id: number;
@@ -19,9 +22,35 @@ interface ServiceCardProps {
   nextAvailable: string;
   tiers: ServiceTier[];
   image: string;
-  verified?: boolean;
+  providerType?: ProviderType;
+  sameBuilding?: boolean;
   urgent?: boolean;
+  category?: "food" | "service" | "task";
 }
+
+const providerTypeConfig = {
+  neighbor: {
+    label: "邻居",
+    icon: <User className="w-3 h-3" />,
+    className: "bg-muted text-muted-foreground",
+  },
+  verified: {
+    label: "认证邻居",
+    icon: <Shield className="w-3 h-3" />,
+    className: "bg-primary/10 text-primary",
+  },
+  merchant: {
+    label: "认证商家",
+    icon: <Store className="w-3 h-3" />,
+    className: "bg-secondary/10 text-secondary",
+  },
+};
+
+const categoryColors = {
+  food: "bg-orange-500",
+  service: "bg-primary",
+  task: "bg-accent",
+};
 
 const ServiceCard = ({
   id,
@@ -34,8 +63,10 @@ const ServiceCard = ({
   nextAvailable,
   tiers,
   image,
-  verified,
+  providerType = "neighbor",
+  sameBuilding = false,
   urgent,
+  category = "service",
 }: ServiceCardProps) => {
   const navigate = useNavigate();
   const [selectedTier, setSelectedTier] = useState(0);
@@ -44,6 +75,9 @@ const ServiceCard = ({
   const handleCardClick = () => {
     navigate(`/service/${id}`);
   };
+
+  const typeConfig = providerTypeConfig[providerType];
+  const currentTier = tiers[selectedTier];
 
   return (
     <div 
@@ -59,8 +93,16 @@ const ServiceCard = ({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/30 to-transparent" />
         
+        {/* Category indicator */}
+        <div className={`absolute top-3 left-3 w-2 h-2 rounded-full ${categoryColors[category]}`} />
+
         {/* Floating badges */}
-        <div className="absolute top-3 left-3 flex gap-2">
+        <div className="absolute top-3 left-6 flex gap-2">
+          {sameBuilding && (
+            <span className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs font-bold">
+              同小区
+            </span>
+          )}
           <span className="tag-distance">
             <MapPin className="w-3.5 h-3.5" />
             {distance}
@@ -97,18 +139,23 @@ const ServiceCard = ({
               alt={provider}
               className="w-10 h-10 rounded-full object-cover border-2 border-card"
             />
-            {verified && (
-              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                <Shield className="w-2.5 h-2.5 text-primary-foreground" />
+            {providerType !== "neighbor" && (
+              <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center ${providerType === "merchant" ? "bg-secondary" : "bg-primary"}`}>
+                {providerType === "merchant" ? (
+                  <Store className="w-2.5 h-2.5 text-secondary-foreground" />
+                ) : (
+                  <Shield className="w-2.5 h-2.5 text-primary-foreground" />
+                )}
               </div>
             )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <p className="font-bold text-foreground truncate">{provider}</p>
-              {verified && (
-                <span className="text-xs text-primary font-medium">验证邻居</span>
-              )}
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${typeConfig.className}`}>
+                {typeConfig.icon}
+                {typeConfig.label}
+              </span>
             </div>
             <div className="flex items-center gap-1">
               <Star className="w-3.5 h-3.5 fill-secondary text-secondary" />
@@ -152,16 +199,16 @@ const ServiceCard = ({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground mb-0.5">
-              {tiers[selectedTier].description}
+              {currentTier.description}
             </p>
             <p className="text-2xl font-extrabold text-primary">
-              ${tiers[selectedTier].price}
-              <span className="text-sm font-medium text-muted-foreground">/次</span>
+              ${currentTier.price}
+              <span className="text-sm font-medium text-muted-foreground">/{currentTier.unit || "次"}</span>
             </p>
           </div>
           <button className="btn-action py-2.5 px-5 text-sm flex items-center gap-2">
             <span>🤝</span>
-            Hang Tight
+            立即下单
           </button>
         </div>
       </div>
