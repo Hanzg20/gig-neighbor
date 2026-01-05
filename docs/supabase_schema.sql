@@ -1,0 +1,508 @@
+-- ==========================================
+-- GIG NEIGHBOR UNIFIED SCHEMA & DOCUMENTATION v4.0
+-- ==========================================
+/*
+  # Supabase Database Schema (Gig Neighbor)
+
+  This document is the unified source of truth for the Gig Neighbor database architecture.
+  It combines structural descriptions with SQL implementation details.
+
+  ## 1. System Overview
+  Gig Neighbor uses Supabase (PostgreSQL) as its primary backend. 
+  The schema is designed for a master-detail listing system, multi-role RBAC, 
+  and a transactional "JinBean" ledger.
+
+  ## 2. Core Tables Overview
+  - public.user_profiles: Extended user data (Email, Beans, Node).
+  - public.ref_codes: Global categories and community nodes.
+  - public.listing_masters: Service and product catalog entries.
+  - public.bean_transactions: Ledger for the JinBean ecosystem.
+  - public.orders: Transactional state machine records.
+*/
+
+-- ==========================================
+-- STEP 0: EXTENSIONS
+-- ==========================================
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "postgis";
+
+-- ==========================================
+-- STEP 1: CUSTOM TYPES
+-- ==========================================
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'listing_type') THEN
+    CREATE TYPE listing_type AS ENUM ('SERVICE', 'RENTAL', 'CONSULTATION', 'GOODS', 'TASK');
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status') THEN
+    CREATE TYPE order_status AS ENUM (
+      'PENDING_QUOTE', 'PENDING_DEPOSIT', 'WAITING_FOR_PRICE_APPROVAL',
+      'PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'ACCEPTED', 
+      'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'DISPUTED'
+    );
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'provider_identity') THEN
+    CREATE TYPE provider_identity AS ENUM ('NEIGHBOR', 'MERCHANT');
+  END IF;
+END $$;
+
+-- ==========================================
+-- STEP 2: BASE TABLES
+-- ==========================================
+
+/*
+  ### 2.1 Global References (public.ref_codes)
+  The "Categorization System" for Nodes, Industries, and Categories.
+*/
+CREATE TABLE IF NOT EXISTS public.ref_codes (
+  code_id TEXT PRIMARY KEY,
+  parent_id TEXT,
+  type TEXT NOT NULL, -- 'NODE', 'CATEGORY', 'UNIT'
+  zh_name TEXT NOT NULL,
+  en_name TEXT,
+  extra_data JSONB DEFAULT '{}'::jsonb,
+  sort_order INTEGER DEFAULT 0,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2.2 RBAC: Roles & Permissions
+CREATE TABLE IF NOT EXISTS public.roles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT UNIQUE NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.permissions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT UNIQUE NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.role_permissions (
+  role_id UUID REFERENCES public.roles(id) ON DELETE CASCADE,
+  permission_id UUID REFERENCES public.permissions(id) ON DELETE CASCADE,
+  PRIMARY KEY (role_id, permission_id)
+);
+
+-- ==========================================
+-- STEP 3: USER PROFILES
+-- ==========================================
+
+/*
+  ### 3.1 User & Identity (public.user_profiles)
+  Extends Supabase Auth with application-specific metadata.
+
+  | Column | Description |
+  |--------|-------------|
+  | id | References auth.users(id) |
+  | email | User's email (redundant for performance) |
+  | name | Display name / Nickname |
+  | beans_balance | Current JinBean balance |
+  | roles | Array of roles (e.g., 'BUYER', 'PROVIDER') |
+*/
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT,
+  name TEXT,
+  avatar TEXT,
+  phone TEXT,
+  node_id TEXT REFERENCES public.ref_codes(code_id),
+  beans_balance INTEGER DEFAULT 0,
+  verification_level INTEGER DEFAULT 1,
+  roles TEXT[] DEFAULT ARRAY['BUYER']::TEXT[],
+  permissions TEXT[] DEFAULT ARRAY[]::TEXT[],
+  provider_profile_id UUID,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.user_roles (
+  user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+  role_id UUID REFERENCES public.roles(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, role_id)
+);
+
+/*
+  ### 3.2 Transactional Ledger (public.bean_transactions)
+  Records every change to a user's JinBean balance.
+*/
+CREATE TABLE IF NOT EXISTS public.bean_transactions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+  amount INTEGER NOT NULL, -- Positive (Earned) or Negative (Spent)
+  type TEXT NOT NULL, -- 'EARNED', 'SPENT', 'REFUNDED'
+  reason TEXT,
+  related_order_id UUID,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- STEP 4: PROVIDER PROFILES
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.provider_profiles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+  business_name_zh TEXT NOT NULL,
+  business_name_en TEXT,
+  description_zh TEXT,
+  description_en TEXT,
+  identity provider_identity DEFAULT 'NEIGHBOR',
+  is_verified BOOLEAN DEFAULT FALSE,
+  verification_level INTEGER DEFAULT 1,
+  badges TEXT[],
+  stats JSONB DEFAULT '{"total_orders": 0, "average_rating": 0}'::jsonb,
+  insurance_summary_zh TEXT,
+  insurance_summary_en TEXT,
+  license_info TEXT,
+  location_address TEXT,
+  verification_status TEXT DEFAULT 'PENDING',
+  is_tax_registered BOOLEAN DEFAULT FALSE,
+  tax_number TEXT,
+  service_radius_km DECIMAL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- STEP 5: LISTINGS (Master-Detail)
+-- ==========================================
+
+/*
+  ### 5.1 Listings (public.listing_masters & public.listing_items)
+  A two-tier model supporting complex services with variants.
+  - Master: The overall service catalog entry.
+  - Item: The specific SKU or variant.
+*/
+CREATE TABLE IF NOT EXISTS public.listing_masters (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  provider_id UUID REFERENCES public.provider_profiles(id) ON DELETE CASCADE,
+  title_zh TEXT NOT NULL,
+  title_en TEXT,
+  description_zh TEXT,
+  description_en TEXT,
+  images TEXT[],
+  type listing_type NOT NULL,
+  category_id TEXT REFERENCES public.ref_codes(code_id),
+  node_id TEXT REFERENCES public.ref_codes(code_id),
+  tags TEXT[],
+  status TEXT DEFAULT 'PUBLISHED',
+  location_address TEXT,
+  rating DECIMAL DEFAULT 0,
+  review_count INTEGER DEFAULT 0,
+  is_promoted BOOLEAN DEFAULT FALSE,
+  preferred_transaction_model TEXT DEFAULT 'INSTANT_PAY',
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.listing_masters
+  ADD COLUMN location jsonb,
+  ADD COLUMN latitude double precision,
+  ADD COLUMN longitude double precision;
+
+
+CREATE TABLE IF NOT EXISTS public.listing_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  master_id UUID REFERENCES public.listing_masters(id) ON DELETE CASCADE,
+  name_zh TEXT NOT NULL,
+  name_en TEXT,
+  description_zh TEXT,
+  description_en TEXT,
+  images TEXT[],
+  price_amount INTEGER NOT NULL,
+  price_currency TEXT DEFAULT 'CAD',
+  price_unit TEXT,
+  deposit_amount INTEGER DEFAULT 0,
+  pricing_model TEXT DEFAULT 'FIXED',
+  status TEXT DEFAULT 'AVAILABLE',
+  sort_order INTEGER DEFAULT 0,
+  attributes JSONB DEFAULT '{}'::jsonb,
+  transaction_model_override TEXT,
+  parent_item_id UUID REFERENCES public.listing_items(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==========================================
+-- STEP 6: ORDERS
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.orders (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  master_id UUID REFERENCES public.listing_masters(id) ON DELETE SET NULL,
+  item_id UUID REFERENCES public.listing_items(id) ON DELETE SET NULL,
+  buyer_id UUID REFERENCES public.user_profiles(id),
+  provider_id UUID REFERENCES public.provider_profiles(id),
+  status order_status DEFAULT 'PENDING_PAYMENT',
+  amount_base INTEGER NOT NULL,
+  amount_tax INTEGER DEFAULT 0,
+  amount_fee_platform INTEGER DEFAULT 0,
+  amount_total INTEGER NOT NULL,
+  currency TEXT DEFAULT 'CAD',
+  snapshot JSONB NOT NULL,
+  payment_intent_id TEXT,
+  payment_status TEXT DEFAULT 'UNPAID',
+  actual_transaction_model TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add FK to bean_transactions after orders table exists
+ALTER TABLE public.bean_transactions 
+DROP CONSTRAINT IF EXISTS bean_transactions_related_order_id_fkey;
+
+ALTER TABLE public.bean_transactions 
+ADD CONSTRAINT bean_transactions_related_order_id_fkey 
+FOREIGN KEY (related_order_id) REFERENCES public.orders(id) ON DELETE SET NULL;
+
+-- FIX (v4.1): Ensure Foreign Key relationship exists for proper joining
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'orders_provider_id_fkey') THEN
+        ALTER TABLE public.orders 
+        ADD CONSTRAINT orders_provider_id_fkey 
+        FOREIGN KEY (provider_id) 
+        REFERENCES public.provider_profiles(id)
+        ON DELETE SET NULL;
+    END IF;
+END $$;
+
+-- ==========================================
+-- STEP 12: ROW LEVEL SECURITY (RLS)
+-- ==========================================
+
+/*
+  ### 12.1 Security (RLS Policies)
+  - Profiles: Publicly viewable for basic info.
+  - Listings: Viewable only if status = 'PUBLISHED'.
+  - Private Data: Restricted to the resource owner.
+*/
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.listing_masters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.listing_items ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies
+DROP POLICY IF EXISTS "Public profiles viewable" ON public.user_profiles;
+CREATE POLICY "Public profiles viewable" 
+ON public.user_profiles FOR SELECT USING (true);
+
+-- FIX (v4.1): Allow everyone to read provider profiles explicitly
+ALTER TABLE public.provider_profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.provider_profiles;
+CREATE POLICY "Public profiles are viewable by everyone" ON public.provider_profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Masters viewable if published" ON public.listing_masters;
+CREATE POLICY "Masters viewable if published" 
+ON public.listing_masters FOR SELECT USING (status = 'PUBLISHED');
+
+DROP POLICY IF EXISTS "Items viewable if master published" ON public.listing_items;
+CREATE POLICY "Items viewable if master published" 
+ON public.listing_items FOR SELECT 
+USING (
+    EXISTS (
+        SELECT 1 FROM public.listing_masters m 
+        WHERE m.id = public.listing_items.master_id 
+        AND m.status = 'PUBLISHED'
+    )
+);
+
+-- ==========================================
+-- STEP 13: TRIGGERS & AUTOMATION
+-- ==========================================
+
+/*
+  ### 13.1 Auto-Profile Sync
+  Automatically creates a user_profiles entry on signup.
+*/
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.user_profiles (id, email, name, node_id)
+  VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data->>'name', 'Neighbor'), 'NODE_LEES');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS set_timestamp_masters ON public.listing_masters;
+CREATE TRIGGER set_timestamp_masters 
+BEFORE UPDATE ON public.listing_masters 
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+DROP TRIGGER IF EXISTS set_timestamp_items ON public.listing_items;
+CREATE TRIGGER set_timestamp_items 
+BEFORE UPDATE ON public.listing_items 
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+DROP TRIGGER IF EXISTS set_timestamp_providers ON public.provider_profiles;
+CREATE TRIGGER set_timestamp_providers 
+BEFORE UPDATE ON public.provider_profiles 
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+DROP TRIGGER IF EXISTS set_timestamp_users ON public.user_profiles;
+CREATE TRIGGER set_timestamp_users 
+BEFORE UPDATE ON public.user_profiles 
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- ✅ SCHEMA DEPLOYMENT COMPLETE
+
+
+-- ==========================================
+-- MESSAGING SCHEMA MIGRATION v1.1
+-- ==========================================
+-- Run this migration to add real-time messaging support
+-- SAFE FOR RE-RUNS: Uses DROP IF EXISTS where needed
+
+-- ==========================================
+-- PART 1: TABLES (Run first)
+-- ==========================================
+DROP VIEW IF EXISTS conversation_unread_counts;
+DROP TRIGGER IF EXISTS on_new_message ON public.messages;
+DROP TABLE IF EXISTS public.messages;
+DROP TABLE IF EXISTS public.conversations;
+
+-- 1. Conversations Table
+CREATE TABLE IF NOT EXISTS public.conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    participant_a UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    participant_b UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    order_id UUID REFERENCES public.orders(id) ON DELETE SET NULL,
+    last_message_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(participant_a, participant_b)
+);
+
+-- 2. Messages Table
+CREATE TABLE IF NOT EXISTS public.messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id UUID NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
+    sender_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    message_type TEXT DEFAULT 'TEXT',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. Indexes
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON public.messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON public.messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_participants ON public.conversations(participant_a, participant_b);
+CREATE INDEX IF NOT EXISTS idx_conversations_last_message ON public.conversations(last_message_at DESC);
+
+-- ==========================================
+-- PART 2: RLS POLICIES (Run second)
+-- ==========================================
+
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if re-running
+DROP POLICY IF EXISTS "Users can view their conversations" ON public.conversations;
+DROP POLICY IF EXISTS "Users can create conversations they are part of" ON public.conversations;
+DROP POLICY IF EXISTS "Users can view messages in their conversations" ON public.messages;
+DROP POLICY IF EXISTS "Users can send messages to their conversations" ON public.messages;
+DROP POLICY IF EXISTS "Users can update read status of messages sent to them" ON public.messages;
+
+-- Conversations policies
+CREATE POLICY "Users can view their conversations"
+    ON public.conversations FOR SELECT
+    USING (auth.uid() = participant_a OR auth.uid() = participant_b);
+
+CREATE POLICY "Users can create conversations they are part of"
+    ON public.conversations FOR INSERT
+    WITH CHECK (auth.uid() = participant_a OR auth.uid() = participant_b);
+
+-- Messages policies
+CREATE POLICY "Users can view messages in their conversations"
+    ON public.messages FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.conversations c
+            WHERE c.id = conversation_id
+            AND (auth.uid() = c.participant_a OR auth.uid() = c.participant_b)
+        )
+    );
+
+CREATE POLICY "Users can send messages to their conversations"
+    ON public.messages FOR INSERT
+    WITH CHECK (
+        auth.uid() = sender_id AND
+        EXISTS (
+            SELECT 1 FROM public.conversations c
+            WHERE c.id = conversation_id
+            AND (auth.uid() = c.participant_a OR auth.uid() = c.participant_b)
+        )
+    );
+
+CREATE POLICY "Users can update read status of messages sent to them"
+    ON public.messages FOR UPDATE
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.conversations c
+            WHERE c.id = conversation_id
+            AND (auth.uid() = c.participant_a OR auth.uid() = c.participant_b)
+        )
+    );
+
+-- ==========================================
+-- PART 3: REALTIME & TRIGGERS (Run third)
+-- ==========================================
+
+-- Enable Realtime (may error if already added, that's OK)
+DO $$ 
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+EXCEPTION WHEN duplicate_object THEN
+    NULL; -- Already exists, ignore
+END $$;
+
+-- Trigger function
+CREATE OR REPLACE FUNCTION update_conversation_last_message()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE public.conversations
+    SET last_message_at = NEW.created_at
+    WHERE id = NEW.conversation_id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop and recreate trigger
+DROP TRIGGER IF EXISTS on_new_message ON public.messages;
+CREATE TRIGGER on_new_message
+    AFTER INSERT ON public.messages
+    FOR EACH ROW
+    EXECUTE FUNCTION update_conversation_last_message();
+
+-- ==========================================
+-- PART 4: VIEWS (Run last)
+-- ==========================================
+
+-- Drop and recreate view
+DROP VIEW IF EXISTS conversation_unread_counts;
+CREATE VIEW conversation_unread_counts AS
+SELECT 
+    c.id as conversation_id,
+    c.participant_a,
+    c.participant_b,
+    COUNT(CASE WHEN m.is_read = FALSE AND m.sender_id != c.participant_a THEN 1 END) as unread_for_a,
+    COUNT(CASE WHEN m.is_read = FALSE AND m.sender_id != c.participant_b THEN 1 END) as unread_for_b
+FROM public.conversations c
+LEFT JOIN public.messages m ON m.conversation_id = c.id
+GROUP BY c.id, c.participant_a, c.participant_b;
+
+

@@ -1,499 +1,503 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { 
-  ArrowLeft, MapPin, Clock, Star, Shield, Heart, Share2, 
-  ChevronLeft, ChevronRight, Calendar, Check, MessageCircle,
-  Phone, User, Award, ThumbsUp
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowLeft, MapPin, Star, Shield, Heart, Share2,
+  ChevronLeft, ChevronRight, Check, MessageCircle,
+  Calendar as CalendarIcon, Clock, Truck, Info, Sparkles, Award
 } from "lucide-react";
+import { format, addDays, differenceInDays } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { DateRange } from "react-day-picker";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-
-// Mock service data - would come from API in real app
-const mockService = {
-  id: 1,
-  title: "深度保洁 - 全屋清洁消毒",
-  provider: "李阿姨",
-  avatar: "https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?w=100&h=100&fit=crop&crop=face",
-  rating: 4.9,
-  reviewCount: 128,
-  distance: "1.2km",
-  nextAvailable: "今天 14:00",
-  verified: true,
-  completedOrders: 356,
-  responseTime: "5分钟内",
-  repeatRate: "92%",
-  description: "专业家政服务10年经验，细心负责。使用环保清洁剂，对宠物和儿童安全友好。服务包含厨房深度清洁、卫生间消毒、地板打蜡等。",
-  images: [
-    "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&h=600&fit=crop",
-    "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop",
-    "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=800&h=600&fit=crop",
-    "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?w=800&h=600&fit=crop",
-  ],
-  tiers: [
-    { 
-      name: "基础版", 
-      price: 80, 
-      description: "单次清洁 2小时",
-      features: ["日常清洁", "垃圾清理", "地面清洁", "表面除尘"],
-      popular: false
-    },
-    { 
-      name: "标准版", 
-      price: 150, 
-      description: "深度清洁 4小时",
-      features: ["全部基础版服务", "厨房深度清洁", "卫生间消毒", "窗户擦拭", "床品整理"],
-      popular: true
-    },
-    { 
-      name: "高级版", 
-      price: 280, 
-      description: "全屋+消毒 6小时",
-      features: ["全部标准版服务", "家电清洁", "全屋消毒", "收纳整理", "空调清洗", "冰箱清洁"],
-      popular: false
-    },
-  ],
-  userReviews: [
-    {
-      id: 1,
-      user: "王女士",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=50&h=50&fit=crop&crop=face",
-      rating: 5,
-      date: "2025-12-28",
-      content: "李阿姨非常专业，打扫得很干净！下次还会预约。",
-      images: ["https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=200&h=150&fit=crop"]
-    },
-    {
-      id: 2,
-      user: "张先生",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&h=50&fit=crop&crop=face",
-      rating: 5,
-      date: "2025-12-25",
-      content: "准时到达，态度很好，清洁效果超出预期！",
-      images: []
-    },
-  ],
-  availability: [
-    { date: "2026-01-02", slots: ["09:00", "14:00", "16:00"] },
-    { date: "2026-01-03", slots: ["09:00", "11:00", "14:00", "16:00"] },
-    { date: "2026-01-04", slots: ["09:00", "11:00"] },
-    { date: "2026-01-05", slots: ["14:00", "16:00", "18:00"] },
-    { date: "2026-01-06", slots: ["09:00", "11:00", "14:00"] },
-  ]
-};
+import { Slider } from "@/components/ui/slider";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useListingStore, getTranslation } from "@/stores/listingStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useConfigStore } from "@/stores/configStore";
+import { useProviderStore } from "@/stores/providerStore";
+import { useOrderStore } from "@/stores/orderStore";
+import { repositoryFactory } from "@/services/repositories/factory";
+import { ListingMaster, ListingItem } from "@/types/domain";
+import { toast } from "sonner";
+import { InstantPayFlow } from "@/components/flows/InstantPayFlow";
+import { QuoteRequestFlow } from "@/components/flows/QuoteRequestFlow";
+import GoodsDetailView from "@/components/Detail/GoodsDetailView";
+import TaskDetailView from "@/components/Detail/TaskDetailView";
 
 const ServiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { listings } = useListingStore();
+  const { getProviderById } = useProviderStore();
+  const { refCodes } = useConfigStore();
+  // const { addOrder } = useOrderStore() as any; 
+  const [master, setMaster] = useState<ListingMaster | null>(null);
+  const [items, setItems] = useState<ListingItem[]>([]);
+  const [selectedItem, setSelectedItem] = useState<ListingItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Interaction State
   const [currentImage, setCurrentImage] = useState(0);
-  const [selectedTier, setSelectedTier] = useState(1); // Default to popular tier
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isLiked, setIsLiked] = useState(false);
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [isInstantPayOpen, setIsInstantPayOpen] = useState(false);
+  const [isQuoteOpen, setIsQuoteOpen] = useState(false);
 
-  const service = mockService; // In real app, fetch by id
+  // Selection State (Generic)
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(),
+    to: addDays(new Date(), 1),
+  });
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [consultHours, setConsultHours] = useState(1);
 
-  const nextImage = () => {
-    setCurrentImage((prev) => (prev + 1) % service.images.length);
+  const provider = master ? getProviderById(master.providerId) : undefined;
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (!id) return;
+      setIsLoading(true);
+      try {
+        // Try to find in store first
+        let foundMaster = listings.find(l => l.id === id);
+
+        // If not in store, fetch from repository
+        if (!foundMaster) {
+          const listingRepo = repositoryFactory.getListingRepository();
+          foundMaster = await listingRepo.getById(id) || undefined;
+        }
+
+        if (foundMaster) {
+          setMaster(foundMaster);
+
+          // Fetch items for this master
+          const itemRepo = repositoryFactory.getListingItemRepository();
+          const foundItems = await itemRepo.getByMaster(foundMaster.id);
+          setItems(foundItems);
+
+          if (foundItems.length > 0) {
+            setSelectedItem(foundItems[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load listing detail:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id, listings]);
+
+
+  if (!master) return <div className="p-8 text-center text-muted-foreground">Listing not found...</div>;
+
+  // --- ROUTING LOGIC ---
+  if (master.type === 'GOODS' && selectedItem) {
+    return <GoodsDetailView
+      master={master}
+      item={selectedItem}
+      provider={provider}
+      onBuy={() => setIsInstantPayOpen(true)}
+      onChat={() => navigate('/chat')}
+    />;
+  }
+
+  if (master.type === 'TASK' && selectedItem) {
+    // For tasks, provider_id is the Author, so we pass it as author
+    return <TaskDetailView
+      master={master}
+      item={selectedItem}
+      author={provider}
+      onQuote={() => setIsQuoteOpen(true)}
+      onChat={() => navigate('/chat')}
+    />;
+  }
+
+  const nextImage = () => setCurrentImage((prev) => (prev + 1) % master.images.length);
+  const prevImage = () => setCurrentImage((prev) => (prev - 1 + master.images.length) % master.images.length);
+
+  const categoryInfo = refCodes.find(r => r.codeId === master.categoryId);
+
+  // --- Dynamic Pricing & Action Section ---
+  const calculateTotal = () => {
+    if (!selectedItem) return 0;
+    const basePrice = selectedItem.pricing.price.amount;
+
+    if (master.type === 'RENTAL' && dateRange?.from && dateRange?.to) {
+      const days = differenceInDays(dateRange.to, dateRange.from) || 1;
+      return (basePrice * days) + (selectedItem.pricing.deposit?.amount || 0);
+    }
+
+    if (master.type === 'CONSULTATION') {
+      return basePrice * consultHours;
+    }
+
+    return basePrice;
   };
 
-  const prevImage = () => {
-    setCurrentImage((prev) => (prev - 1 + service.images.length) % service.images.length);
+  const renderPricingCard = () => {
+    if (!selectedItem) return null;
+    const { pricing } = selectedItem;
+    const total = calculateTotal();
+    const formattedTotal = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(total / 100);
+
+    return (
+      <div className="flex flex-col">
+        <div className="flex items-baseline gap-1">
+          <span className="text-2xl font-black text-primary">{formattedTotal}</span>
+          {master.type !== 'GOODS' && (
+            <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Total</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+            ${pricing.price.amount / 100} / {pricing.unit || (master.type === 'RENTAL' ? 'day' : master.type === 'CONSULTATION' ? 'hr' : 'ea')}
+          </p>
+          {pricing.deposit && (
+            <Badge variant="outline" className="h-4 px-1.5 text-[9px] font-black border-orange-200 bg-orange-50 text-orange-600 uppercase">
+              Ref. Deposit ${pricing.deposit.amount / 100}
+            </Badge>
+          )}
+        </div>
+      </div>
+    );
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    if (date.toDateString() === today.toDateString()) return "今天";
-    if (date.toDateString() === tomorrow.toDateString()) return "明天";
-    return `${date.getMonth() + 1}/${date.getDate()}`;
+  const getActionButtonText = () => {
+    if (master.type === 'RENTAL') return 'Rent Now';
+    if (master.type === 'CONSULTATION') return 'Book Time';
+    return 'Book Now';
   };
 
-  const handleBook = () => {
-    if (!selectedDate || !selectedTime) return;
-    // In real app, this would submit the booking
-    console.log("Booking:", { tier: service.tiers[selectedTier], date: selectedDate, time: selectedTime });
-    setIsBookingOpen(false);
-    // Show success animation/toast
-  };
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      {/* Image Carousel */}
-      <div className="relative h-72 md:h-96 bg-muted">
+      <div className="relative h-80 md:h-[450px] bg-muted overflow-hidden">
         <img
-          src={service.images[currentImage]}
-          alt={service.title}
-          className="w-full h-full object-cover"
+          src={master.images[currentImage]}
+          alt={getTranslation(master, 'title')}
+          className="w-full h-full object-cover transition-transform duration-1000"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent" />
-        
-        {/* Navigation Header */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-black/20" />
+
+        {/* Glassmorphism Header */}
         <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-10">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-10 h-10 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-card transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-foreground" />
+          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-xl border border-white/30 hover:bg-white/40 transition-all">
+            <ArrowLeft className="w-5 h-5 text-white" />
           </button>
           <div className="flex gap-2">
-            <button 
-              onClick={() => setIsLiked(!isLiked)}
-              className="w-10 h-10 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-card transition-colors"
-            >
-              <Heart className={`w-5 h-5 ${isLiked ? 'fill-accent text-accent' : 'text-foreground'}`} />
+            <button onClick={() => setIsLiked(!isLiked)} className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-xl border border-white/30 hover:bg-white/40 transition-all">
+              <Heart className={`w-5 h-5 ${isLiked ? 'fill-accent text-accent' : 'text-white'}`} />
             </button>
-            <button className="w-10 h-10 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-card transition-colors">
-              <Share2 className="w-5 h-5 text-foreground" />
+            <button className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-xl border border-white/30 hover:bg-white/40 transition-all">
+              <Share2 className="w-5 h-5 text-white" />
             </button>
           </div>
         </div>
 
-        {/* Carousel Controls */}
-        <button
-          onClick={prevImage}
-          className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-card transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5 text-foreground" />
-        </button>
-        <button
-          onClick={nextImage}
-          className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-card/80 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-card transition-colors"
-        >
-          <ChevronRight className="w-5 h-5 text-foreground" />
-        </button>
-
-        {/* Image Indicators */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-          {service.images.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentImage(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                index === currentImage ? 'w-6 bg-primary' : 'bg-card/60'
-              }`}
+        {/* Carousel Indicators (Meituan Style) */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 bg-black/30 backdrop-blur-md rounded-full border border-white/10">
+          {master.images.map((_, i) => (
+            <div
+              key={i}
+              className={`h-1.5 rounded-full transition-all duration-300 ${i === currentImage ? 'w-4 bg-primary' : 'w-1.5 bg-white/50'}`}
             />
           ))}
         </div>
       </div>
 
-      {/* Content */}
+      {/* 2. Main Content */}
       <div className="container max-w-4xl px-4 -mt-6 relative z-10">
-        {/* Main Card */}
-        <div className="card-warm p-6 mb-6">
-          {/* Provider Info */}
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative">
-              <img
-                src={service.avatar}
-                alt={service.provider}
-                className="w-16 h-16 rounded-full object-cover border-3 border-card shadow-lg"
-              />
-              {service.verified && (
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-card">
-                  <Shield className="w-3.5 h-3.5 text-primary-foreground" />
+        <div className="card-warm p-6 mb-6 shadow-glow border-none relative overflow-hidden">
+          {/* Decorative Glow */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl" />
+
+          {/* Provider Profile (Neighbor Trust Section) */}
+          {provider && (
+            <div className="flex items-center gap-4 mb-6">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-3xl overflow-hidden border-2 border-white shadow-card">
+                  <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${provider.id}`} alt="Provider" className="w-full h-full object-cover bg-muted" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary rounded-xl flex items-center justify-center border-2 border-white shadow-sm">
+                  <Shield className="w-3 h-3 text-white" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="text-xl font-black text-foreground tracking-tight">{provider.businessNameEn || provider.businessNameZh}</h2>
+                  <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black tracking-tighter uppercase px-2 py-0">
+                    {provider.identity === 'MERCHANT' ? 'Merchant' : 'Neighbor'}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 px-2 py-1 bg-secondary/10 rounded-lg">
+                    <Star className="w-3 h-3 fill-secondary text-secondary" />
+                    <span className="text-xs font-black text-foreground">{provider.stats.averageRating}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
+                    <Award className="w-3 h-3 text-primary" />
+                    <span>{provider.stats.reviewCount} Vouched</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
+                    <MapPin className="w-3 h-3" />
+                    <span>{provider.location.address?.split(',')[0]}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/chat')}
+                className="w-10 h-10 rounded-2xl bg-primary/5 flex items-center justify-center hover:bg-primary/10 transition-colors border border-primary/10"
+              >
+                <MessageCircle className="w-5 h-5 text-primary" />
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 mb-2">
+            <h1 className="text-2xl font-black text-foreground tracking-tight leading-none">{getTranslation(master, 'title')}</h1>
+          </div>
+
+          {categoryInfo && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/5 text-primary text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
+              <Sparkles className="w-3 h-3" />
+              {getTranslation(categoryInfo, 'name')}
+            </div>
+          )}
+
+          <p className="text-sm font-medium text-muted-foreground leading-relaxed mb-6">
+            {getTranslation(master, 'description')}
+          </p>
+
+          <div className="flex flex-wrap gap-2 mb-8">
+            {master.tags.map(tag => (
+              <span key={tag} className="px-3 py-1.5 bg-muted/50 rounded-xl text-[10px] font-black text-muted-foreground flex items-center gap-1 uppercase tracking-tighter">
+                <Check className="w-3 h-3 text-primary" /> {tag}
+              </span>
+            ))}
+          </div>
+
+          {/* Trust Indicators (Insurance/License) - Meituan inspired professional transparency */}
+          {(provider?.insuranceSummaryEn || provider?.licenseInfo) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
+              {provider?.insuranceSummaryEn && (
+                <div className="flex items-start gap-3 p-4 rounded-3xl bg-emerald-50/40 border border-emerald-100/50 group hover:bg-emerald-50 transition-all duration-300">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center shrink-0 shadow-sm shadow-emerald-200/50">
+                    <Shield className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-0.5">Verified Insurance</p>
+                    <p className="text-sm font-bold text-emerald-900/80 leading-tight">{provider.insuranceSummaryEn}</p>
+                  </div>
+                </div>
+              )}
+              {provider?.licenseInfo && (
+                <div className="flex items-start gap-3 p-4 rounded-3xl bg-blue-50/40 border border-blue-100/50 group hover:bg-blue-50 transition-all duration-300">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-100 flex items-center justify-center shrink-0 shadow-sm shadow-blue-200/50">
+                    <Award className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">Professional License</p>
+                    <p className="text-sm font-bold text-blue-900/80 leading-tight">{provider.licenseInfo}</p>
+                  </div>
                 </div>
               )}
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-xl font-bold text-foreground">{service.provider}</h2>
-                {service.verified && (
-                  <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded-full">
-                    验证邻居
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Star className="w-4 h-4 fill-secondary text-secondary" />
-                  <span className="font-semibold text-foreground">{service.rating}</span>
-                  <span>({service.reviewCount}评价)</span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-4 h-4" />
-                  {service.distance}
-                </span>
-              </div>
+          )}
+        </div>
+
+        {/* Multi-tier SKU Picker (Meituan Style Flow) */}
+        {items.length > 0 && (
+          <div className="mt-8 border-t border-border/10 pt-8">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
+                <div className="w-1.5 h-4 bg-primary rounded-full" />
+                Select Option
+              </h3>
             </div>
-            <button className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center hover:bg-secondary/20 transition-colors">
-              <MessageCircle className="w-5 h-5 text-secondary" />
-            </button>
-          </div>
-
-          {/* Title */}
-          <h1 className="text-2xl font-extrabold text-foreground mb-3">{service.title}</h1>
-          
-          {/* Tags */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            <span className="tag-time">
-              <Clock className="w-3.5 h-3.5" />
-              最早 {service.nextAvailable}
-            </span>
-            <span className="px-3 py-1 bg-muted rounded-full text-xs font-medium text-muted-foreground flex items-center gap-1">
-              <Award className="w-3.5 h-3.5" />
-              {service.completedOrders}单完成
-            </span>
-            <span className="px-3 py-1 bg-muted rounded-full text-xs font-medium text-muted-foreground flex items-center gap-1">
-              <ThumbsUp className="w-3.5 h-3.5" />
-              {service.repeatRate}复购率
-            </span>
-          </div>
-
-          {/* Description */}
-          <p className="text-muted-foreground leading-relaxed">{service.description}</p>
-        </div>
-
-        {/* Provider Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="card-warm p-4 text-center">
-            <p className="text-2xl font-extrabold text-primary">{service.completedOrders}</p>
-            <p className="text-xs text-muted-foreground">已完成订单</p>
-          </div>
-          <div className="card-warm p-4 text-center">
-            <p className="text-2xl font-extrabold text-secondary">{service.responseTime}</p>
-            <p className="text-xs text-muted-foreground">平均响应</p>
-          </div>
-          <div className="card-warm p-4 text-center">
-            <p className="text-2xl font-extrabold text-accent">{service.repeatRate}</p>
-            <p className="text-xs text-muted-foreground">复购率</p>
-          </div>
-        </div>
-
-        {/* Tier Selection */}
-        <div className="mb-6">
-          <h3 className="text-lg font-bold text-foreground mb-4">选择服务套餐</h3>
-          <div className="space-y-4">
-            {service.tiers.map((tier, index) => (
-              <button
-                key={tier.name}
-                onClick={() => setSelectedTier(index)}
-                className={`w-full p-5 rounded-2xl text-left transition-all duration-300 relative overflow-hidden ${
-                  selectedTier === index
-                    ? 'bg-primary/10 border-2 border-primary shadow-lg'
-                    : 'bg-card border-2 border-transparent hover:border-muted-foreground/20'
-                }`}
-              >
-                {tier.popular && (
-                  <span className="absolute top-0 right-0 px-3 py-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-bl-xl">
-                    最受欢迎
-                  </span>
-                )}
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h4 className="text-lg font-bold text-foreground">{tier.name}</h4>
-                    <p className="text-sm text-muted-foreground">{tier.description}</p>
+            <div className="grid gap-3">
+              {items.map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedItem(item)}
+                  className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group relative overflow-hidden ${selectedItem?.id === item.id ? 'border-primary bg-primary/5 shadow-warm' : 'border-transparent bg-muted/30 hover:bg-muted/50'}`}
+                >
+                  {selectedItem?.id === item.id && (
+                    <div className="absolute top-0 right-0 w-8 h-8 bg-primary rounded-bl-2xl flex items-center justify-center">
+                      <Check className="w-4 h-4 text-white" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${selectedItem?.id === item.id ? 'bg-primary text-white shadow-warm' : 'bg-muted text-muted-foreground'}`}>
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className={`font-black text-sm transition-colors uppercase tracking-tight ${selectedItem?.id === item.id ? 'text-primary' : 'group-hover:text-primary'}`}>{getTranslation(item, 'name')}</p>
+                      <p className="text-[11px] font-bold text-muted-foreground/80 lowercase leading-tight">{getTranslation(item, 'description')}</p>
+                    </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-extrabold text-primary">${tier.price}</p>
-                    <p className="text-xs text-muted-foreground">/次</p>
+                    <p className="font-black text-primary text-lg tracking-tighter">${item.pricing.price.amount / 100}</p>
+                    <p className="text-[9px] font-black text-muted-foreground uppercase opacity-50">/{item.pricing.unit || 'hr'}</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {tier.features.map((feature) => (
-                    <span
-                      key={feature}
-                      className="flex items-center gap-1 text-xs text-muted-foreground"
-                    >
-                      <Check className="w-3.5 h-3.5 text-secondary" />
-                      {feature}
-                    </span>
-                  ))}
-                </div>
-                {selectedTier === index && (
-                  <div className="absolute top-5 left-5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                    <Check className="w-3 h-3 text-primary-foreground" />
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Availability Calendar */}
-        <div className="mb-6">
-          <h3 className="text-lg font-bold text-foreground mb-4">选择预约时间</h3>
-          <div className="card-warm p-5">
-            {/* Date Selection */}
-            <div className="flex gap-3 mb-4 overflow-x-auto pb-2">
-              {service.availability.map((day) => (
-                <button
-                  key={day.date}
-                  onClick={() => {
-                    setSelectedDate(day.date);
-                    setSelectedTime(null);
-                  }}
-                  className={`flex-shrink-0 w-20 py-3 px-4 rounded-xl text-center transition-all ${
-                    selectedDate === day.date
-                      ? 'bg-primary text-primary-foreground shadow-lg'
-                      : 'bg-muted hover:bg-muted/80 text-foreground'
-                  }`}
-                >
-                  <p className="text-sm font-bold">{formatDate(day.date)}</p>
-                  <p className="text-xs opacity-80">{day.slots.length}个时段</p>
-                </button>
               ))}
             </div>
+          </div>
+        )}
 
-            {/* Time Slots */}
-            {selectedDate && (
-              <div className="animate-fade-in">
-                <p className="text-sm text-muted-foreground mb-3">可用时段</p>
-                <div className="flex flex-wrap gap-2">
-                  {service.availability
-                    .find((d) => d.date === selectedDate)
-                    ?.slots.map((slot) => (
-                      <button
-                        key={slot}
-                        onClick={() => setSelectedTime(slot)}
-                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                          selectedTime === slot
-                            ? 'bg-secondary text-secondary-foreground shadow-lg'
-                            : 'bg-muted hover:bg-muted/80 text-foreground'
-                        }`}
-                      >
-                        {slot}
-                      </button>
-                    ))}
-                </div>
+
+        {/* 3. Type Specific Controls (Dynamic Experience) */}
+        {master.type === 'RENTAL' && (
+          <div className="card-warm p-6 mb-6 shadow-sm border-none bg-orange-50/30">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-xs uppercase tracking-widest flex items-center gap-2 text-foreground">
+                <CalendarIcon className="w-4 h-4 text-primary" /> Rental Period
+              </h3>
+              {dateRange?.from && dateRange?.to && (
+                <span className="text-[10px] font-black text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-tighter">
+                  {differenceInDays(dateRange.to, dateRange.from) || 1} Days Total
+                </span>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-black h-16 rounded-2xl border-none bg-white shadow-sm hover:bg-white/80 transition-all px-4",
+                      !dateRange && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-3 h-5 w-5 text-primary" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <div className="flex flex-col">
+                          <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest leading-none">Selected Dates</span>
+                          <span className="font-black text-foreground text-sm tracking-tight">
+                            {format(dateRange.from, "LLL dd")} - {format(dateRange.to, "LLL dd, y")}
+                          </span>
+                        </div>
+                      ) : (
+                        format(dateRange.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span className="uppercase tracking-widest text-xs">Pick a range</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 border-none shadow-elevated rounded-3xl overflow-hidden" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={1}
+                    disabled={(date) => date < new Date() || date < addDays(new Date(), -1)}
+                    className="p-3"
+                  />
+                </PopoverContent>
+              </Popover>
+              <div className="flex items-center gap-1.5 mt-2 ml-1 px-3 py-2 bg-orange-100/50 rounded-xl border border-orange-200/50">
+                <Info className="w-3 h-3 text-orange-600" />
+                <p className="text-[10px] font-bold text-orange-700 leading-tight">
+                  Security deposit is required and fully refundable after return.
+                </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {master.type === 'CONSULTATION' && (
+          <div className="card-warm p-6 mb-6 shadow-sm border-none bg-blue-50/30">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-black text-xs uppercase tracking-widest flex items-center gap-2 text-foreground">
+                <Clock className="w-4 h-4 text-primary" /> Duration
+              </h3>
+              <span className="text-sm font-black text-primary bg-primary/10 px-3 py-1 rounded-full uppercase">
+                {consultHours} Hours
+              </span>
+            </div>
+            <div className="px-2">
+              <Slider
+                defaultValue={[consultHours]}
+                max={8}
+                min={1}
+                step={0.5}
+                onValueChange={(vals) => setConsultHours(vals[0])}
+                className="mb-6"
+              />
+              <div className="flex justify-between text-[9px] font-black text-muted-foreground uppercase opacity-50 px-1">
+                <span>1hr</span>
+                <span>2hr</span>
+                <span>4hr</span>
+                <span>8hr</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Fixed Bottom Bar (Premium Meituan Sticky) */}
+      <div className="fixed bottom-0 left-0 right-0 glass-sticky-bar px-4 py-5 z-50 safe-area-bottom">
+        <div className="container max-w-4xl flex items-center justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <button className="flex flex-col items-center gap-1 group">
+              <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-primary/5 transition-all">
+                <MessageCircle className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+              </div>
+              <span className="text-[10px] font-black text-muted-foreground uppercase group-hover:text-primary">Chat</span>
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-between gap-4">
+            {renderPricingCard()}
+            {selectedItem?.pricing.model === 'QUOTE' || selectedItem?.pricing.model === 'VISIT_FEE' ? (
+              <Button
+                onClick={() => setIsQuoteOpen(true)}
+                className="btn-action h-14 flex-1 max-w-[200px] text-sm font-black uppercase tracking-widest shadow-elevated rounded-2xl bg-blue-600 hover:bg-blue-700"
+              >
+                {selectedItem.pricing.model === 'VISIT_FEE' ? 'Book Visit' : 'Request Quote'}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => setIsInstantPayOpen(true)}
+                className="btn-action h-14 flex-1 max-w-[200px] text-sm font-black uppercase tracking-widest shadow-elevated rounded-2xl"
+              >
+                {getActionButtonText()}
+              </Button>
             )}
           </div>
         </div>
-
-        {/* Reviews */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-foreground">用户评价</h3>
-            <button className="text-sm font-semibold text-primary hover:underline">
-              查看全部 ({service.userReviews.length}) →
-            </button>
-          </div>
-          <div className="space-y-4">
-            {service.userReviews.map((review) => (
-              <div key={review.id} className="card-warm p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <img
-                    src={review.avatar}
-                    alt={review.user}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground">{review.user}</p>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: review.rating }).map((_, i) => (
-                        <Star key={i} className="w-3 h-3 fill-secondary text-secondary" />
-                      ))}
-                      <span className="text-xs text-muted-foreground ml-2">{review.date}</span>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-muted-foreground text-sm mb-3">{review.content}</p>
-                {review.images.length > 0 && (
-                  <div className="flex gap-2">
-                    {review.images.map((img, i) => (
-                      <img
-                        key={i}
-                        src={img}
-                        alt="Review"
-                        className="w-20 h-20 rounded-xl object-cover"
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
-      {/* Fixed Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-lg border-t border-border p-4 z-50">
-        <div className="container max-w-4xl flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <button className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-              <MessageCircle className="w-5 h-5" />
-              <span className="text-xs">咨询</span>
-            </button>
-            <button className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-              <Phone className="w-5 h-5" />
-              <span className="text-xs">电话</span>
-            </button>
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">{service.tiers[selectedTier].name}</p>
-                <p className="text-2xl font-extrabold text-primary">
-                  ${service.tiers[selectedTier].price}
-                  <span className="text-sm font-medium text-muted-foreground">/次</span>
-                </p>
-              </div>
-              <Button 
-                onClick={() => setIsBookingOpen(true)}
-                className="btn-action py-3 px-8 text-base"
-                disabled={!selectedDate || !selectedTime}
-              >
-                <span className="mr-2">🤝</span>
-                {selectedDate && selectedTime ? "确认预约" : "Hang Tight"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Instant Pay Flow Wizard */}
+      {selectedItem && (
+        <InstantPayFlow
+          isOpen={isInstantPayOpen}
+          onClose={() => setIsInstantPayOpen(false)}
+          master={master}
+          item={selectedItem}
+          dateRange={dateRange}
+          consultHours={consultHours}
+        />
+      )}
 
-      {/* Booking Confirmation Dialog */}
-      <Dialog open={isBookingOpen} onOpenChange={setIsBookingOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">确认预约</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="flex items-center gap-4 p-4 bg-muted rounded-xl">
-              <img
-                src={service.avatar}
-                alt={service.provider}
-                className="w-12 h-12 rounded-full object-cover"
-              />
-              <div>
-                <p className="font-bold text-foreground">{service.provider}</p>
-                <p className="text-sm text-muted-foreground">{service.title}</p>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">服务套餐</span>
-                <span className="font-semibold text-foreground">{service.tiers[selectedTier].name}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">预约日期</span>
-                <span className="font-semibold text-foreground">{selectedDate}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">预约时间</span>
-                <span className="font-semibold text-foreground">{selectedTime}</span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">服务费用</span>
-                <span className="text-xl font-extrabold text-primary">${service.tiers[selectedTier].price}</span>
-              </div>
-            </div>
-
-            <Button onClick={handleBook} className="w-full btn-action py-3 text-base">
-              <span className="mr-2">🤝</span>
-              确认并支付
-            </Button>
-            
-            <p className="text-xs text-center text-muted-foreground">
-              点击确认即表示您同意我们的服务条款
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Quote Request Flow */}
+      {selectedItem && (
+        <QuoteRequestFlow
+          isOpen={isQuoteOpen}
+          onClose={() => setIsQuoteOpen(false)}
+          master={master}
+          item={selectedItem}
+        />
+      )}
     </div>
   );
 };

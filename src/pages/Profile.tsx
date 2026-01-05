@@ -1,249 +1,199 @@
 import { useState } from "react";
-import { 
-  ChevronRight, 
-  Heart, 
-  MapPin, 
-  Star, 
-  Wallet, 
-  FileText, 
-  Shield, 
-  Settings,
-  BadgeCheck,
-  Store,
-  Clock,
-  TrendingUp
+import { useNavigate } from "react-router-dom";
+import {
+    User, Settings, Heart, MapPin, Package, Store, Shield,
+    ChevronRight, LogOut, Bell, CreditCard, Star, Layout
 } from "lucide-react";
-import BottomNav from "@/components/BottomNav";
-
-type ViewMode = "buyer" | "provider";
-
-interface MenuItem {
-  icon: React.ReactNode;
-  label: string;
-  sublabel?: string;
-  badge?: string;
-  path?: string;
-}
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { useAuthStore } from "@/stores/authStore";
+import { useListingStore } from "@/stores/listingStore";
+import { Button } from "@/components/ui/button";
 
 const Profile = () => {
-  const [viewMode, setViewMode] = useState<ViewMode>("buyer");
+    const navigate = useNavigate();
+    const { currentUser, logout } = useAuthStore();
+    const { listings } = useListingStore();
+    const [activeTab, setActiveTab] = useState<'buyer' | 'provider'>('buyer');
 
-  const user = {
-    name: "小李",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face",
-    phone: "138****8888",
-    isVerified: true,
-    verifyLevel: 1, // L1: 实名认证
-    earnings: 235,
-    orders: 12,
-    rating: 4.9,
-  };
+    if (!currentUser) {
+        navigate('/login');
+        return null;
+    }
 
-  const buyerMenus: MenuItem[] = [
-    { icon: <Clock className="w-5 h-5" />, label: "我的订单", sublabel: "查看全部订单" },
-    { icon: <Heart className="w-5 h-5" />, label: "收藏服务", sublabel: "12个收藏" },
-    { icon: <MapPin className="w-5 h-5" />, label: "地址管理", sublabel: "3个地址" },
-    { icon: <Star className="w-5 h-5" />, label: "我的评价", sublabel: "6条评价" },
-  ];
+    const isProvider = currentUser.roles?.includes('PROVIDER');
 
-  const providerMenus: MenuItem[] = [
-    { icon: <FileText className="w-5 h-5" />, label: "我的发布", sublabel: "3个服务", badge: "1待审核" },
-    { icon: <Clock className="w-5 h-5" />, label: "订单管理", sublabel: "2个进行中" },
-    { icon: <Wallet className="w-5 h-5" />, label: "收益提现", sublabel: `$${user.earnings}可提现` },
-    { icon: <TrendingUp className="w-5 h-5" />, label: "数据统计", sublabel: "本月12单" },
-  ];
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+    };
 
-  const commonMenus: MenuItem[] = [
-    { icon: <Shield className="w-5 h-5" />, label: "实名认证", sublabel: user.verifyLevel === 0 ? "未认证" : user.verifyLevel === 1 ? "L1 已实名" : "L2 资质认证" },
-    { icon: <Settings className="w-5 h-5" />, label: "设置", sublabel: "账号与隐私" },
-  ];
+    const menuItems = {
+        buyer: [
+            { icon: Heart, label: 'My Favorites', path: '/favorites', badge: null },
+            { icon: Package, label: 'My Orders', path: '/orders', badge: null },
+            { icon: Layout, label: 'My Posts', path: '/my-listings', badge: null },
+            { icon: MapPin, label: 'Addresses', path: '/addresses', badge: null },
+            { icon: CreditCard, label: 'JinBean Wallet', path: '/wallet', badge: currentUser.beansBalance },
+            { icon: Bell, label: 'Notifications', path: '/notifications', badge: 3 },
+        ],
+        provider: [
+            { icon: Store, label: 'Dashboard', path: '/provider/dashboard', badge: null },
+            { icon: Layout, label: 'Manage Listings', path: '/my-listings', badge: null },
+            { icon: Package, label: 'Sales Orders', path: '/provider/orders', badge: 2 },
+            { icon: Star, label: 'Reviews', path: '/provider/reviews', badge: null },
+            { icon: CreditCard, label: 'Revenue Report', path: '/provider/dashboard', badge: null },
+        ]
+    };
 
-  const currentMenus = viewMode === "buyer" ? buyerMenus : providerMenus;
+    return (
+        <div className="min-h-screen bg-background">
+            <Header />
 
-  return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="bg-gradient-hero pt-12 pb-8 px-4">
-        <div className="container">
-          {/* View Mode Switch */}
-          <div className="flex justify-end mb-4">
-            <div className="flex items-center gap-1 p-1 bg-white/10 backdrop-blur-sm rounded-xl">
-              <button
-                onClick={() => setViewMode("buyer")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  viewMode === "buyer"
-                    ? "bg-white text-primary"
-                    : "text-white/80"
-                }`}
-              >
-                买家模式
-              </button>
-              <button
-                onClick={() => setViewMode("provider")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  viewMode === "provider"
-                    ? "bg-white text-primary"
-                    : "text-white/80"
-                }`}
-              >
-                服务者模式
-              </button>
-            </div>
-          </div>
+            <div className="container max-w-2xl py-8 px-4">
+                {/* User Card */}
+                <div className="card-warm p-6 mb-6">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="relative">
+                            <img
+                                src={currentUser.avatar}
+                                alt={currentUser.name}
+                                className="w-20 h-20 rounded-full object-cover border-4 border-card shadow-lg"
+                            />
+                            {currentUser.isVerifiedProvider && (
+                                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary rounded-full flex items-center justify-center border-2 border-card">
+                                    <Shield className="w-4 h-4 text-primary-foreground" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex-1">
+                            <h2 className="text-2xl font-extrabold mb-1">{currentUser.name}</h2>
+                            <p className="text-sm text-muted-foreground">{currentUser.email}</p>
+                            {isProvider && (
+                                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 rounded-full">
+                                    <Store className="w-3.5 h-3.5 text-primary" />
+                                    <span className="text-xs font-bold text-primary">服务商</span>
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => navigate('/settings')}
+                            className="w-10 h-10 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
+                        >
+                            <Settings className="w-5 h-5 text-muted-foreground" />
+                        </button>
+                    </div>
 
-          {/* User Info */}
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-20 h-20 rounded-full object-cover border-4 border-white/20"
-              />
-              {user.isVerified && (
-                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-lg">
-                  <BadgeCheck className="w-5 h-5 text-primary" />
+                    {/* Beans Balance */}
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-2xl p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                                <span className="text-2xl">🫘</span>
+                            </div>
+                            <div>
+                                <p className="text-xs text-amber-700/70 font-medium">金豆余额</p>
+                                <p className="text-2xl font-extrabold text-amber-800">{currentUser.beansBalance}</p>
+                            </div>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                        >
+                            充值
+                        </Button>
+                    </div>
                 </div>
-              )}
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-xl font-bold text-white">{user.name}</h1>
-                <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-xs font-medium">
-                  L{user.verifyLevel} 认证
-                </span>
-              </div>
-              <p className="text-white/80 text-sm">{user.phone}</p>
-              {viewMode === "provider" && (
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-white text-white" />
-                    <span className="text-white font-medium">{user.rating}</span>
-                  </div>
-                  <span className="text-white/60">|</span>
-                  <span className="text-white/80 text-sm">{user.orders}单完成</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
 
-      <div className="container -mt-4">
-        {/* Quick Stats for Provider */}
-        {viewMode === "provider" && (
-          <div className="card-warm p-4 mb-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary">${user.earnings}</p>
-                <p className="text-xs text-muted-foreground">可提现</p>
-              </div>
-              <div className="text-center border-x border-border">
-                <p className="text-2xl font-bold text-foreground">{user.orders}</p>
-                <p className="text-xs text-muted-foreground">本月订单</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-secondary">{user.rating}</p>
-                <p className="text-xs text-muted-foreground">服务评分</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Become Provider Banner for Buyer */}
-        {viewMode === "buyer" && user.verifyLevel < 2 && (
-          <div className="card-warm p-4 mb-4 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Store className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-foreground">成为服务者</p>
-              <p className="text-sm text-muted-foreground">分享技能，赚取收入</p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </div>
-        )}
-
-        {/* Menu List */}
-        <div className="card-warm divide-y divide-border">
-          {currentMenus.map((item) => (
-            <button
-              key={item.label}
-              className="w-full flex items-center gap-4 p-4 hover:bg-muted/30 transition-colors"
-            >
-              <div className="text-primary">{item.icon}</div>
-              <div className="flex-1 text-left">
-                <p className="font-medium text-foreground">{item.label}</p>
-                {item.sublabel && (
-                  <p className="text-sm text-muted-foreground">{item.sublabel}</p>
+                {/* Role Toggle (if user is provider) */}
+                {isProvider && (
+                    <div className="flex gap-2 mb-6 p-1 bg-muted rounded-full">
+                        <button
+                            onClick={() => setActiveTab('buyer')}
+                            className={`flex-1 py-2.5 px-4 rounded-full font-semibold text-sm transition-all ${activeTab === 'buyer'
+                                ? 'bg-card shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                        >
+                            <User className="w-4 h-4 inline mr-2" />
+                            买家中心
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('provider')}
+                            className={`flex-1 py-2.5 px-4 rounded-full font-semibold text-sm transition-all ${activeTab === 'provider'
+                                ? 'bg-card shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                        >
+                            <Store className="w-4 h-4 inline mr-2" />
+                            服务商中心
+                        </button>
+                    </div>
                 )}
-              </div>
-              {item.badge && (
-                <span className="px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs font-medium">
-                  {item.badge}
-                </span>
-              )}
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </button>
-          ))}
-        </div>
 
-        {/* Common Settings */}
-        <div className="card-warm divide-y divide-border mt-4">
-          {commonMenus.map((item) => (
-            <button
-              key={item.label}
-              className="w-full flex items-center gap-4 p-4 hover:bg-muted/30 transition-colors"
-            >
-              <div className="text-muted-foreground">{item.icon}</div>
-              <div className="flex-1 text-left">
-                <p className="font-medium text-foreground">{item.label}</p>
-                {item.sublabel && (
-                  <p className="text-sm text-muted-foreground">{item.sublabel}</p>
+                {/* Menu List */}
+                <div className="space-y-2 mb-6">
+                    {menuItems[activeTab].map((item) => {
+                        const Icon = item.icon;
+                        return (
+                            <button
+                                key={item.path}
+                                onClick={() => navigate(item.path)}
+                                className="w-full card-warm p-4 flex items-center gap-4 hover:shadow-md transition-shadow group"
+                            >
+                                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                                    <Icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                </div>
+                                <span className="flex-1 text-left font-semibold">{item.label}</span>
+                                {item.badge !== null && item.badge > 0 && (
+                                    <span className="px-2.5 py-0.5 bg-accent text-accent-foreground text-xs font-bold rounded-full">
+                                        {item.badge}
+                                    </span>
+                                )}
+                                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Switch to Provider (if not provider) */}
+                {!isProvider && (
+                    <div className="card-warm p-6 mb-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+                        <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                                <Store className="w-6 h-6 text-primary-foreground" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-bold text-lg mb-1">成为服务商</h3>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                    发布你的专业技能，开启副业收入
+                                </p>
+                                <Button
+                                    onClick={() => navigate('/become-provider')}
+                                    className="btn-action w-full"
+                                >
+                                    立即申请认证
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
                 )}
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </button>
-          ))}
+
+                {/* Logout */}
+                <button
+                    onClick={handleLogout}
+                    className="w-full card-warm p-4 flex items-center gap-4 hover:shadow-md transition-shadow text-red-600 group"
+                >
+                    <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors">
+                        <LogOut className="w-5 h-5" />
+                    </div>
+                    <span className="flex-1 text-left font-semibold">退出登录</span>
+                </button>
+            </div>
+
+            <Footer />
         </div>
-
-        {/* KYC Progress */}
-        {user.verifyLevel < 2 && (
-          <div className="card-warm p-4 mt-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="font-bold text-foreground">认证进度</p>
-              <span className="text-sm text-primary">{user.verifyLevel === 1 ? "1/2" : "0/2"} 完成</span>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${user.verifyLevel >= 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                  {user.verifyLevel >= 1 ? "✓" : "1"}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">L1 基础实名</p>
-                  <p className="text-xs text-muted-foreground">手机号 + 身份验证</p>
-                </div>
-                {user.verifyLevel >= 1 && (
-                  <span className="text-xs text-primary font-medium">已完成</span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${user.verifyLevel >= 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                  {user.verifyLevel >= 2 ? "✓" : "2"}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">L2 资质认证</p>
-                  <p className="text-xs text-muted-foreground">营业执照 / 专业证书</p>
-                </div>
-                <button className="text-xs text-primary font-medium">去认证 →</button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <BottomNav />
-    </div>
-  );
+    );
 };
 
 export default Profile;
