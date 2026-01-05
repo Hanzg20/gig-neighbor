@@ -1,13 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+/* Mobile Safe Area Support */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Mobile-Optimized Touch Targets */
+@media (max-width: 768px) {
+
+  button,
+  a {
+    min-height: 44px;
+    /* iOS recommended touch target */
+  }
+}
 
 @layer base {
   :root {
     /* HangHand Brand Colors */
-    --background: 145 20% 98%;
+    --background: 0 0% 100%;
     --foreground: 160 30% 15%;
 
     --card: 0 0% 100%;
@@ -46,7 +65,7 @@
     --gradient-warm: linear-gradient(135deg, hsl(145 25% 98%) 0%, hsl(145 30% 95%) 100%);
     --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(145 20% 99%) 100%);
     --gradient-orange: linear-gradient(135deg, hsl(17 100% 60%) 0%, hsl(30 100% 55%) 100%);
-    
+
     --shadow-soft: 0 4px 20px -4px hsl(160 30% 15% / 0.08);
     --shadow-card: 0 8px 32px -8px hsl(160 30% 15% / 0.12);
     --shadow-elevated: 0 16px 48px -12px hsl(160 30% 15% / 0.18);
@@ -109,10 +128,15 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Nunito', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-bold tracking-tight;
   }
 }
@@ -122,6 +146,31 @@
     @apply bg-card rounded-3xl border border-border/50;
     background: var(--gradient-card);
     box-shadow: var(--shadow-card);
+  }
+
+  /* Glassmorphism Effects */
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-xl border border-white/20;
+    box-shadow: 
+      0 8px 32px 0 rgba(31, 38, 135, 0.15),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .glass-header {
+    @apply bg-card/80 backdrop-blur-xl border-b border-border/50;
+    box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.05);
+  }
+
+  .glass-modal {
+    @apply bg-card/95 backdrop-blur-2xl border border-white/30;
+    box-shadow: 
+      0 20px 60px -12px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.3);
+  }
+
+  .glass-sticky-bar {
+    @apply bg-card/90 backdrop-blur-xl border-t border-border/50;
+    box-shadow: 0 -4px 20px -4px rgba(0, 0, 0, 0.1);
   }
 
   .btn-primary {
@@ -221,21 +270,91 @@
   .animate-success {
     animation: success 0.6s ease-out;
   }
+
+  .animate-bounce-gentle {
+    animation: bounce-gentle 2s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .animate-scale-hover {
+    transition: transform 0.2s ease-out;
+  }
+
+  .animate-scale-hover:hover {
+    transform: scale(1.02);
+  }
+
+  .animate-lift {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .animate-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-elevated);
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes shake {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-5deg); }
-  75% { transform: rotate(5deg); }
+
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-5deg);
+  }
+
+  75% {
+    transform: rotate(5deg);
+  }
 }
 
 @keyframes success {
-  0% { transform: scale(0.8); opacity: 0; }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes bounce-gentle {
+  0%, 100% { 
+    transform: translateY(0); 
+  }
+  50% { 
+    transform: translateY(-5px); 
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 20px -5px hsl(161 68% 30% / 0.3);
+  }
+  50% { 
+    box-shadow: 0 0 30px -5px hsl(161 68% 30% / 0.5);
+  }
 }

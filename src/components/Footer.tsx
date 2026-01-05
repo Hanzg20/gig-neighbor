@@ -13,41 +13,41 @@ const Footer = () => {
               </div>
               <div>
                 <h3 className="text-lg font-extrabold text-gradient">HangHand</h3>
-                <p className="text-xs text-muted-foreground">恒帮</p>
+                <p className="text-xs text-muted-foreground">Neighborly</p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              邻里互助，恒心相帮。让每一次服务都充满温度。
+              Neighborly help, heartfelt support. Making every service feel warm and trusted.
             </p>
           </div>
 
           {/* Links */}
           <div>
-            <h4 className="font-bold text-foreground mb-4">服务</h4>
+            <h4 className="font-bold text-foreground mb-4">Services</h4>
             <ul className="space-y-2">
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">家政保洁</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">维修服务</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">搬家运输</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">跑腿代购</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Cleaning</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Repair</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Moving</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Errands</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold text-foreground mb-4">关于</h4>
+            <h4 className="font-bold text-foreground mb-4">About</h4>
             <ul className="space-y-2">
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">关于我们</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">成为服务者</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">帮助中心</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">联系我们</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">About Us</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Become a Pro</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Help Center</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Contact Us</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold text-foreground mb-4">法律</h4>
+            <h4 className="font-bold text-foreground mb-4">Legal</h4>
             <ul className="space-y-2">
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">用户协议</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">隐私政策</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">服务条款</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">User Agreement</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Privacy Policy</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Terms of Service</a></li>
             </ul>
           </div>
         </div>

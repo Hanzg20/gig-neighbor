@@ -46,7 +46,7 @@ const ServiceCard = ({
   };
 
   return (
-    <div 
+    <div
       onClick={handleCardClick}
       className="card-warm overflow-hidden group animate-fade-in hover:shadow-elevated transition-all duration-500 cursor-pointer"
     >
@@ -58,7 +58,7 @@ const ServiceCard = ({
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/30 to-transparent" />
-        
+
         {/* Floating badges */}
         <div className="absolute top-3 left-3 flex gap-2">
           <span className="tag-distance">
@@ -68,21 +68,21 @@ const ServiceCard = ({
           {urgent && (
             <span className="tag-urgent">
               <Clock className="w-3.5 h-3.5" />
-              急单
+              Urgent
             </span>
           )}
         </div>
 
         {/* Like button */}
-        <button 
+        <button
           onClick={(e) => {
             e.stopPropagation();
             setIsLiked(!isLiked);
           }}
           className="absolute top-3 right-3 w-9 h-9 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center shadow-warm hover:scale-110 transition-all"
         >
-          <Heart 
-            className={`w-5 h-5 transition-all ${isLiked ? 'fill-accent text-accent animate-scale-in' : 'text-muted-foreground'}`} 
+          <Heart
+            className={`w-5 h-5 transition-all ${isLiked ? 'fill-accent text-accent animate-scale-in' : 'text-muted-foreground'}`}
           />
         </button>
       </div>
@@ -95,7 +95,7 @@ const ServiceCard = ({
             <img
               src={avatar}
               alt={provider}
-              className="w-10 h-10 rounded-full object-cover border-2 border-card"
+              className="w-10 h-10 rounded-full object-cover border-2 border-card shadow-sm"
             />
             {verified && (
               <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
@@ -107,7 +107,7 @@ const ServiceCard = ({
             <div className="flex items-center gap-2">
               <p className="font-bold text-foreground truncate">{provider}</p>
               {verified && (
-                <span className="text-xs text-primary font-medium">验证邻居</span>
+                <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider">Vouched</span>
               )}
             </div>
             <div className="flex items-center gap-1">
@@ -119,15 +119,15 @@ const ServiceCard = ({
         </div>
 
         {/* Title */}
-        <h3 className="font-bold text-lg text-foreground mb-3 line-clamp-2 group-hover:text-primary transition-colors">
+        <h3 className="font-bold text-lg text-foreground mb-3 line-clamp-2 group-hover:text-primary transition-colors leading-tight">
           {title}
         </h3>
 
-        {/* Next Available */}
+        {/* Available Status */}
         <div className="flex items-center gap-2 mb-4">
           <span className="tag-time">
             <Clock className="w-3.5 h-3.5" />
-            最早 {nextAvailable}
+            Avail. {nextAvailable}
           </span>
         </div>
 
@@ -137,11 +137,10 @@ const ServiceCard = ({
             <button
               key={tier.name}
               onClick={() => setSelectedTier(index)}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition-all duration-300 ${
-                selectedTier === index
+              className={`flex-1 py-1.5 px-2 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all duration-300 ${selectedTier === index
                   ? 'bg-primary text-primary-foreground shadow-warm'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
+                }`}
             >
               {tier.name}
             </button>
@@ -151,17 +150,16 @@ const ServiceCard = ({
         {/* Price & CTA */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-muted-foreground mb-0.5">
+            <p className="text-[10px] font-medium text-muted-foreground mb-0.5 leading-none">
               {tiers[selectedTier].description}
             </p>
-            <p className="text-2xl font-extrabold text-primary">
-              ${tiers[selectedTier].price}
-              <span className="text-sm font-medium text-muted-foreground">/次</span>
-            </p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-black text-primary">${tiers[selectedTier].price}</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">/ start</span>
+            </div>
           </div>
-          <button className="btn-action py-2.5 px-5 text-sm flex items-center gap-2">
+          <button className="btn-action p-3 text-sm flex items-center justify-center rounded-2xl aspect-square">
             <span>🤝</span>
-            Hang Tight
           </button>
         </div>
       </div>
