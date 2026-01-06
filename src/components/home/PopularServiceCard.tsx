@@ -113,7 +113,7 @@ export function PopularServiceCard({
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-foreground">{providerName}</span>
           <VerificationBadge
-            level={verificationLevel}
+            level={verificationLevel as 1 | 2 | 3 | 4 | 5}
             nodeName=""
             endorsementCount={0}
           />

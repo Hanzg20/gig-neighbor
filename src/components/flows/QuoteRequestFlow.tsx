@@ -50,7 +50,8 @@ export const QuoteRequestFlow = ({ isOpen, onClose, master, item }: QuoteRequest
             itemId: item.id,
             buyerId: currentUser.id,
             providerId: master.providerId,
-            status: initialStatus as any, // Using 'any' to bypass strict check against old types if not fully propagated, but it matches new OrderStatus
+            providerUserId: master.providerId,
+            status: initialStatus as any,
             paymentStatus: 'UNPAID' as const,
             currency: 'CAD',
             pricing: {

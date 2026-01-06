@@ -65,7 +65,6 @@ export class SupabaseRefCodeRepository implements IRefCodeRepository {
             enName: row.en_name,
             extraData: row.extra_data || {},
             sortOrder: row.sort_order,
-            isActive: row.is_active
         };
     }
 }

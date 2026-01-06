@@ -76,12 +76,12 @@ const PostGoodWizard = ({ category, onBack }: PostGoodWizardProps) => {
             masterId: newListingId,
             titleEn: 'Standard',
             titleZh: '标准包',
-            nameZh: '标准包', // Added for type compliance
-            descriptionZh: description, // Added for type compliance
-            status: 'AVAILABLE' as const, // Added for type compliance
+            nameZh: '标准包',
+            descriptionZh: description,
+            status: 'AVAILABLE' as const,
             pricing: {
                 model: 'FIXED' as const,
-                price: { amount: parseFloat(price) * 100, currency: 'CAD' },
+                price: { amount: parseFloat(price) * 100, currency: 'CAD', formatted: `$${parseFloat(price).toFixed(2)}` },
                 unit: 'item'
             },
             attributes: {
