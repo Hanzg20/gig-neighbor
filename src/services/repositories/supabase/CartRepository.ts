@@ -21,15 +21,11 @@ export class SupabaseCartRepository implements ICartRepository {
 
         return (data || []).map(row => ({
             id: row.id,
+            userId: userId,
             itemId: row.item_id,
             masterId: row.listing_items?.master_id || '',
-            name: row.listing_items?.name_en || row.listing_items?.name_zh || '',
-            price: {
-                amount: row.listing_items?.price_amount || 0,
-                currency: row.listing_items?.price_currency || 'CAD'
-            },
             quantity: row.quantity,
-            image: row.listing_items?.images?.[0]
+            addedAt: row.created_at || new Date().toISOString(),
         }));
     }
 
@@ -66,15 +62,11 @@ export class SupabaseCartRepository implements ICartRepository {
 
         return {
             id: data.id,
+            userId: userId,
             itemId: data.item_id,
             masterId: data.listing_items?.master_id || masterId,
-            name: data.listing_items?.name_en || data.listing_items?.name_zh || '',
-            price: {
-                amount: data.listing_items?.price_amount || 0,
-                currency: data.listing_items?.price_currency || 'CAD'
-            },
             quantity: data.quantity,
-            image: data.listing_items?.images?.[0]
+            addedAt: data.created_at || new Date().toISOString(),
         };
     }
 

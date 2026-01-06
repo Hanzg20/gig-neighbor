@@ -13,16 +13,20 @@ export class SupabaseProviderRepository implements IProviderRepository {
             descriptionEn: row.description_en,
             identity: row.identity as ProviderIdentity,
             isVerified: row.is_verified,
+            verificationLevel: row.verification_level || 1,
             badges: row.badges || [],
             stats: {
                 totalOrders: row.stats?.total_orders || 0,
                 averageRating: row.stats?.average_rating || 0,
-                totalIncome: row.stats?.total_income || 0
+                totalIncome: row.stats?.total_income || 0,
+                reviewCount: row.stats?.review_count || 0,
             },
             location: row.location_address ? {
+                lat: row.location_lat || 0,
+                lng: row.location_lng || 0,
                 address: row.location_address,
-                radius: row.service_radius_km
-            } : undefined,
+                radiusKm: row.service_radius_km || 5,
+            } : { lat: 0, lng: 0, address: '', radiusKm: 5 },
             createdAt: row.created_at,
             updatedAt: row.updated_at
         };
@@ -44,7 +48,7 @@ export class SupabaseProviderRepository implements IProviderRepository {
                 total_income: profile.stats.totalIncome
             } : undefined,
             location_address: profile.location?.address,
-            service_radius_km: profile.location?.radius
+            service_radius_km: profile.location?.radiusKm
         };
     }
 

@@ -77,8 +77,10 @@ export const useStore = create<AppState>((set, get) => ({
             descriptionEn: '10 years of professional housekeeping experience. Eco-friendly cleaning agents.',
             images: ['https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&h=600&fit=crop'],
             categoryId: '1020100',
+            nodeId: 'lees-ave',
             tags: ['保洁', '家政', '消毒'],
             location: {
+                fullAddress: '幸福小区, Shanghai, SH 200000',
                 street: '幸福小区',
                 city: 'Shanghai',
                 state: 'SH',
@@ -102,8 +104,9 @@ export const useStore = create<AppState>((set, get) => ({
             descriptionEn: 'Top-tier camera bodies and master-grade lenses. Perfect for weddings and events.',
             images: ['https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&h=600&fit=crop'],
             categoryId: '1040000',
+            nodeId: 'lees-ave',
             tags: ['摄影', '相机', '数码'],
-            location: { street: '科技园', city: 'Shanghai', state: 'SH', zip: '200000' },
+            location: { fullAddress: '科技园, Shanghai, SH 200000', street: '科技园', city: 'Shanghai', state: 'SH', zip: '200000' },
             status: 'PUBLISHED',
             rating: 5.0,
             reviewCount: 42,
@@ -196,6 +199,7 @@ export const useStore = create<AppState>((set, get) => ({
             descriptionEn: 'Focus on community cleaning for 5 years, also a cooking expert.',
             identity: 'NEIGHBOR',
             isVerified: true,
+            verificationLevel: 2,
             badges: ['实名认证', '健康证'],
             stats: {
                 totalOrders: 128,
@@ -218,6 +222,7 @@ export const useStore = create<AppState>((set, get) => ({
             descriptionEn: 'Professional photography equipment rental, delivery available throughout Shanghai.',
             identity: 'MERCHANT',
             isVerified: true,
+            verificationLevel: 3,
             badges: ['企业认证', '缴纳保证金'],
             stats: {
                 totalOrders: 2050,
@@ -240,6 +245,7 @@ export const useStore = create<AppState>((set, get) => ({
             descriptionEn: 'Practicing lawyer, providing professional legal consultation services.',
             identity: 'MERCHANT',
             isVerified: true,
+            verificationLevel: 4,
             badges: ['执业证', '律协认证'],
             stats: {
                 totalOrders: 45,
@@ -361,6 +367,7 @@ export const useStore = create<AppState>((set, get) => ({
             itemId,
             buyerId: currentUser.id,
             providerId: master.providerId,
+            providerUserId: provider.userId,
             status: 'PENDING_PAYMENT',
             paymentStatus: 'UNPAID',
             pricing,

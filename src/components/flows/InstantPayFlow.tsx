@@ -76,7 +76,8 @@ export const InstantPayFlow = ({ isOpen, onClose, master, item, dateRange, consu
             itemId: item.id,
             buyerId: currentUser.id,
             providerId: master.providerId,
-            status: 'IN_PROGRESS' as const, // For Instant Pay, we assume immediate acceptance/start for pilot
+            providerUserId: master.providerId, // Same as providerId for pilot
+            status: 'IN_PROGRESS' as const,
             paymentStatus: 'PAID' as const,
             currency: 'CAD',
             pricing: {

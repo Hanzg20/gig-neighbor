@@ -17,16 +17,18 @@ export class SupabaseListingItemRepository implements IListingItemRepository {
                 price: {
                     amount: row.price_amount,
                     currency: row.price_currency,
+                    formatted: `$${(row.price_amount / 100).toFixed(2)}`,
                 },
                 unit: row.price_unit,
                 deposit: row.deposit_amount ? {
                     amount: row.deposit_amount,
-                    currency: row.price_currency
+                    currency: row.price_currency,
+                    formatted: `$${(row.deposit_amount / 100).toFixed(2)}`,
                 } : undefined
             },
             status: row.status as any,
             attributes: row.attributes || {},
-            parentItemId: row.parent_item_id,
+            parentId: row.parent_item_id,
             createdAt: row.created_at,
             updatedAt: row.updated_at
         };
@@ -42,7 +44,7 @@ export class SupabaseListingItemRepository implements IListingItemRepository {
             images: item.images,
             status: item.status,
             attributes: item.attributes,
-            parent_item_id: item.parentItemId
+            parent_item_id: item.parentId
         };
 
         if (item.pricing) {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FileText, Send, CheckCircle2, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Order } from "@/types/domain";
+import { Order } from "@/types/orders";
 
 interface QuoteRequestFlowProps {
     order: Order;
@@ -20,7 +20,7 @@ export const QuoteRequestFlow = ({ order, onQuoteSubmit, onQuoteAccept }: QuoteR
     const [loading, setLoading] = useState(false);
 
     const isProvider = true; // TODO: Check from auth store
-    const hasQuote = order.pricing?.customQuote; // Check if quote exists
+    const hasQuote = (order.metadata as any)?.customQuote; // Check if quote exists
 
     const handleSubmitQuote = async () => {
         if (!quoteAmount || parseFloat(quoteAmount) <= 0) {
@@ -127,7 +127,7 @@ export const QuoteRequestFlow = ({ order, onQuoteSubmit, onQuoteAccept }: QuoteR
 
     // Buyer View: Review Quote
     if (!isProvider && hasQuote && order.status === 'PENDING_CONFIRMATION') {
-        const quoteAmountDisplay = (order.pricing.customQuote! / 100).toFixed(2);
+        const quoteAmountDisplay = ((order.metadata as any)?.customQuote / 100).toFixed(2);
 
         return (
             <div className="card-warm p-6 space-y-4">
@@ -184,7 +184,7 @@ export const QuoteRequestFlow = ({ order, onQuoteSubmit, onQuoteAccept }: QuoteR
     }
 
     // Accepted Quote - Waiting for Service
-    if (order.status === 'ACCEPTED' || order.status === 'IN_PROGRESS') {
+    if (order.status === 'IN_PROGRESS') {
         return (
             <div className="card-warm p-6 space-y-4">
                 <div className="flex items-center gap-3">
@@ -202,7 +202,7 @@ export const QuoteRequestFlow = ({ order, onQuoteSubmit, onQuoteAccept }: QuoteR
                 <div className="bg-muted/30 rounded-xl p-4">
                     <div className="flex justify-between text-sm mb-2">
                         <span className="text-muted-foreground">预授权金额</span>
-                        <span className="font-bold">${(order.pricing.total.amount / 100).toFixed(2)}</span>
+                        <span className="font-bold">${(order.pricing?.total?.amount || 0 / 100).toFixed(2)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-3">
                         {isProvider
