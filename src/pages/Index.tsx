@@ -20,7 +20,7 @@ import { ListingMaster } from "@/types/domain";
 import { ListingCard } from "@/components/ListingCard";
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
 import { repositoryFactory } from "@/services/repositories/factory";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 
 const Index = () => {
@@ -97,7 +97,7 @@ const Index = () => {
     .slice(0, 10);
 
   // Section animation variants
-  const sectionVariants = {
+  const sectionVariants: Variants = {
     hidden: { opacity: 0, y: 30 },
     visible: {
       opacity: 1,
@@ -109,7 +109,7 @@ const Index = () => {
     }
   };
 
-  const cardContainerVariants = {
+  const cardContainerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -120,7 +120,7 @@ const Index = () => {
     }
   };
 
-  const cardVariants = {
+  const cardVariants: Variants = {
     hidden: { opacity: 0, y: 20, scale: 0.95 },
     visible: {
       opacity: 1,
@@ -138,68 +138,67 @@ const Index = () => {
       <Header />
 
       {/* Hero Section with Glassmorphism */}
-      <div className="relative bg-gradient-to-br from-white/80 to-white/60 backdrop-blur-lg border-b border-white/20 sticky top-16 z-40 shadow-lg">
-        {/* Decorative background elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-gradient-to-tr from-accent/10 to-primary/10 rounded-full blur-3xl" />
+      {/* Hero Section - Compact & Active */}
+      <div className="relative bg-background border-b border-border shadow-sm overflow-hidden">
+        {/* Animated Background - Subtle & Alive */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '4s' }} />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }} />
         </div>
 
-        <div className="container relative py-6 md:py-8">
-          {/* Location Selector with enhanced styling */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-6"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <MapPin className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-muted-foreground">{t.currentCommunity}</span>
-            </div>
-            <LocationSelector />
-          </motion.div>
+        <div className="container relative py-4">
+          <div className="flex flex-col gap-4">
 
-          {/* Enhanced Search Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: 0.1, duration: 0.5 }}
-            className="max-w-3xl mx-auto mb-6"
-          >
-            <div className="relative">
+            {/* Top Row: Location & Stats (Compact) */}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <LocationSelector />
+              </div>
+              <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground bg-secondary/30 px-3 py-1 rounded-full">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                {t.liveUpdates}
+              </div>
+            </motion.div>
+
+            {/* Middle Row: Search (Prominent but concise) */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              className="w-full max-w-4xl mx-auto relative z-10"
+            >
               <SearchBar />
-              {/* Floating badge */}
-              <div className="absolute -top-3 right-4 z-10">
-                <Badge variant="default" className="bg-gradient-to-r from-primary to-primary/80 text-white border-0 shadow-md">
-                  <Sparkles className="w-3 h-3 mr-1" />
+              {/* Floating AI badge - Closer integration */}
+              <div className="absolute -top-3 right-0 md:-right-4">
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-primary/10 to-accent/10 text-primary border-primary/20 shadow-sm backdrop-blur-md">
+                  <Sparkles className="w-3 h-3 mr-1 text-primary" />
                   {t.aiSearch}
                 </Badge>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
 
-          {/* Quick Search Tags with animation */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="mb-6"
-          >
-            <QuickSearchTags />
-          </motion.div>
-
-          {/* Industry Icons with enhanced hover effects */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="pb-2"
-          >
-            <IndustryIconGrid />
-          </motion.div>
+            {/* Bottom Row: Tags & Icons (Integrated) */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="space-y-4"
+            >
+              <div className="flex justify-center">
+                <QuickSearchTags />
+              </div>
+              <div className="pt-2">
+                <IndustryIconGrid />
+              </div>
+            </motion.div>
+          </div>
         </div>
       </div>
+
 
       {/* Community Pulse Section */}
       <div className="bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 py-6 border-b">
