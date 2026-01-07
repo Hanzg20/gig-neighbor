@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User as UserIcon, Lock, ArrowRight, Mail, Eye, EyeOff, ShieldCheck, RefreshCw } from "lucide-react";
+import { User as UserIcon, Lock, ArrowRight, Mail, Eye, EyeOff, ShieldCheck, RefreshCw, KeyRound, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
@@ -19,6 +19,9 @@ const Login = () => {
     const [loginMode, setLoginMode] = useState<'PASSWORD' | 'OTP'>('PASSWORD');
     const [otpStep, setOtpStep] = useState<'SEND' | 'VERIFY'>('SEND');
     const [timer, setTimer] = useState(0);
+    const [rememberMe, setRememberMe] = useState(false);
+    const [emailError, setEmailError] = useState<string | null>(null);
+    const [passwordError, setPasswordError] = useState<string | null>(null);
     const { currentUser } = useAuthStore();
 
     // Auto-navigate when user is loaded
@@ -28,18 +31,69 @@ const Login = () => {
         }
     }, [currentUser, navigate]);
 
+    // Email validation
+    const validateEmail = (email: string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email) {
+            setEmailError("请输入邮箱地址");
+            return false;
+        }
+        if (!emailRegex.test(email)) {
+            setEmailError("请输入有效的邮箱地址");
+            return false;
+        }
+        setEmailError(null);
+        return true;
+    };
+
+    // Timer countdown for OTP resend
+    useEffect(() => {
+        if (timer > 0) {
+            const countdown = setTimeout(() => setTimer(timer - 1), 1000);
+            return () => clearTimeout(countdown);
+        }
+    }, [timer]);
+
+    // Load remembered email on mount
+    useEffect(() => {
+        const rememberedEmail = localStorage.getItem('remembered_email');
+        if (rememberedEmail) {
+            setEmail(rememberedEmail);
+            setRememberMe(true);
+        }
+    }, []);
+
     const handlePasswordLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
         setError(null);
+        setPasswordError(null);
+
+        // Validate inputs
+        if (!validateEmail(email)) {
+            return;
+        }
+
+        if (!password) {
+            setPasswordError("请输入密码");
+            return;
+        }
+
+        setLoading(true);
 
         try {
             const { data, error: loginError } = await supabase.auth.signInWithPassword({
-                email,
+                email: email.trim(),
                 password,
             });
 
             if (loginError) throw loginError;
+
+            // Save email for next time if remember me is checked
+            if (rememberMe) {
+                localStorage.setItem('remembered_email', email);
+            } else {
+                localStorage.removeItem('remembered_email');
+            }
 
             toast.success("正在进入社区...");
             // Direct call to speed up, but useEffect will handle the actual navigation
@@ -47,6 +101,7 @@ const Login = () => {
         } catch (err: any) {
             const msg = err.message === 'Invalid login credentials' ? '邮箱或密码错误' :
                 err.message === 'Email not confirmed' ? '邮箱未验证，请检查收件箱' :
+                err.message.includes('rate_limit') ? '登录尝试次数过多，请稍后再试' :
                     "登录失败，请稍后重试";
             setError(msg);
             toast.error(msg);
@@ -58,22 +113,30 @@ const Login = () => {
 
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
         setError(null);
+
+        // Validate email
+        if (!validateEmail(email)) {
+            return;
+        }
+
+        setLoading(true);
 
         try {
             const { error: otpError } = await supabase.auth.signInWithOtp({
-                email,
+                email: email.trim(),
                 options: { emailRedirectTo: window.location.origin }
             });
 
             if (otpError) throw otpError;
             setOtpStep('VERIFY');
             setTimer(60);
-            toast.success("验证码已发送");
+            toast.success("验证码已发送到您的邮箱");
         } catch (err: any) {
-            setError(err.message || "发送失败");
-            toast.error("验证码发送失败");
+            const msg = err.message.includes('rate_limit') ? '发送太频繁，请稍后再试' :
+                "发送失败，请检查邮箱地址";
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -81,10 +144,17 @@ const Login = () => {
 
     const handleVerifyOtp = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
+
+        if (otpCode.length !== 6) {
+            setError("请输入6位验证码");
+            return;
+        }
+
         setLoading(true);
         try {
             const { error: verifyError } = await supabase.auth.verifyOtp({
-                email,
+                email: email.trim(),
                 token: otpCode,
                 type: 'magiclink'
             });
@@ -93,8 +163,10 @@ const Login = () => {
             await useAuthStore.getState().initializeAuth();
             navigate("/");
         } catch (err: any) {
-            setError("验证码错误");
-            toast.error("验证码无效");
+            const msg = err.message.includes('expired') ? '验证码已过期，请重新获取' :
+                "验证码无效，请重新输入";
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -157,10 +229,17 @@ const Login = () => {
                                     type="email"
                                     required
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    onChange={(e) => {
+                                        setEmail(e.target.value);
+                                        setEmailError(null);
+                                    }}
+                                    onBlur={() => validateEmail(email)}
                                     placeholder="电子邮箱"
-                                    className="w-full pl-12 pr-4 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none"
+                                    className={`w-full pl-12 pr-4 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none ${
+                                        emailError ? 'border-red-500' : ''
+                                    }`}
                                 />
+                                {emailError && <p className="text-xs text-red-600 mt-1">{emailError}</p>}
                             </div>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -168,23 +247,58 @@ const Login = () => {
                                     type={showPassword ? "text" : "password"}
                                     required
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        setPasswordError(null);
+                                    }}
                                     placeholder="请输入密码"
-                                    className="w-full pl-12 pr-12 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none"
+                                    className={`w-full pl-12 pr-12 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none ${
+                                        passwordError ? 'border-red-500' : ''
+                                    }`}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                                 >
                                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                 </button>
+                                {passwordError && <p className="text-xs text-red-600 mt-1">{passwordError}</p>}
                             </div>
 
-                            {error && <p className="text-xs text-red-600 px-1">⚠️ {error}</p>}
+                            {/* Remember Me and Forgot Password */}
+                            <div className="flex items-center justify-between">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={rememberMe}
+                                        onChange={(e) => setRememberMe(e.target.checked)}
+                                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <span className="text-sm text-muted-foreground">记住我</span>
+                                </label>
+                                <Link
+                                    to="/forgot-password"
+                                    className="text-sm text-primary hover:underline font-medium"
+                                >
+                                    忘记密码？
+                                </Link>
+                            </div>
+
+                            {error && (
+                                <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-100 flex items-start gap-2 animate-in fade-in duration-200">
+                                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <span>{error}</span>
+                                </div>
+                            )}
 
                             <Button type="submit" className="w-full py-6 font-bold text-lg rounded-xl btn-action" disabled={loading}>
-                                {loading ? '登录中...' : '立即登录'}
+                                {loading ? (
+                                    <div className="flex items-center justify-center gap-2">
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        登录中...
+                                    </div>
+                                ) : '立即登录'}
                             </Button>
                         </form>
                     ) : (
@@ -197,17 +311,38 @@ const Login = () => {
                                             type="email"
                                             required
                                             value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
+                                            onChange={(e) => {
+                                                setEmail(e.target.value);
+                                                setEmailError(null);
+                                            }}
+                                            onBlur={() => validateEmail(email)}
                                             placeholder="电子邮箱"
-                                            className="w-full pl-12 pr-4 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none"
+                                            className={`w-full pl-12 pr-4 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none ${
+                                                emailError ? 'border-red-500' : ''
+                                            }`}
                                         />
+                                        {emailError && <p className="text-xs text-red-600 mt-1">{emailError}</p>}
                                     </div>
-                                    <Button type="submit" className="w-full py-6 font-bold text-lg rounded-xl btn-action" disabled={loading}>
-                                        {loading ? '发送中...' : '发送验证码'}
+                                    <Button type="submit" className="w-full py-6 font-bold text-lg rounded-xl btn-action" disabled={loading || timer > 0}>
+                                        {loading ? (
+                                            <div className="flex items-center justify-center gap-2">
+                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                发送中...
+                                            </div>
+                                        ) : timer > 0 ? (
+                                            `重新发送 (${timer}秒)`
+                                        ) : (
+                                            '发送验证码'
+                                        )}
                                     </Button>
                                 </form>
                             ) : (
                                 <form onSubmit={handleVerifyOtp} className="space-y-4">
+                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                                        <p className="text-sm text-blue-700">
+                                            📧 验证码已发送至 <strong>{email}</strong>
+                                        </p>
+                                    </div>
                                     <div className="relative">
                                         <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                                         <input
@@ -218,21 +353,50 @@ const Login = () => {
                                             onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                                             placeholder="6位验证码"
                                             className="w-full pl-12 pr-4 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background tracking-[0.5em] font-mono text-center text-xl outline-none"
+                                            autoFocus
                                         />
                                     </div>
                                     <Button type="submit" className="w-full py-6 font-bold text-lg rounded-xl btn-action" disabled={loading || otpCode.length !== 6}>
-                                        {loading ? '验证中...' : '确认登录'}
+                                        {loading ? (
+                                            <div className="flex items-center justify-center gap-2">
+                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                验证中...
+                                            </div>
+                                        ) : '确认登录'}
                                     </Button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setOtpStep('SEND')}
-                                        className="w-full text-center text-sm text-muted-foreground hover:text-primary"
-                                    >
-                                        返回修改邮箱
-                                    </button>
+                                    <div className="flex items-center justify-between">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setOtpStep('SEND');
+                                                setOtpCode('');
+                                                setError(null);
+                                            }}
+                                            className="text-sm text-muted-foreground hover:text-primary"
+                                        >
+                                            ← 返回修改邮箱
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (timer === 0) {
+                                                    handleSendOtp(new Event('submit') as any);
+                                                }
+                                            }}
+                                            disabled={timer > 0}
+                                            className={`text-sm font-medium ${timer > 0 ? 'text-muted-foreground cursor-not-allowed' : 'text-primary hover:underline'}`}
+                                        >
+                                            {timer > 0 ? `重新发送(${timer}s)` : '重新发送'}
+                                        </button>
+                                    </div>
                                 </form>
                             )}
-                            {error && <p className="text-xs text-red-600 px-1">⚠️ {error}</p>}
+                            {error && (
+                                <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-100 flex items-start gap-2 animate-in fade-in duration-200">
+                                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <span>{error}</span>
+                                </div>
+                            )}
                         </div>
                     )}
 

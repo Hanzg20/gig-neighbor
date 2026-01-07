@@ -8,32 +8,69 @@
 ---
 
 ## Table of Contents
-1. [Product Overview](#1-product-overview)
-2. [Market Analysis](#2-market-analysis)
-3. [Business Domains](#3-business-domains)
-4. [Technical Architecture](#4-technical-architecture)
-5. [Implementation Roadmap](#5-implementation-roadmap)
-6. [Rental Business Logic](#6-rental-business-logic)
-7. [Professional Services: Legal & Real Estate](#7-professional-services-legal--real-estate)
-8. [Trust & Safety](#8-trust--safety)
-9. [Shopping Cart & Checkout Logic](#9-shopping-cart--checkout-logic)
-10. [Order Management Standards](#10-order-management-standards)
-11. [Community Review & Trust Design](#11-community-review--trust-design)
-12. [Buyer Journey & Neighborhood P2P Logic](#12-buyer-journey--neighborhood-p2p-logic)
-13. [Marketplace Quick-Post Flow (Sell/Rent)](#13-marketplace-quick-post-flow-sellrent)
-14. [Seller Workbench (Helper Dashboard)](#14-seller-workbench-helper-dashboard)
-15. [JinBean Points System (Engagement)](#15-jinbean-points-system-engagement)
-16. [Platform Login & Auth Flow](#16-platform-login--auth-flow)
-17. [Legal Disclaimer & Intermediary Policy](#17-legal-disclaimer--intermediary-policy)
-18. [UI/UX Design Philosophy: "Neighborly Warmth"](#18-uiux-design-philosophy-neighborly-warmth)
-19. [Hybrid Development Strategy](#19-hybrid-development-strategy)
-20. [Portability & Anti-Lock-in Strategy](#20-portability--anti-lock-in-strategy)
-21. [Cross-Platform Expansion Strategy (App & Mini-Program)](#21-cross-platform-expansion-strategy-app--mini-program)
-22. [AI Assistance Layer](#22-ai-assistance-layer)
+1. [Engineering Guidelines & Development Standards](#1-engineering-guidelines--development-standards)
+2. [Product Overview](#2-product-overview)
+3. [Market Analysis](#3-market-analysis)
+4. [Business Domains](#4-business-domains)
+5. [Technical Architecture](#5-technical-architecture)
+6. [Implementation Roadmap](#6-implementation-roadmap)
+7. [Rental Business Logic](#7-rental-business-logic)
+8. [Professional Services: Legal & Real Estate](#8-professional-services-legal--real-estate)
+9. [Trust & Safety](#9-trust--safety)
+10. [Shopping Cart & Checkout Logic](#10-shopping-cart--checkout-logic)
+11. [Order Management Standards](#11-order-management-standards)
+12. [Community Review & Trust Design](#12-community-review--trust-design)
+13. [Buyer Journey & Neighborhood P2P Logic](#13-buyer-journey--neighborhood-p2p-logic)
+14. [Marketplace Quick-Post Flow (Sell/Rent)](#14-marketplace-quick-post-flow-sellrent)
+15. [Seller Workbench (Helper Dashboard)](#15-seller-workbench-helper-dashboard)
+16. [JinBean Points System (Engagement)](#16-bean-points-system-engagement)
+17. [Platform Login & Auth Flow](#17-platform-login--auth-flow)
+18. [Legal Disclaimer & Intermediary Policy](#18-legal-disclaimer--intermediary-policy)
+19. [UI/UX Design Philosophy: "Neighborly Warmth"](#19-uiux-design-philosophy-neighborly-warmth)
+20. [Hybrid Development Strategy](#20-hybrid-development-strategy)
+21. [Portability & Anti-Lock-in Strategy](#21-portability--anti-lock-in-strategy)
+22. [Cross-Platform Expansion Strategy (App & Mini-Program)](#22-cross-platform-expansion-strategy-app--mini-program)
+23. [AI Assistance Layer](#23-ai-assistance-layer)
+24. [Messaging & Real-time Communication](#24-messaging--real-time-communication)
 
 ---
 
-## 1. Product Overview
+---
+
+## 1. Engineering Guidelines & Development Standards
+
+To ensure system coherence and seamless collaboration between different AI agents and developers, the following engineering standards are mandatory.
+
+### 1.1 Documentation-First Workflow
+Every architectural or logic change must be reflected in the documentation **simultaneously** with the code changes.
+- **[task.md](file:///C:/Users/hanzg/.gemini/antigravity/brain/e1a08a2e-1308-46cc-b9b4-c775e21caae5/task.md)**: Must be updated before starting any sub-task. Use IDs for tracking.
+- **[system_design_document.md](file:///d:/My%20Project/ts/hangs/gig-neighbor/docs/system_design_document.md)**: Must be updated if there is a change in database schema, business logic, or transactional state machines.
+- **[walkthrough.md](file:///C:/Users/hanzg/.gemini/antigravity/brain/e1a08a2e-1308-46cc-b9b4-c775e21caae5/walkthrough.md)**: Use to record verification results, including browser recordings and screenshots, after completing a feature.
+
+### 1.2 Development Best Practices
+- **English-First Variable Naming**: All code artifacts (variables, functions, classes) must use English names.
+- **Bilingual Content**: All user-facing strings must support both English (default) and Chinese (ZH). Use the bilingual database fields (`titleEn`/`titleZh`, etc.).
+- **Currency Standards**: All monetary values must use **CAD ($)** as the primary currency. Amounts should be stored in the smallest unit (cents) to avoid floating-point errors.
+- **Pattern Consistency**: 
+  - **State Management**: Use Zustand partitioned by domain.
+  - **Data Access**: Use the Repository Pattern to decouple UI/State from Supabase directly.
+  - **UI**: Use `shadcn/ui` and `lucide-react` for a premium, consistent look.
+
+### 1.4 Database Accuracy & Freshness
+To ensure the backend environment is reproducible and consistent, the following protocols for SQL artifacts are mandatory:
+- **[supabase_schema.sql](file:///d:/My%20Project/ts/hangs/gig-neighbor/docs/supabase_schema.sql)**: 
+    - **Single Source of Truth**: This file must represent the *complete and current* state of the Supabase database.
+    - **Incremental Trailing**: Any `ALTER TABLE` or index creation must be appended to this file immediately after execution in the local/remote console.
+    - **Type Synchronization**: If a column is added or modified in SQL, the corresponding TypeScript `domain.ts` types and Repository interfaces must be updated in the same pull request/task.
+- **[seed_data.sql](file:///d:/My%20Project/ts/hangs/gig-neighbor/docs/seed_data.sql)**:
+    - **Localization Integrity**: Must contain the bilingual `ref_codes` for all industries and pilot nodes (Kanata, Lees Ave).
+    - **Category Matching**: When new service categories are defined in the design doc, they must be translated into `INSERT` statements in this file to ensure `CategorySelector` behavior remains accurate.
+- **Validation**:
+    - Periodically verify that a fresh Supabase project can be fully initialized using only these two files.
+
+---
+
+## 2. Product Overview
 
 ### 1.1 Product Definition
 **HangHand** is a community-based gig economy platform for the Canadian market, combining trusted neighbor-to-neighbor connections with professional service marketplace features. It competes with TaskRabbit and Thumbtack while addressing uniquely Canadian needs.
@@ -55,7 +92,9 @@
 
 ---
 
-## 2. Market Analysis
+---
+
+## 3. Market Analysis
 
 ### 2.1 Why Canadian Localization?
 
@@ -116,7 +155,9 @@ Yes, for several reasons:
 
 ---
 
-## 3. Business Domains
+---
+
+## 4. Business Domains
 
 ### 3.1 Domain Hierarchy
 
@@ -186,7 +227,9 @@ HangHand Platform
 
 ---
 
-## 4. Technical Architecture
+---
+
+## 5. Technical Architecture
 
 ### 4.1 Master-Detail Listing Model
 
@@ -395,7 +438,9 @@ The `order.status` evolves differently based on the chosen model.
 
 ---
 
-## 5. Implementation Roadmap
+---
+
+## 6. Implementation Roadmap
 
 ### Phase 1: MVP ✅ (In Execution)
 Focused on reaching actionable milestones in the first two pilot nodes (Ottawa).
@@ -424,7 +469,9 @@ Focused on reaching actionable milestones in the first two pilot nodes (Ottawa).
 
 ---
 
-## 6. Rental Business Logic
+---
+
+## 7. Rental Business Logic
 
 ### 6.1 Overview
 Rentals are integrated into **Community Marketplace** > **Tool Rental** / **Sports Equipment**.
@@ -518,7 +565,9 @@ CREATE TABLE deposit_transactions (
 
 ---
 
-## 7. Professional Services: Legal & Real Estate
+---
+
+## 8. Professional Services: Legal & Real Estate
 
 ### 7.1 Overview
 
@@ -638,7 +687,9 @@ CREATE TABLE professional_credentials (
 - Featured professional badges
 - Lead forwarding fees
 
-## 8. Trust & Safety
+---
+
+## 9. Trust & Safety
 
 ### 8.1 Verification Tiers
 
@@ -695,7 +746,9 @@ To build immediate trust, the following UI/UX elements are mandatory:
 
 ---
 
-## 9. Shopping Cart & Checkout Logic
+---
+
+## 10. Shopping Cart & Checkout Logic
 
 ### 9.1 Cart Bypass (Direct Booking)
 To reduce conversion friction, certain flows bypass the shopping cart:
@@ -733,7 +786,9 @@ Before order submission, the following checks are mandatory:
 
 ---
 
-## 10. Order Management Standards
+---
+
+## 11. Order Management Standards
 
 ### 10.1 Order Creation Standard
 - **Snapshot Requirement**: Every order must contain a `snapshot` JSON field capturing the exact state of the `ListingMaster` and `ListingItem` at the moment of creation (Price, Title, Description).
@@ -766,7 +821,9 @@ Specific to **Quote & Call** and **Large-Scale Projects**:
 
 ---
 
-## 11. Community Review & Trust Design
+---
+
+## 12. Community Review & Trust Design
 
 To build a high-trust community without creating friction, the platform uses a tiered review system inspired by Airbnb and LinkedIn.
 
@@ -779,7 +836,12 @@ To build a high-trust community without creating friction, the platform uses a t
    - **Completion Reward**: Users receive small "Beans" (internal credits) for completing a review within 48h.
 2. **Double-Blind System**:
    - Reviews are only revealed after both Buyer and Provider have submitted, or after 14 days. This prevents "retaliatory reviews."
-3. **Private Provider Feedback**:
+3. **Industry-Specific Dimensions**:
+   - Instead of a single 5-star rating, users rate specific professional dimensions:
+     - **Home Help**: Punctuality, Transparency, Work Quality.
+     - **Kids/Tutoring**: Patience, Engagement, Safety.
+     - **Marketplace**: Accuracy (Matches Photo), Responsiveness.
+4. **Private Provider Feedback**:
    - A separate, private comment field for the platform/provider that doesn't appear on the public profile.
 
 ### 11.2 Neighbor Endorsements (Non-Transactional)
@@ -796,6 +858,21 @@ To build a high-trust community without creating friction, the platform uses a t
 To differentiate from transactional apps like TaskRabbit, HangHand emphasizes the human connection through:
 
 1. **Neighbor-to-Neighbor Stories**:
+   - Beyond a star rating, users are encouraged to share a short **"Story of Help"**.
+   - **Rich Media**: Supports up to 6 high-res photos and a 15s video clip to provide visual proof of work/item quality.
+   - These stories are highlighted with a "Warmth" badge 🧡 and pinned to the provider's profile.
+
+### 12.4 Interaction & Closed-Loop Communication
+To ensure professionalism and engagement (inspired by Yelp/Dianping):
+1. **Merchant Reply**: Providers can respond once to any review to thank the buyer or clarify disputes.
+2. **Community Reactions**: Neighbors can tap "Helpful" 💡, "Funny" 😂, or "Warmth" 🧡 on any review.
+3. **Helpful Review Ranking**: Reviews with more "Helpful" votes are prioritized in the feed.
+
+### 12.5 Reviewer Reputation (The "Community Expert")
+To prevent fake reviews and reward contributors:
+1. **Reviewer Levels**: Users progress (L1-L8) based on review volume and community "Helpful" votes.
+2. **Elite Badges**: "Kanata Foodie", "DIY Expert", "Trusted Neighbor" labels awarded to high-frequency, high-quality reviewers.
+3. **Trust Weight**: Reviews from high-level "Experts" carry more weight in the provider's overall score.
    - Beyond a star rating, users are encouraged to share a short **"Story of Help"** (e.g., "Wang helped me fix my leak during a snowstorm and even brought some extra salt for my driveway").
    - These stories are highlighted with a "Warmth" badge 🧡 and pinned to the provider's profile.
 2. **Community Highlight Reel**:
@@ -805,7 +882,9 @@ To differentiate from transactional apps like TaskRabbit, HangHand emphasizes th
 
 ---
 
-## 12. Buyer Journey & Neighborhood P2P Logic
+---
+
+## 13. Buyer Journey & Neighborhood P2P Logic
 
 To foster neighborly help, the platform treats Buyer-posted "demands" with the same priority as Provider-posted "services."
 
@@ -837,10 +916,189 @@ To foster neighborly help, the platform treats Buyer-posted "demands" with the s
 - **Community Pricing**: System suggests pricing based on historical community data to ensure services remain affordable for neighbors.
 - **Quick-Response Badges**: "Fast Responder" badges awarded to buyers and helpers who close deals within 4 hours.
 
+### 12.4 Provider Profile Page (Trust Building)
+
+**Objective:** Enable buyers to view comprehensive provider information across all services, building trust through transparency and aggregated reputation.
+
+#### 12.4.1 Current Limitation
+- Buyers can only see provider info within individual service detail pages
+- No way to view a provider's complete service portfolio
+- Cannot see aggregated ratings across multiple services
+- Missing cross-service reputation visibility
+
+#### 12.4.2 Solution: Dedicated Provider Profile Page
+
+**Route:** `/provider/:providerId`
+
+**Page Structure:**
+
+```
+┌─────────────────────────────────────────┐
+│ HERO SECTION                            │
+│ ┌─────┐                                 │
+│ │  📸 │  [Provider Business Name]       │
+│ └─────┘  [One-line Bio]                 │
+│                                         │
+│ ⭐ 4.8 综合评分 | 128 条评价            │
+│ 📍 Ottawa-Lees  | ✓ Verified | 3 Years │
+│                                         │
+│ [Contact Provider] [Share Profile]     │
+└─────────────────────────────────────────┘
+
+┌─ NAVIGATION TABS ────────────────────────┐
+│ Services (6) | Reviews (128) | About     │
+├──────────────────────────────────────────┤
+│                                          │
+│ [TAB CONTENT AREA]                       │
+│ - Services: Grid of all provider services│
+│ - Reviews: Aggregated cross-service      │
+│ - About: Certifications, experience, etc.│
+│                                          │
+└──────────────────────────────────────────┘
+```
+
+#### 12.4.3 Data Architecture
+
+**Provider Aggregation Query:**
+```sql
+-- Get provider's comprehensive stats
+SELECT 
+  pp.*,
+  COUNT(DISTINCT lm.id) as total_services,
+  COUNT(DISTINCT r.id) as total_reviews,
+  AVG(r.rating) as avg_rating,
+  SUM(lm.review_count) as total_order_count
+FROM provider_profiles pp
+LEFT JOIN listing_masters lm ON lm.provider_id = pp.id
+LEFT JOIN reviews r ON r.listing_id = lm.id
+WHERE pp.id = $providerId
+GROUP BY pp.id;
+
+-- Get all provider's services (grouped by category)
+SELECT 
+  lm.*,
+  rc.en_name as category_name,
+  rc.parent_id as industry_id
+FROM listing_masters lm
+JOIN ref_codes rc ON lm.category_id = rc.code_id
+WHERE lm.provider_id = $providerId
+  AND lm.status = 'PUBLISHED'
+ORDER BY rc.parent_id, lm.created_at DESC;
+
+-- Get cross-service reviews
+SELECT 
+  r.*,
+  lm.title_en as service_name,
+  up.name as buyer_name,
+  up.avatar as buyer_avatar
+FROM reviews r
+JOIN listing_masters lm ON r.listing_id = lm.id
+JOIN user_profiles up ON r.buyer_id = up.id
+WHERE lm.provider_id = $providerId
+ORDER BY r.created_at DESC;
+```
+
+#### 12.4.4 UI Components
+
+**Services Tab:**
+- Group services by industry (居家生活, 专业美业, etc.)
+- Each service card shows:
+  - Title, price, rating
+  - Number of reviews for that specific service
+  - "View Details" link → ServiceDetail page
+
+**Reviews Tab:**
+- Rating distribution histogram (5★ 75%, 4★ 20%, etc.)
+- Review list with:
+  - Service tag (e.g., "From: 深度清洁服务")
+  - Multi-dimensional ratings
+  - Photos/videos if attached
+  - Provider reply
+- Filter by:
+  - Service type
+  - Rating level
+  - Time period
+
+**About Tab:**
+- Years of experience
+- Service area coverage
+- Certifications & licenses
+- Operating hours
+- Languages spoken
+
+#### 12.4.5 Implementation Files
+
+**New Page:** `src/pages/ProviderProfile.tsx`
+**Components:**
+- `ProviderHero.tsx` - Header with stats
+- `ProviderServiceGrid.tsx` - Service card grid
+- `ProviderReviewList.tsx` - Cross-service review list
+- `ProviderAbout.tsx` - About section
+
+**Route Registration:** `src/App.tsx`
+```tsx
+<Route path="/provider/:providerId" element={<ProviderProfile />} />
+```
+
+**Entry Points:**
+- Link from ServiceDetail page ("查看提供商主页 →")
+- Clickable provider avatar/name in Chat
+- Provider search results
+
+#### 12.4.6 Trust Signals Enhancement
+
+- **Comprehensive Badge Display:**
+  - Elite Neighbor ⭐
+  - Verified Professional ✓
+  - Fast Responder ⚡
+  - Top Rated (if avg > 4.8)
+  
+- **Transparency Metrics:**
+  - Response time average
+  - Completion rate
+  - Repeat customer rate
+  
+- **Social Proof:**
+  - "128 neighbors trust Bob"
+  - "Joined 3 years ago"
+  - "3,456 hours worked"
+
+#### 12.4.7 Database Optimization (Optional)
+
+For faster queries, consider denormalizing:
+
+```sql
+-- Add aggregated stats to provider_profiles
+ALTER TABLE provider_profiles ADD COLUMN total_services INTEGER DEFAULT 0;
+ALTER TABLE provider_profiles ADD COLUMN total_reviews INTEGER DEFAULT 0;
+ALTER TABLE provider_profiles ADD COLUMN avg_rating DECIMAL DEFAULT 0;
+
+-- Update trigger
+CREATE OR REPLACE FUNCTION update_provider_stats()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE provider_profiles
+  SET 
+    total_services = (SELECT COUNT(*) FROM listing_masters WHERE provider_id = NEW.provider_id),
+    total_reviews = (SELECT COUNT(*) FROM reviews r JOIN listing_masters lm ON r.listing_id = lm.id WHERE lm.provider_id = NEW.provider_id),
+    avg_rating = (SELECT AVG(rating) FROM reviews r JOIN listing_masters lm ON r.listing_id = lm.id WHERE lm.provider_id = NEW.provider_id)
+  WHERE id = NEW.provider_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### 12.4.8 Expected Impact
+
+- **Trust Increase:** 30%+ boost in first-time buyer confidence
+- **Cross-Sell:** 25%+ increase in discovering provider's other services
+- **Decision Speed:** 40%+ reduction in pre-purchase inquiry time
+- **Provider Branding:** Enables providers to build recognizable personal brand
+
 ---
 ---
 
-## 13. Marketplace & Tasks: Goods and Demands Flow
+## 14. Marketplace Quick-Post Flow (Sell/Rent)
 
 ### 13.1 Neighborhood Goods (The "Xianyu" Model) 🧸
 *Focused on peer-to-peer sharing of idle items (二手) and home-made goods.*
@@ -930,7 +1188,9 @@ We utilize the existing Master-Detail tables to keep the platform unified:
 
 ---
 
-## 14. Seller Workbench (Helper Dashboard)
+---
+
+## 15. Seller Workbench (Helper Dashboard)
 
 The **Seller Workbench** is a dedicated productivity suite for service providers (helpers) to manage their business, track earnings, and maintain compliance.
 
@@ -987,7 +1247,9 @@ To support the diverse listing types (Goods, Tasks, Services), the management in
 
 ---
 
-## 15. JinBean Points System (Engagement)
+---
+
+## 16. JinBean Points System (Engagement)
 
 The **JinBean (金豆)** system is the platform's loyalty and engagement engine, designed to reward positive community behavior.
 
@@ -1009,7 +1271,9 @@ The **JinBean (金豆)** system is the platform's loyalty and engagement engine,
 
 ---
 
-## 16. Platform Login & Auth Flow
+---
+
+## 17. Platform Login & Auth Flow
 
 To ensure a seamless experience, the platform uses a **low-friction** authentication strategy tailored for the Canadian demographic.
 
@@ -1030,7 +1294,9 @@ To ensure a seamless experience, the platform uses a **low-friction** authentica
 
 ---
 
-## 17. Legal Disclaimer & Intermediary Policy
+---
+
+## 18. Legal Disclaimer & Intermediary Policy
 
 As a community marketplace, HangHand operates under an **Intermediary Pure-Play** model to manage risk and liability.
 
@@ -1049,7 +1315,9 @@ As a community marketplace, HangHand operates under an **Intermediary Pure-Play*
 
 ---
 
-## 18. UI/UX Design Philosophy: "Neighborly Warmth"
+---
+
+## 19. UI/UX Design Philosophy: "Neighborly Warmth"
 
 To avoid the sterile, "digital spreadsheet" feel of Kijiji or Facebook Marketplace, HangHand adopts a design language that feels modern, premium, and human-centric.
 
@@ -1088,7 +1356,168 @@ To humanize the platform, stories are treated as first-class citizens:
 
 ---
 
-## 19. Hybrid Development Strategy
+### 19.6 Homepage UI Design & Information Architecture
+
+The homepage serves as the primary entry point and discovery engine for the platform. It must balance **community warmth** with **high information density**, following the principles of 당근마켓 (Karrot) and 美团 (Meituan).
+
+#### 19.6.1 Design Philosophy
+
+**Anti-Patterns (Avoid)**:
+- ❌ **Traditional E-commerce Banners**: No carousel/hero banners with promotional ads (Banner Blindness)
+- ❌ **Cold Marketplace Feel**: Avoid sterile product grids like Kijiji/Craigslist
+- ❌ **Excessive Whitespace**: Western minimalism wastes valuable screen space
+
+**Core Principles**:
+- ✅ **Community-First**: Show real neighbors, real tasks, real stories
+- ✅ **High Information Density**: Compact cards, rich metadata, instant value
+- ✅ **Trust Signals**: Verification badges, neighbor endorsements, ratings visible everywhere
+- ✅ **Action-Oriented**: Every element should drive discovery or engagement
+
+#### 19.6.2 Information Architecture (Vertical Flow)
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 1. STICKY HEADER (Always Visible)                  │
+│    ├─ Location Selector                            │
+│    ├─ Search Bar (Smart Suggestions)               │
+│    ├─ Quick Search Tags (深度保洁 | 水管维修 | ...)│
+│    └─ 5大业务域图标 (IndustryIconGrid)             │
+├─────────────────────────────────────────────────────┤
+│ 2. COMMUNITY HIGHLIGHTS BAR (~60px)                │
+│    └─ Real-time stats: New neighbors | Tasks       │
+│       completed | Avg rating | Neighbors helped    │
+├─────────────────────────────────────────────────────┤
+│ 3. MAIN CONTENT (Scrollable)                       │
+│    ├─ Popular In Community (横向滚动)              │
+│    │  └─ Top-rated services within 5km             │
+│    ├─ Neighbor Stories (社区温度)                  │
+│    │  └─ Real testimonials, snow removal heroes    │
+│    ├─ 美食市集 (Community Goods)                   │
+│    │  └─ Homemade treats, second-hand items        │
+│    ├─ 生活服务 (Services)                          │
+│    │  └─ Cleaning, handyman, moving                │
+│    ├─ 共享租赁 (Rentals)                           │
+│    │  └─ Tools, cameras, party supplies            │
+│    └─ 附近任务 (Tasks - ⚠️ Verified Providers Only)│
+│       └─ Buyer-posted needs with Bean rewards      │
+└─────────────────────────────────────────────────────┘
+```
+
+#### 19.6.3 Component Specifications
+
+**A. Sticky Header**
+- **Purpose**: Persistent access to search and core navigation
+- **Height**: ~200px (desktop), collapses to ~120px on scroll
+- **Components**:
+  - `LocationSelector`: Current node (e.g., "渥太华-利斯 (Lees Ave)")
+  - `SearchBar`: Typeahead with category/provider/goods suggestions
+  - `QuickSearchTags`: Pre-populated frequent queries (深度保洁, 水管维修, 搬家服务, 跑腿代购)
+  - `IndustryIconGrid`: 5 icons (居家·生活, 专业·美业, 育儿·教育, 美食·市集, 出行·时令)
+    - Layout: Horizontal row of 5 items
+    - Icon size: 56-64px (desktop), 48px (mobile)
+    - Design: Circular colored background + Lucide icon + bilingual label
+    - Interaction: Hover → scale + shadow, Click → navigate to `/category/{id}`
+
+**B. Community Highlights Bar**
+- **Purpose**: Show real-time community vitality to build trust and FOMO
+- **Height**: 60px (compact)
+- **Background**: Gradient (`from-emerald-50 via-cyan-50 to-blue-50`)
+- **Metrics** (4 stats):
+  1. 👥 **50** new neighbors this week
+  2. ⚡ **23** tasks completed today
+  3. ⭐ **4.9** avg community rating
+  4. ❤️ **156** neighbors helped each other
+- **Data Source**: Live queries from Supabase (updated every 5 minutes)
+- **Design**:
+  - Desktop: Horizontal row, all 4 visible
+  - Mobile: Horizontal scroll, 1-2 visible at a time
+  - Icon + Bold Number + Light Text pattern
+  - Subtle animations on number changes (Spring animation)
+
+**C. Popular In Community**
+- **Purpose**: High-converting entry point (top-rated services nearby)
+- **Layout**: Horizontal scrollable carousel
+- **Card Design**:
+  - Provider avatar + name + verification badge
+  - Service title + category
+  - ⭐ Rating (e.g., 4.9) + review count
+  - 📍 Distance (e.g., "1.2km")
+  - 💰 Starting price (e.g., "$80")
+  - 🕒 Next available slot (e.g., "Today 2pm" / "Tomorrow 9am")
+- **Sorting**: Distance × Rating hybrid algorithm
+- **Limit**: Top 10 services
+
+**D. Neighbor Stories (TodayStories)**
+- **Purpose**: Community warmth, emotional connection
+- **Position**: After "Popular In Community" (Fold 2, not Fold 1)
+- **Card Design**:
+  - Story image (real photo from transaction)
+  - Headline (e.g., "Lees 190 Snow Hero: Mr. Li")
+  - Excerpt (140 characters max)
+  - Location tag (e.g., "@Lees Ave") + verification badge
+  - ❤️ Likes count + 💬 Comments count
+- **Layout**: 3-card carousel (Featured Story in center, larger)
+- **Data**: Pull from `reviews` table where `is_featured = true`
+
+**E. Task Board (附近任务)** - ⚠️ **Future Implementation**
+- **Purpose**: Show buyer-posted needs (P2P demand marketplace)
+- **Access Control**: Only verified providers can view full details and submit quotes
+- **Card Design**:
+  - 💰 Reward (e.g., "50 Beans + $25")
+  - 📝 Task title (e.g., "需要有人帮忙铲雪")
+  - 📍 Distance (e.g., "0.8km")
+  - ⏰ Deadline (e.g., "Today 6pm")
+  - ✅ Verified Providers Only badge
+  - 👤 Poster: "Mrs. Chen" (认证邻居)
+- **Button States**:
+  - Verified Provider: "Submit Quote" (primary button)
+  - Unverified User: "Verification Required" (disabled + lock icon + modal CTA)
+
+#### 19.6.4 Mobile Optimization
+
+**Responsive Breakpoints**:
+- `sm`: 640px
+- `md`: 768px (major change: 2-column → 3-column)
+- `lg`: 1024px
+- `xl`: 1280px
+
+**Mobile-Specific Changes**:
+- Sticky Header: Reduce padding, hide English labels on Industry Icons
+- Community Highlights: Horizontal scroll (snap-x)
+- Popular In Community: Wider cards, less items per view
+- Goods/Services Grid: 2-column on mobile, 4-column on desktop
+
+#### 19.6.5 Performance Targets
+
+- **First Contentful Paint (FCP)**: < 1.2s
+- **Largest Contentful Paint (LCP)**: < 2.5s
+- **Time to Interactive (TTI)**: < 3.5s
+- **Cumulative Layout Shift (CLS)**: < 0.1
+
+**Optimization Strategies**:
+- Image lazy loading for all cards below fold
+- Skeleton loaders for async data (Popular In Community, Stories)
+- Virtual scrolling for long lists (if > 50 items)
+- Code splitting: Only load Stories component when in viewport
+
+#### 19.6.6 Trust & Safety UI Elements
+
+**Mandatory Trust Signals on Every Card**:
+1. **Verification Badge**: ✅ Vouched | 🛡️ License Verified | ⭐ Top Rated
+2. **Neighbor Endorsements**: "3 neighbors endorsed" (clickable to see names)
+3. **Real-Time Status**: 🟢 "Available Now" (pulsing green dot)
+4. **Completion Stats**: "Completed 42 tasks this month"
+
+**Anti-Fraud Indicators**:
+- New providers show "New to HangHand" badge (neutral, not negative)
+- Providers with < 5 reviews cannot charge premium prices
+- Task posters with < 3 endorsements show "Build your profile" reminder
+
+---
+
+---
+
+## 20. Hybrid Development Strategy
 
 To balance rapid deployment with a uniquely "warm" user experience, the platform adopts a **Hybrid Build-Buy-Borrow** strategy.
 
@@ -1111,7 +1540,9 @@ To balance rapid deployment with a uniquely "warm" user experience, the platform
 
 ---
 
-## 20. Portability & Anti-Lock-in Strategy
+---
+
+## 21. Portability & Anti-Lock-in Strategy
 
 To mitigate vendor lock-in with Supabase and ensure long-term flexibility, HangHand employs a **Multi-Layer Abstraction** architecture.
 
@@ -1135,7 +1566,9 @@ To mitigate vendor lock-in with Supabase and ensure long-term flexibility, HangH
 
 ---
 
-## 21. Cross-Platform Expansion Strategy (App & Mini-Program)
+---
+
+## 22. Cross-Platform Expansion Strategy (App & Mini-Program)
 
 To reach neighbors wherever they are, HangHand follows a **Logic-First, Platform-Second** approach for cross-platform expansion.
 
@@ -1171,7 +1604,9 @@ To reach neighbors wherever they are, HangHand follows a **Logic-First, Platform
 
 ---
 
-## 22. AI Assistance Layer
+---
+
+## 23. AI Assistance Layer
 
 The platform integrates AI agents to streamline communication, ensure safety, and guide user decisions. 
 
@@ -1190,7 +1625,9 @@ The platform integrates AI agents to streamline communication, ensure safety, an
 
 ---
 
-## 23. Messaging & Real-time Communication
+---
+
+## 24. Messaging & Real-time Communication
 
 The platform provides secure, real-time messaging to facilitate communication between buyers and providers throughout the transaction lifecycle.
 
@@ -1266,6 +1703,24 @@ For "Quote & Call" services, providers can submit quotes directly in the convers
 2. **Typing Indicators**: Realtime presence for "User is typing..."
 3. **Push Notifications**: Edge Function + FCM/APNS integration
 4. **Bilingual Translation**: Real-time EN/ZH translation (Section 22.2)
+
+---
+
+## 24. Development Standards: Internationalization & Bilingual Support
+
+To ensure a seamless and professional user experience, HangHand enforces strict development standards regarding internationalization availability.
+
+### 24.1 "Single-Language Immersion" Policy
+- **Goal**: The UI must display content *only* in the user's preferred language (English or Chinese). Use of concatenated strings (e.g., "Verified / 已认证") is **strictly prohibited**.
+- **Fallback**: If a translation is missing, fallback to English (or the other language) but *never* visually display both simultaneously.
+
+### 24.2 Implementation Guidelines
+1. **State Management**: Always derived from `useConfigStore.language` ('en' | 'zh').
+2. **Data Schema**: All user-facing text fields must have `_en` and `_zh` suffixes in the database (e.g., `listing.title_en`, `listing.title_zh`).
+3. **UI Rendering**:
+   - **Static Text**: Use dictionary objects or translation helpers.
+   - **Dynamic Data**: Use helper functions (e.g., `getLocalized(en, zh)`) or conditional rendering (`language === 'zh' ? zh : en`).
+   - **Prohibited**: `<div>{en} / {zh}</div>` matches are forbidden.
 
 ---
 

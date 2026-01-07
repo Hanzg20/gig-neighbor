@@ -1,6 +1,29 @@
 import { Heart } from "lucide-react";
+import { useConfigStore } from "@/stores/configStore";
 
 const Footer = () => {
+  const { language } = useConfigStore();
+
+  const t = {
+    services: language === 'zh' ? '服务' : 'Services',
+    cleaning: language === 'zh' ? '保洁' : 'Cleaning',
+    repair: language === 'zh' ? '维修' : 'Repair',
+    moving: language === 'zh' ? '搬家' : 'Moving',
+    errands: language === 'zh' ? '跑腿' : 'Errands',
+    about: language === 'zh' ? '关于' : 'About',
+    aboutUs: language === 'zh' ? '关于我们' : 'About Us',
+    becomePro: language === 'zh' ? '成为服务商' : 'Become a Pro',
+    helpCenter: language === 'zh' ? '帮助中心' : 'Help Center',
+    contactUs: language === 'zh' ? '联系我们' : 'Contact Us',
+    legal: language === 'zh' ? '法律' : 'Legal',
+    userAgreement: language === 'zh' ? '用户协议' : 'User Agreement',
+    privacy: language === 'zh' ? '隐私政策' : 'Privacy Policy',
+    terms: language === 'zh' ? '服务条款' : 'Terms of Service',
+    slogan: language === 'zh' ? '邻里互助，温情相伴。让每一份服务都充满信任。' : 'Neighborly help, heartfelt support. Making every service feel warm and trusted.',
+    madeIn: language === 'zh' ? '加拿大制作' : 'Made with',
+    inCanada: language === 'zh' ? '' : 'in Canada', // "Made with <love> in Canada" structure handling
+  };
+
   return (
     <footer className="bg-card border-t border-border/50 py-12">
       <div className="container">
@@ -17,37 +40,37 @@ const Footer = () => {
               </div>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Neighborly help, heartfelt support. Making every service feel warm and trusted.
+              {t.slogan}
             </p>
           </div>
 
           {/* Links */}
           <div>
-            <h4 className="font-bold text-foreground mb-4">Services</h4>
+            <h4 className="font-bold text-foreground mb-4">{t.services}</h4>
             <ul className="space-y-2">
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Cleaning</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Repair</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Moving</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Errands</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.cleaning}</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.repair}</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.moving}</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.errands}</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold text-foreground mb-4">About</h4>
+            <h4 className="font-bold text-foreground mb-4">{t.about}</h4>
             <ul className="space-y-2">
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">About Us</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Become a Pro</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Help Center</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Contact Us</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.aboutUs}</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.becomePro}</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.helpCenter}</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.contactUs}</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-bold text-foreground mb-4">Legal</h4>
+            <h4 className="font-bold text-foreground mb-4">{t.legal}</h4>
             <ul className="space-y-2">
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">User Agreement</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Terms of Service</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.userAgreement}</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.privacy}</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.terms}</a></li>
             </ul>
           </div>
         </div>
@@ -55,11 +78,13 @@ const Footer = () => {
         {/* Bottom */}
         <div className="pt-8 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground flex items-center gap-1">
-            © 2025 HangHand. Made with <Heart className="w-4 h-4 text-accent fill-accent" /> in Canada
+            © 2025 HangHand. {t.madeIn} <Heart className="w-4 h-4 text-accent fill-accent" /> {t.inCanada}
           </p>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">🇨🇦 English</span>
-            <span className="text-sm text-primary font-medium">🇨🇳 中文</span>
+          <div className="flex items-center gap-4 opacity-50">
+            {/* Simple indicator since it's controlled in header */}
+            <span className="text-sm text-muted-foreground">
+              {language === 'zh' ? '🇨🇳 中文' : '🇨🇦 English'}
+            </span>
           </div>
         </div>
       </div>

@@ -206,6 +206,12 @@ const OrderDetail = () => {
                                 </Button>
                             )}
 
+                            {isBuyer && order.status === 'COMPLETED' && (
+                                <Button className="flex-1 bg-secondary hover:bg-secondary/90 text-white font-black uppercase tracking-widest rounded-xl" onClick={() => navigate(`/review/${order.id}`)}>
+                                    Write Review
+                                </Button>
+                            )}
+
                             {/* Seller Actions */}
                             {isProvider && order.status === 'PENDING_CONFIRMATION' && (
                                 <Button className="flex-1 btn-action" onClick={() => updateOrderStatus(order.id, 'IN_PROGRESS')}>

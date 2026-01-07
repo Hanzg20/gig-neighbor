@@ -19,6 +19,19 @@ const CONDITIONS = [
     { value: 'FAIR', label: '功能正常', color: 'bg-gray-100 text-gray-700 border-gray-200' },
 ];
 
+const POPULAR_BRANDS = [
+    "IKEA", "Apple", "Sony", "Nintendo", "Nike",
+    "Dyson", "Nespresso", "Instant Pot", "KitchenAid"
+];
+
+const SUGGESTED_ITEMS = [
+    { emoji: "🪑", text: "IKEA 家具" },
+    { emoji: "📱", text: "iPhone 手机" },
+    { emoji: "🎮", text: "游戏主机" },
+    { emoji: "👟", text: "运动鞋" },
+    { emoji: "☕", text: "咖啡机" },
+];
+
 const PostGoodWizard = ({ category, onBack }: PostGoodWizardProps) => {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
@@ -145,6 +158,23 @@ const PostGoodWizard = ({ category, onBack }: PostGoodWizardProps) => {
                 </div>
             </div>
 
+            {/* Suggested Items - Quick Fill */}
+            <div className="space-y-3">
+                <label className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest pl-1">热门好物</label>
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none -mx-1 px-1">
+                    {SUGGESTED_ITEMS.map((item, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setTitle(item.text)}
+                            className="flex-shrink-0 px-4 py-2 rounded-xl bg-white border border-border shadow-sm hover:border-primary hover:bg-primary/5 transition-all text-sm font-bold flex items-center gap-2 group"
+                        >
+                            <span className="group-hover:scale-125 transition-transform">{item.emoji}</span>
+                            <span>{item.text}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             {/* Smart Title */}
             <div className="space-y-2">
                 <label className="text-sm font-semibold">标题</label>
@@ -155,6 +185,22 @@ const PostGoodWizard = ({ category, onBack }: PostGoodWizardProps) => {
                     placeholder="品牌 + 型号 + 关键特点"
                     className="w-full p-4 rounded-xl border bg-muted/30 focus:bg-background focus:border-primary outline-none transition-all font-bold text-lg"
                 />
+
+                {/* Brand Tag Cloud */}
+                <div className="mt-2">
+                    <p className="text-xs text-muted-foreground mb-2">常见品牌：</p>
+                    <div className="flex flex-wrap gap-1.5">
+                        {POPULAR_BRANDS.map((brand) => (
+                            <button
+                                key={brand}
+                                onClick={() => setTitle(prev => prev ? `${brand} ${prev}` : brand)}
+                                className="px-2.5 py-1 rounded-md bg-muted/50 hover:bg-primary/10 hover:text-primary text-xs font-medium transition-colors"
+                            >
+                                {brand}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             <div className="space-y-2">

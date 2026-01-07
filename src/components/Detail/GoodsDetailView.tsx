@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ListingMaster, ListingItem, ProviderProfile } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import EnhancedReviewList from "@/components/reviews/EnhancedReviewList";
 
 interface GoodsDetailViewProps {
     master: ListingMaster;
@@ -119,6 +120,11 @@ const GoodsDetailView = ({ master, item, provider, onBuy, onChat }: GoodsDetailV
             <div className="container max-w-2xl px-4 text-xs text-muted-foreground bg-orange-50/50 p-4 rounded-xl mx-4 mb-8">
                 <p className="font-bold text-orange-800 mb-1">💡 交易提醒</p>
                 建议当面交易，钱货两清。如需邮寄，请使用平台担保交易。
+            </div>
+
+            {/* 6. Neighbor Stories */}
+            <div className="container max-w-2xl px-4 py-8 border-t">
+                <EnhancedReviewList listingId={master.id} />
             </div>
 
             {/* 5. Bottom Bar */}

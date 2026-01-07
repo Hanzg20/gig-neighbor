@@ -16,11 +16,21 @@ interface PopularInCommunityProps {
 export function PopularInCommunity({ listings }: PopularInCommunityProps) {
   const navigate = useNavigate();
   const { activeNodeId } = useCommunity();
-  const { refCodes } = useConfigStore();
+  const { refCodes, language } = useConfigStore();
+
+  // Localization
+  const t = {
+    title: language === 'zh' ? '同小区热门' : 'Popular in Community',
+    communitySuffix: language === 'zh' ? '社区' : 'Community',
+    viewAll: language === 'zh' ? '查看全部' : 'View All',
+    defaultCommunity: language === 'zh' ? '当前社区' : 'Current Community',
+  };
 
   // Get node display name
   const nodeInfo = refCodes.find(r => r.codeId === activeNodeId);
-  const nodeDisplayName = nodeInfo?.zhName || nodeInfo?.enName || 'Community';
+  const nodeDisplayName = language === 'zh'
+    ? (nodeInfo?.zhName || nodeInfo?.enName || t.defaultCommunity)
+    : (nodeInfo?.enName || nodeInfo?.zhName || t.defaultCommunity);
 
   // Filter listings for current node and sort by popularity
   const popularListings = listings
@@ -43,17 +53,17 @@ export function PopularInCommunity({ listings }: PopularInCommunityProps) {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-2xl md:text-3xl font-extrabold text-foreground">
-              同小区热门
+              {t.title}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {nodeDisplayName} 社区
+              {nodeDisplayName} {t.communitySuffix}
             </p>
           </div>
           <button
             onClick={() => navigate('/category/service')}
             className="text-sm font-semibold text-primary hover:underline flex items-center gap-1"
           >
-            查看全部
+            {t.viewAll}
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useListingStore } from "@/stores/listingStore";
+import { useListingStore, getTranslation } from "@/stores/listingStore";
 import { useProviderStore } from "@/stores/providerStore";
+import { useConfigStore } from "@/stores/configStore";
 
 interface PopularServiceCardProps {
   listing: ListingMaster;
@@ -20,8 +21,8 @@ interface PopularServiceCardProps {
  * Popular Service Card Component
  * Displays detailed service information with pricing options and booking button
  */
-export function PopularServiceCard({ 
-  listing, 
+export function PopularServiceCard({
+  listing,
   distance = 0,
   isInCommunity = false,
   isUrgent = false
@@ -29,8 +30,20 @@ export function PopularServiceCard({
   const navigate = useNavigate();
   const { listingItems } = useListingStore();
   const { getProviderById } = useProviderStore();
+  const { language } = useConfigStore();
   const [isFavorite, setIsFavorite] = useState(false);
-  
+
+  // Localization
+  const t = {
+    inCommunity: language === 'zh' ? '同小区' : 'In Community',
+    urgent: language === 'zh' ? '急单' : 'Urgent',
+    earliest: language === 'zh' ? '最早' : 'Earliest',
+    reviews: language === 'zh' ? '条评价' : 'reviews',
+    orderNow: language === 'zh' ? '立即下单' : 'Order Now',
+    provider: language === 'zh' ? '服务商' : 'Provider',
+    today: language === 'zh' ? '今天' : 'Today',
+  };
+
   // Get items for this listing
   const listingItemsForMaster = listingItems.filter(item => item.masterId === listing.id);
   const [selectedItem, setSelectedItem] = useState<ListingItem | null>(
@@ -39,13 +52,14 @@ export function PopularServiceCard({
 
   // Get provider data
   const provider = getProviderById(listing.providerId);
-  const providerName = provider?.businessNameZh || provider?.businessNameEn || 'Provider';
+  const providerName = getTranslation(provider || {}, 'businessName') || (language === 'zh' ? '服务商' : 'Provider');
+
   const verificationLevel = provider?.verificationLevel || 1;
   const rating = listing.rating || 4.5;
   const reviewCount = listing.reviewCount || 0;
 
   // Format earliest available time (mock for now)
-  const earliestTime = "今天 12:00";
+  const earliestTime = `${t.today} 12:00`;
 
   const toggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -71,25 +85,25 @@ export function PopularServiceCard({
       <div className="relative aspect-video overflow-hidden bg-muted/50">
         <img
           src={listing.images[0] || '/placeholder.svg'}
-          alt={listing.titleEn || listing.titleZh}
+          alt={getTranslation(listing, 'title')}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         />
-        
+
         {/* Badges Overlay */}
         <div className="absolute top-2 left-2 flex items-center gap-2">
           {isInCommunity && (
             <Badge className="bg-primary/90 text-white border-none px-2 py-1 text-xs font-bold">
-              同小区
+              {t.inCommunity}
             </Badge>
           )}
           <Badge className="bg-white/90 backdrop-blur-sm text-foreground border-none px-2 py-1 text-xs font-bold flex items-center gap-1">
             <MapPin className="w-3 h-3" />
-            {distance > 0 ? `${distance.toFixed(0)}m` : '同小区'}
+            {distance > 0 ? `${distance.toFixed(0)}m` : t.inCommunity}
           </Badge>
           {isUrgent && (
             <Badge className="bg-red-500 text-white border-none px-2 py-1 text-xs font-bold flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              急单
+              {t.urgent}
             </Badge>
           )}
         </div>
@@ -100,9 +114,8 @@ export function PopularServiceCard({
           className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors shadow-sm z-10"
         >
           <Heart
-            className={`w-4 h-4 transition-colors ${
-              isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400'
-            }`}
+            className={`w-4 h-4 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400'
+              }`}
           />
         </button>
       </div>
@@ -125,25 +138,25 @@ export function PopularServiceCard({
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
             <span className="text-sm font-bold">{rating.toFixed(1)}</span>
           </div>
-          <span className="text-xs text-muted-foreground">({reviewCount} reviews)</span>
+          <span className="text-xs text-muted-foreground">({reviewCount} {t.reviews})</span>
         </div>
 
         {/* Service Name */}
         <h3 className="font-bold text-base line-clamp-2 group-hover:text-primary transition-colors">
-          {listing.titleZh || listing.titleEn}
+          {getTranslation(listing, 'title')}
         </h3>
 
         {/* Availability */}
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Clock className="w-3 h-3" />
-          <span>最早{earliestTime}</span>
+          <span>{t.earliest} {earliestTime}</span>
         </div>
 
         {/* Options (Pricing Tiers) */}
         {listingItemsForMaster.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
             {listingItemsForMaster.slice(0, 3).map((item) => {
-              const isSelected = selectedItem?.id === item.id;
+              const itemSelected = selectedItem?.id === item.id;
               return (
                 <button
                   key={item.id}
@@ -151,13 +164,12 @@ export function PopularServiceCard({
                     e.stopPropagation();
                     setSelectedItem(item);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    isSelected
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${itemSelected
                       ? 'bg-primary text-white'
                       : 'bg-muted text-foreground hover:bg-muted/80'
-                  }`}
+                    }`}
                 >
-                  {item.nameZh || item.nameEn}
+                  {getTranslation(item, 'name')}
                 </button>
               );
             })}
@@ -168,8 +180,8 @@ export function PopularServiceCard({
         {selectedItem && selectedItem.pricing && (
           <div className="text-sm text-foreground">
             <span className="font-bold">
-              {selectedItem.pricing.price?.formatted || 
-               `$${(selectedItem.pricing.price?.amount || 0) / 100}`}
+              {selectedItem.pricing.price?.formatted ||
+                `$${(selectedItem.pricing.price?.amount || 0) / 100}`}
             </span>
             {selectedItem.pricing.unit && (
               <span className="text-muted-foreground">/{selectedItem.pricing.unit}</span>
@@ -182,7 +194,7 @@ export function PopularServiceCard({
           onClick={handleOrder}
           className="w-full bg-primary hover:bg-primary/90 text-white font-bold rounded-xl py-2.5"
         >
-          立即下单
+          {t.orderNow}
         </Button>
       </div>
     </motion.div>

@@ -7,7 +7,9 @@ import {
     IProviderRepository,
     IRefCodeRepository,
     IBeanRepository,
-    IMessageRepository
+    IMessageRepository,
+    ICommunityStatsRepository,
+    IReviewRepository
 } from './interfaces';
 
 // Supabase implementations
@@ -20,6 +22,11 @@ import { SupabaseProviderRepository } from './supabase/ProviderRepository';
 import { SupabaseRefCodeRepository } from './supabase/RefCodeRepository';
 import { SupabaseBeanRepository } from './supabase/BeanRepository';
 import { SupabaseMessageRepository } from './supabase/MessageRepository';
+import { CommunityStatsRepository } from './supabase/CommunityStatsRepository';
+import { SupabaseReviewRepository } from './supabase/ReviewRepository';
+
+// Mock implementations
+import { MockReviewRepository } from './mock/ReviewRepository';
 
 /**
  * Service Factory for Dependency Injection
@@ -109,6 +116,17 @@ class RepositoryFactory {
 
     getMessageRepository(): IMessageRepository {
         return new SupabaseMessageRepository();
+    }
+
+    getCommunityStatsRepository(): ICommunityStatsRepository {
+        return new CommunityStatsRepository();
+    }
+
+    getReviewRepository(): IReviewRepository {
+        if (this.useSupabase) {
+            return new SupabaseReviewRepository();
+        }
+        return new MockReviewRepository();
     }
 
     // Convenience methods for common operations

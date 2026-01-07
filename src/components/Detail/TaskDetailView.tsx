@@ -3,6 +3,7 @@ import { ListingMaster, ListingItem, ProviderProfile } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, MapPin, Share2, MoreHorizontal, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import EnhancedReviewList from "@/components/reviews/EnhancedReviewList";
 
 interface TaskDetailViewProps {
     master: ListingMaster;
@@ -92,8 +93,13 @@ const TaskDetailView = ({ master, item, author, onQuote, onChat }: TaskDetailVie
                 </div>
 
                 {/* 3. Safety */}
-                <div className="p-4 text-xs text-center text-muted-foreground">
+                <div className="p-4 text-xs text-center text-muted-foreground mb-4">
                     接单前请先沟通确认需求，平台全程担保资金安全。
+                </div>
+
+                {/* 4. Neighbor Stories */}
+                <div className="bg-card rounded-2xl p-6 shadow-sm border mb-8 overflow-hidden">
+                    <EnhancedReviewList listingId={master.id} />
                 </div>
             </div>
 

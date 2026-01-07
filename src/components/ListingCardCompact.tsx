@@ -95,3 +95,4 @@ export const ListingCardCompact = ({ item }: { item: ListingMaster }) => {
         </Link>
     );
 };
+

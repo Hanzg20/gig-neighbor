@@ -1,4 +1,4 @@
-import { Bell, User, Menu, PlusCircle, MessageCircle } from "lucide-react";
+import { Bell, User, Menu, PlusCircle, MessageCircle, Globe } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
@@ -6,6 +6,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { useCommunity } from "@/context/CommunityContext";
 import { BeanBalance } from "./beans/BeanBalance";
 import { useMessageStore } from "@/stores/messageStore";
+import { useConfigStore } from "@/stores/configStore";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./ui/dropdown-menu";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -13,6 +15,7 @@ const Header = () => {
   const { currentUser, isLoading } = useAuthStore();
   const { activeNodeId } = useCommunity();
   const { totalUnreadCount, loadUnreadCount } = useMessageStore();
+  const { language, setLanguage } = useConfigStore();
 
   // Load unread count on mount and when user changes
   useEffect(() => {
@@ -20,6 +23,22 @@ const Header = () => {
       loadUnreadCount(currentUser.id);
     }
   }, [currentUser?.id, loadUnreadCount]);
+
+  // Localized text dictionary
+  const t = {
+    discover: language === 'zh' ? '发现' : 'Discover',
+    community: language === 'zh' ? '社区' : 'Community',
+    orders: language === 'zh' ? '订单' : 'Orders',
+    myPosts: language === 'zh' ? '我的发布' : 'My Posts',
+    chat: language === 'zh' ? '消息' : 'Chat',
+    post: language === 'zh' ? '发布' : 'Post',
+    postSomething: language === 'zh' ? '发布需求' : 'Post Something',
+    myProfile: language === 'zh' ? '我的主页' : 'My Profile',
+    wait: language === 'zh' ? '稍候...' : 'Wait...',
+    me: language === 'zh' ? '我' : 'Me',
+    join: language === 'zh' ? '登录' : 'Join',
+    neighborly: language === 'zh' ? '友爱邻里' : 'Neighborly',
+  };
 
   return (
     <header className="sticky top-0 z-50 glass-header">
@@ -31,27 +50,27 @@ const Header = () => {
           </div>
           <div className="hidden sm:block">
             <h1 className="text-xl font-black text-foreground tracking-tighter">HangHand</h1>
-            <p className="text-[10px] font-bold text-primary/80 uppercase tracking-widest -mt-1 text-center sm:text-left">Neighborly</p>
+            <p className="text-[10px] font-bold text-primary/80 uppercase tracking-widest -mt-1 text-center sm:text-left">{t.neighborly}</p>
           </div>
         </Link>
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-6">
           <Link to="/" className="text-sm font-bold text-foreground hover:text-primary transition-colors">
-            Discover
+            {t.discover}
           </Link>
           <Link to="/community" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
-            Community
+            {t.community}
           </Link>
           <Link to="/orders" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
-            Orders
+            {t.orders}
           </Link>
           <Link to="/my-listings" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
-            My Posts
+            {t.myPosts}
           </Link>
           <Link to="/chat" className="relative text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
             <MessageCircle className="w-5 h-5 inline mr-1" />
-            Chat
+            {t.chat}
             {totalUnreadCount > 0 && (
               <span className="absolute -top-1 -right-3 w-4 h-4 bg-accent rounded-full text-[10px] font-black text-accent-foreground flex items-center justify-center">
                 {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
@@ -62,9 +81,26 @@ const Header = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-3">
+          {/* Language Switcher */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full w-9 h-9">
+                <Globe className="w-4 h-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setLanguage('en')}>
+                English {language === 'en' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLanguage('zh')}>
+                中文 {language === 'zh' && '✓'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Link to="/post-gig" className="hidden sm:block">
             <Button size="sm" className="btn-action shadow-warm px-5">
-              <PlusCircle className="w-4 h-4 mr-2" /> Post
+              <PlusCircle className="w-4 h-4 mr-2" /> {t.post}
             </Button>
           </Link>
 
@@ -98,7 +134,7 @@ const Header = () => {
               </div>
             )}
             <span className="hidden sm:block text-sm font-bold text-foreground">
-              {isLoading ? 'Wait...' : currentUser ? 'Me' : 'Join'}
+              {isLoading ? t.wait : currentUser ? t.me : t.join}
             </span>
           </button>
 
@@ -116,19 +152,19 @@ const Header = () => {
         <div className="md:hidden border-t border-border/20 bg-card/95 backdrop-blur-xl animate-scale-in">
           <nav className="container py-4 flex flex-col gap-2">
             <Link to="/" className="px-5 py-3 rounded-2xl text-sm font-bold text-foreground bg-primary/10 text-primary">
-              Discover
+              {t.discover}
             </Link>
             <Link to="/community" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
-              Community
+              {t.community}
             </Link>
             <Link to="/post-gig" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
-              Post Something
+              {t.postSomething}
             </Link>
             <Link to="/my-listings" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
-              My Posts
+              {t.myPosts}
             </Link>
             <Link to="/profile" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
-              My Profile
+              {t.myProfile}
             </Link>
           </nav>
         </div>

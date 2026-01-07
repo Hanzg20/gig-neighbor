@@ -23,7 +23,7 @@ export function LocationSelector() {
   const displayName = currentNode?.zhName || currentNode?.enName || 'Community';
 
   // Get all nodes
-  const nodes = refCodes.filter(r => r.type === 'COMMUNITY_NODE');
+  const nodes = refCodes.filter(r => r.type === 'NODE');
 
   const handleNodeChange = (nodeId: string) => {
     setActiveNode(nodeId);
@@ -31,30 +31,28 @@ export function LocationSelector() {
   };
 
   return (
-    <div className="flex items-center justify-between mb-4">
-      {/* Left: Location Dropdown */}
-      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-        <DropdownMenuTrigger className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors">
-          <span>{displayName}</span>
-          <ChevronDown className="w-4 h-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {nodes.map((node) => (
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+      <DropdownMenuTrigger className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm border border-border/50 hover:border-primary hover:bg-white transition-all shadow-sm">
+        <span className="font-semibold text-lg">{displayName}</span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        {nodes.length > 0 ? (
+          nodes.map((node) => (
             <DropdownMenuItem
               key={node.codeId}
               onClick={() => handleNodeChange(node.codeId)}
-              className={activeNodeId === node.codeId ? 'bg-primary/10' : ''}
+              className={activeNodeId === node.codeId ? 'bg-primary/10 font-semibold' : ''}
             >
               {node.zhName || node.enName}
             </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Right: Community Switch */}
-      <button className="text-sm text-muted-foreground hover:text-primary transition-colors">
-        切换社区: {displayName}
-      </button>
-    </div>
+          ))
+        ) : (
+          <DropdownMenuItem disabled>
+            No communities available
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

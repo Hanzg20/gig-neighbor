@@ -155,3 +155,4 @@ if (!document.head.querySelector('style[data-scrollbar-hide]')) {
   style.setAttribute('data-scrollbar-hide', 'true');
   document.head.appendChild(style);
 }
+

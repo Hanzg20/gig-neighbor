@@ -240,6 +240,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   item_id UUID REFERENCES public.listing_items(id) ON DELETE SET NULL,
   buyer_id UUID REFERENCES public.user_profiles(id),
   provider_id UUID REFERENCES public.provider_profiles(id),
+  node_id TEXT,
   status order_status DEFAULT 'PENDING_PAYMENT',
   amount_base INTEGER NOT NULL,
   amount_tax INTEGER DEFAULT 0,
@@ -275,6 +276,44 @@ BEGIN
 END $$;
 
 -- ==========================================
+-- STEP 7: REVIEWS & TRUST
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.reviews (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  order_id UUID REFERENCES public.orders(id) ON DELETE SET NULL,
+  listing_id UUID REFERENCES public.listing_masters(id) ON DELETE CASCADE,
+  buyer_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+  provider_id UUID REFERENCES public.provider_profiles(id) ON DELETE CASCADE,
+  rating DECIMAL NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  rating_dimensions JSONB DEFAULT '{}'::jsonb, -- e.g., { quality: 5, punctuality: 4, value: 5 }
+  content TEXT,
+  media TEXT[] DEFAULT ARRAY[]::TEXT[],
+  is_neighbor_story BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.review_reactions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  review_id UUID REFERENCES public.reviews(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+  reaction_type TEXT NOT NULL, -- 'HELPFUL', 'WARMTH', 'FUNNY'
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(review_id, user_id, reaction_type)
+);
+
+CREATE TABLE IF NOT EXISTS public.review_replies (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  review_id UUID REFERENCES public.reviews(id) ON DELETE CASCADE,
+  provider_id UUID REFERENCES public.provider_profiles(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(review_id)
+);
+
+-- ==========================================
 -- STEP 12: ROW LEVEL SECURITY (RLS)
 -- ==========================================
 
@@ -301,6 +340,34 @@ CREATE POLICY "Public profiles are viewable by everyone" ON public.provider_prof
 DROP POLICY IF EXISTS "Masters viewable if published" ON public.listing_masters;
 CREATE POLICY "Masters viewable if published" 
 ON public.listing_masters FOR SELECT USING (status = 'PUBLISHED');
+
+-- REVIEWS RLS
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Reviews are viewable by everyone" ON public.reviews;
+CREATE POLICY "Reviews are viewable by everyone" ON public.reviews FOR SELECT USING (status = 'PUBLISHED' OR true); -- Everyone can read reviews
+
+DROP POLICY IF EXISTS "Buyers can manage own reviews" ON public.reviews;
+CREATE POLICY "Buyers can manage own reviews" ON public.reviews 
+FOR ALL USING (auth.uid() = buyer_id);
+
+ALTER TABLE public.review_reactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Reactions are viewable by everyone" ON public.review_reactions;
+CREATE POLICY "Reactions are viewable by everyone" ON public.review_reactions FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can manage own reactions" ON public.review_reactions;
+CREATE POLICY "Users can manage own reactions" ON public.review_reactions 
+FOR ALL USING (auth.uid() = user_id);
+
+ALTER TABLE public.review_replies ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Replies are viewable by everyone" ON public.review_replies;
+CREATE POLICY "Replies are viewable by everyone" ON public.review_replies FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Providers can manage own replies" ON public.review_replies;
+CREATE POLICY "Providers can manage own replies" ON public.review_replies 
+FOR ALL USING (EXISTS (
+    SELECT 1 FROM public.provider_profiles p 
+    WHERE p.id = provider_id AND p.user_id = auth.uid()
+));
 
 DROP POLICY IF EXISTS "Items viewable if master published" ON public.listing_items;
 CREATE POLICY "Items viewable if master published" 
@@ -357,6 +424,49 @@ DROP TRIGGER IF EXISTS set_timestamp_users ON public.user_profiles;
 CREATE TRIGGER set_timestamp_users 
 BEFORE UPDATE ON public.user_profiles 
 FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+/*
+  ### 13.2 Review Automations
+  Aggregates ratings and rewards neighbors.
+*/
+CREATE OR REPLACE FUNCTION public.update_listing_rating()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.listing_masters
+  SET 
+    rating = (SELECT COALESCE(AVG(rating), 0) FROM public.reviews WHERE listing_id = COALESCE(NEW.listing_id, OLD.listing_id)),
+    review_count = (SELECT COUNT(*) FROM public.reviews WHERE listing_id = COALESCE(NEW.listing_id, OLD.listing_id))
+  WHERE id = COALESCE(NEW.listing_id, OLD.listing_id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS on_review_change ON public.reviews;
+CREATE TRIGGER on_review_change
+AFTER INSERT OR UPDATE OR DELETE ON public.reviews
+FOR EACH ROW EXECUTE FUNCTION public.update_listing_rating();
+
+CREATE OR REPLACE FUNCTION public.reward_beans_for_review()
+RETURNS TRIGGER AS $$
+DECLARE
+  reward_amount INTEGER := 50; 
+BEGIN
+  IF NEW.is_neighbor_story THEN
+    UPDATE public.user_profiles
+    SET beans_balance = beans_balance + reward_amount
+    WHERE id = NEW.buyer_id;
+
+    INSERT INTO public.bean_transactions (user_id, amount, type, reason, related_order_id)
+    VALUES (NEW.buyer_id, reward_amount, 'EARNED', 'Neighbor Story Review Reward', NEW.order_id);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS on_review_reward ON public.reviews;
+CREATE TRIGGER on_review_reward
+AFTER INSERT ON public.reviews
+FOR EACH ROW EXECUTE FUNCTION public.reward_beans_for_review();
 
 -- ✅ SCHEMA DEPLOYMENT COMPLETE
 

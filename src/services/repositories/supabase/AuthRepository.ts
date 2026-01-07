@@ -30,6 +30,20 @@ export class SupabaseAuthRepository implements IAuthRepository {
         if (error) throw error;
     }
 
+    async resetPasswordForEmail(email: string): Promise<void> {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+    }
+
+    async updatePassword(newPassword: string): Promise<void> {
+        const { error } = await supabase.auth.updateUser({
+            password: newPassword
+        });
+        if (error) throw error;
+    }
+
     async logout(): Promise<void> {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;

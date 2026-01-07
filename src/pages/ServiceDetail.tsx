@@ -1,98 +1,138 @@
+
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import {
-  ArrowLeft, MapPin, Star, Shield, Heart, Share2,
-  ChevronLeft, ChevronRight, Check, MessageCircle,
-  Calendar as CalendarIcon, Clock, Truck, Info, Sparkles, Award
-} from "lucide-react";
-import { format, addDays, differenceInDays } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { DateRange } from "react-day-picker";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useParams, useNavigate } from "react-router-dom";
 import { useListingStore, getTranslation } from "@/stores/listingStore";
+import { useProviderStore } from "@/stores/providerStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useConfigStore } from "@/stores/configStore";
-import { useProviderStore } from "@/stores/providerStore";
-import { useOrderStore } from "@/stores/orderStore";
+import { ListingMaster, ListingItem, Order } from "@/types/domain";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Heart, Share2, Check, Shield, Award, MapPin, MessageCircle, Star, Sparkles, AlertCircle, Info, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { InstantPayFlow } from "@/components/checkout/InstantPayFlow";
+import { QuoteRequestFlow } from "@/components/checkout/QuoteRequestFlow";
+import { GoodsDetailView } from "@/components/checkout/GoodsDetailView";
+import { TaskDetailView } from "@/components/checkout/TaskDetailView";
+import { EnhancedReviewList } from "@/components/reviews/EnhancedReviewList";
+import { Link } from "react-router-dom";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, differenceInDays, addDays } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Slider } from "@/components/ui/slider";
 import { repositoryFactory } from "@/services/repositories/factory";
-import { ListingMaster, ListingItem } from "@/types/domain";
-import { toast } from "sonner";
-import { InstantPayFlow } from "@/components/flows/InstantPayFlow";
-import { QuoteRequestFlow } from "@/components/flows/QuoteRequestFlow";
-import GoodsDetailView from "@/components/Detail/GoodsDetailView";
-import TaskDetailView from "@/components/Detail/TaskDetailView";
 
 const ServiceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { listings } = useListingStore();
   const { getProviderById } = useProviderStore();
-  const { refCodes } = useConfigStore();
+  const { refCodes, language } = useConfigStore();
   // const { addOrder } = useOrderStore() as any; 
   const [master, setMaster] = useState<ListingMaster | null>(null);
   const [items, setItems] = useState<ListingItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<ListingItem | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Interaction State
   const [currentImage, setCurrentImage] = useState(0);
-  const [isLiked, setIsLiked] = useState(false);
+  const [provider, setProvider] = useState<any>(null);
+
+  // Flow States
   const [isInstantPayOpen, setIsInstantPayOpen] = useState(false);
   const [isQuoteOpen, setIsQuoteOpen] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
 
-  // Selection State (Generic)
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(),
-    to: addDays(new Date(), 1),
-  });
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  // Rental Date State
+  const [dateRange, setDateRange] = useState<{ from: Date; to?: Date } | undefined>(undefined);
+
+  // Consult Duration State
   const [consultHours, setConsultHours] = useState(1);
 
-  const provider = master ? getProviderById(master.providerId) : undefined;
+  // Localization Helper
+  // NOTE: This can be moved to a separate file but keeping it here for simplicity
+  const t = {
+    notFound: language === 'zh' ? '未找到服务...' : 'Listing not found...',
+    total: language === 'zh' ? '总计' : 'Total',
+    deposit: language === 'zh' ? '押金 (可退)' : 'Ref. Deposit',
+    day: language === 'zh' ? '天' : 'day',
+    hr: language === 'zh' ? '小时' : 'hr',
+    ea: language === 'zh' ? '件' : 'ea',
+    rentNow: language === 'zh' ? '立即租赁' : 'Rent Now',
+    bookTime: language === 'zh' ? '预约时间' : 'Book Time',
+    bookNow: language === 'zh' ? '立即预订' : 'Book Now',
+    bookVisit: language === 'zh' ? '预约上门' : 'Book Visit',
+    requestQuote: language === 'zh' ? '获取报价' : 'Request Quote',
+    viewProfile: language === 'zh' ? '查看主页' : 'View Profile',
+    merchant: language === 'zh' ? '商家' : 'Merchant',
+    neighbor: language === 'zh' ? '邻居' : 'Neighbor',
+    vouched: language === 'zh' ? '人担保' : 'Vouched',
+    verifiedInsurance: language === 'zh' ? '保险已验证' : 'Verified Insurance',
+    professionalLicense: language === 'zh' ? '专业执照' : 'Professional License',
+    selectOption: language === 'zh' ? '选择选项' : 'Select Option',
+    rentalPeriod: language === 'zh' ? '租赁周期' : 'Rental Period',
+    daysTotal: language === 'zh' ? '天总计' : 'Days Total',
+    selectedDates: language === 'zh' ? '已选日期' : 'Selected Dates',
+    pickRange: language === 'zh' ? '选择日期' : 'Pick a range',
+    securityDeposit: language === 'zh' ? '归还后押金将全额退还。' : 'Security deposit is required and fully refundable after return.',
+    duration: language === 'zh' ? '时长' : 'Duration',
+    hours: language === 'zh' ? '小时' : 'Hours',
+    chat: language === 'zh' ? '私信' : 'Chat',
+    share: language === 'zh' ? '分享' : 'Share',
+  }
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!id) return;
-      setIsLoading(true);
-      try {
-        // Try to find in store first
-        let foundMaster = listings.find(l => l.id === id);
+    // Find master from store or fetch (omitted fetch for now, assuming store populated)
+    // In real app, perform fetch if not found
+    const foundMaster = listings.find(l => l.id === id);
 
-        // If not in store, fetch from repository
-        if (!foundMaster) {
-          const listingRepo = repositoryFactory.getListingRepository();
-          foundMaster = await listingRepo.getById(id) || undefined;
+    // Fetch items if master found
+    if (foundMaster) {
+      setMaster(foundMaster);
+      const foundProvider = getProviderById(foundMaster.providerId);
+
+
+      // If provider not in store, we should fetch it (Critical fix from previous session)
+      if (!foundProvider) {
+        const loadProvider = async () => {
+          const repo = repositoryFactory.getProviderRepository();
+          const p = await repo.getById(foundMaster.providerId);
+          setProvider(p);
         }
-
-        if (foundMaster) {
-          setMaster(foundMaster);
-
-          // Fetch items for this master
-          const itemRepo = repositoryFactory.getListingItemRepository();
-          const foundItems = await itemRepo.getByMaster(foundMaster.id);
-          setItems(foundItems);
-
-          if (foundItems.length > 0) {
-            setSelectedItem(foundItems[0]);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load listing detail:', error);
-      } finally {
-        setIsLoading(false);
+        loadProvider();
+      } else {
+        setProvider(foundProvider);
       }
-    };
 
-    loadData();
-  }, [id, listings]);
+      // Simulate fetching items
+      // In a real app we would use listingItemRepository.getByMasterId(id)
+      const repo = repositoryFactory.getListingItemRepository();
+      repo.getByMaster(foundMaster.id).then(loadedItems => {
+        setItems(loadedItems);
+        if (loadedItems.length > 0) setSelectedItem(loadedItems[0]);
+      });
+    } else {
+      // Only verify "Load Logic" if not found in list (e.g. direct link)
+      const loadData = async () => {
+        const repo = repositoryFactory.getListingRepository();
+        const listing = await repo.getById(id!);
+        if (listing) {
+          setMaster(listing);
+          // Fetch provider
+          const providerRepo = repositoryFactory.getProviderRepository();
+          const p = await providerRepo.getById(listing.providerId);
+          setProvider(p);
+
+          // Fetch Items
+          const itemRepo = repositoryFactory.getListingItemRepository();
+          const i = await itemRepo.getByMaster(listing.id);
+          setItems(i);
+          if (i.length > 0) setSelectedItem(i[0]);
+        }
+      }
+      if (id) loadData();
+    }
+  }, [id, listings, getProviderById]);
 
 
-  if (!master) return <div className="p-8 text-center text-muted-foreground">Listing not found...</div>;
+  if (!master) return <div className="p-8 text-center text-muted-foreground">{t.notFound}</div>;
 
   // --- ROUTING LOGIC ---
   if (master.type === 'GOODS' && selectedItem) {
@@ -149,16 +189,16 @@ const ServiceDetail = () => {
         <div className="flex items-baseline gap-1">
           <span className="text-2xl font-black text-primary">{formattedTotal}</span>
           {master.type !== 'GOODS' && (
-            <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Total</span>
+            <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{t.total}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-            ${pricing.price.amount / 100} / {pricing.unit || (master.type === 'RENTAL' ? 'day' : master.type === 'CONSULTATION' ? 'hr' : 'ea')}
+            ${pricing.price.amount / 100} / {pricing.unit || (master.type === 'RENTAL' ? t.day : master.type === 'CONSULTATION' ? t.hr : t.ea)}
           </p>
           {pricing.deposit && (
             <Badge variant="outline" className="h-4 px-1.5 text-[9px] font-black border-orange-200 bg-orange-50 text-orange-600 uppercase">
-              Ref. Deposit ${pricing.deposit.amount / 100}
+              {t.deposit} ${pricing.deposit.amount / 100}
             </Badge>
           )}
         </div>
@@ -167,9 +207,9 @@ const ServiceDetail = () => {
   };
 
   const getActionButtonText = () => {
-    if (master.type === 'RENTAL') return 'Rent Now';
-    if (master.type === 'CONSULTATION') return 'Book Time';
-    return 'Book Now';
+    if (master.type === 'RENTAL') return t.rentNow;
+    if (master.type === 'CONSULTATION') return t.bookTime;
+    return t.bookNow;
   };
 
 
@@ -228,9 +268,9 @@ const ServiceDetail = () => {
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-black text-foreground tracking-tight">{provider.businessNameEn || provider.businessNameZh}</h2>
+                  <h2 className="text-xl font-black text-foreground tracking-tight">{getTranslation(provider, 'businessName')}</h2>
                   <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black tracking-tighter uppercase px-2 py-0">
-                    {provider.identity === 'MERCHANT' ? 'Merchant' : 'Neighbor'}
+                    {provider.identity === 'MERCHANT' ? t.merchant : t.neighbor}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-3">
@@ -240,13 +280,16 @@ const ServiceDetail = () => {
                   </div>
                   <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
                     <Award className="w-3 h-3 text-primary" />
-                    <span>{provider.stats.reviewCount} Vouched</span>
+                    <span>{provider.stats.reviewCount} {t.vouched}</span>
                   </div>
                   <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
                     <MapPin className="w-3 h-3" />
                     <span>{provider.location.address?.split(',')[0]}</span>
                   </div>
                 </div>
+                <Link to={`/provider/${master.providerId}`} className="text-xs font-bold text-primary hover:underline mt-1.5 inline-flex items-center gap-1">
+                  {t.viewProfile} <span className="text-[10px]">→</span>
+                </Link>
               </div>
               <button
                 onClick={() => navigate('/chat')}
@@ -289,7 +332,7 @@ const ServiceDetail = () => {
                     <Shield className="w-5 h-5 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-0.5">Verified Insurance</p>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-0.5">{t.verifiedInsurance}</p>
                     <p className="text-sm font-bold text-emerald-900/80 leading-tight">{provider.insuranceSummaryEn}</p>
                   </div>
                 </div>
@@ -300,7 +343,7 @@ const ServiceDetail = () => {
                     <Award className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">Professional License</p>
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">{t.professionalLicense}</p>
                     <p className="text-sm font-bold text-blue-900/80 leading-tight">{provider.licenseInfo}</p>
                   </div>
                 </div>
@@ -315,7 +358,7 @@ const ServiceDetail = () => {
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
                 <div className="w-1.5 h-4 bg-primary rounded-full" />
-                Select Option
+                {t.selectOption}
               </h3>
             </div>
             <div className="grid gap-3">
@@ -355,11 +398,11 @@ const ServiceDetail = () => {
           <div className="card-warm p-6 mb-6 shadow-sm border-none bg-orange-50/30">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-black text-xs uppercase tracking-widest flex items-center gap-2 text-foreground">
-                <CalendarIcon className="w-4 h-4 text-primary" /> Rental Period
+                <CalendarIcon className="w-4 h-4 text-primary" /> {t.rentalPeriod}
               </h3>
               {dateRange?.from && dateRange?.to && (
                 <span className="text-[10px] font-black text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-tighter">
-                  {differenceInDays(dateRange.to, dateRange.from) || 1} Days Total
+                  {differenceInDays(dateRange.to, dateRange.from) || 1} {t.daysTotal}
                 </span>
               )}
             </div>
@@ -379,7 +422,7 @@ const ServiceDetail = () => {
                     {dateRange?.from ? (
                       dateRange.to ? (
                         <div className="flex flex-col">
-                          <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest leading-none">Selected Dates</span>
+                          <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest leading-none">{t.selectedDates}</span>
                           <span className="font-black text-foreground text-sm tracking-tight">
                             {format(dateRange.from, "LLL dd")} - {format(dateRange.to, "LLL dd, y")}
                           </span>
@@ -388,7 +431,7 @@ const ServiceDetail = () => {
                         format(dateRange.from, "LLL dd, y")
                       )
                     ) : (
-                      <span className="uppercase tracking-widest text-xs">Pick a range</span>
+                      <span className="uppercase tracking-widest text-xs">{t.pickRange}</span>
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -408,7 +451,7 @@ const ServiceDetail = () => {
               <div className="flex items-center gap-1.5 mt-2 ml-1 px-3 py-2 bg-orange-100/50 rounded-xl border border-orange-200/50">
                 <Info className="w-3 h-3 text-orange-600" />
                 <p className="text-[10px] font-bold text-orange-700 leading-tight">
-                  Security deposit is required and fully refundable after return.
+                  {t.securityDeposit}
                 </p>
               </div>
             </div>
@@ -419,10 +462,10 @@ const ServiceDetail = () => {
           <div className="card-warm p-6 mb-6 shadow-sm border-none bg-blue-50/30">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-black text-xs uppercase tracking-widest flex items-center gap-2 text-foreground">
-                <Clock className="w-4 h-4 text-primary" /> Duration
+                <Clock className="w-4 h-4 text-primary" /> {t.duration}
               </h3>
               <span className="text-sm font-black text-primary bg-primary/10 px-3 py-1 rounded-full uppercase">
-                {consultHours} Hours
+                {consultHours} {t.hours}
               </span>
             </div>
             <div className="px-2">
@@ -443,6 +486,11 @@ const ServiceDetail = () => {
             </div>
           </div>
         )}
+
+        {/* 4. Enhanced Neighbor Reviews */}
+        <div className="container max-w-4xl px-4 py-12 border-t border-border/10">
+          <EnhancedReviewList listingId={master.id} />
+        </div>
       </div>
 
       {/* 4. Fixed Bottom Bar (Premium Meituan Sticky) */}
@@ -453,7 +501,7 @@ const ServiceDetail = () => {
               <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-primary/5 transition-all">
                 <MessageCircle className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
               </div>
-              <span className="text-[10px] font-black text-muted-foreground uppercase group-hover:text-primary">Chat</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase group-hover:text-primary">{t.chat}</span>
             </button>
           </div>
           <div className="flex-1 flex items-center justify-between gap-4">
@@ -463,7 +511,7 @@ const ServiceDetail = () => {
                 onClick={() => setIsQuoteOpen(true)}
                 className="btn-action h-14 flex-1 max-w-[200px] text-sm font-black uppercase tracking-widest shadow-elevated rounded-2xl bg-blue-600 hover:bg-blue-700"
               >
-                {selectedItem.pricing.model === 'VISIT_FEE' ? 'Book Visit' : 'Request Quote'}
+                {selectedItem.pricing.model === 'VISIT_FEE' ? t.bookVisit : t.requestQuote}
               </Button>
             ) : (
               <Button

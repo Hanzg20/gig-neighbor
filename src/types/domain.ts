@@ -197,32 +197,41 @@ export interface ListingItem extends BaseEntity {
 // Legacy / Helper Types (Will be phased out or adapted)
 export type ListingItemLegacy = ListingMaster; // Temporary alias during migration
 
-// Mock Reviews
-export interface Review {
+export interface ReviewReaction {
   id: string;
+  reviewId: string;
+  userId: string;
+  type: 'HELPFUL' | 'WARMTH' | 'FUNNY';
+}
+
+export interface ReviewReply extends BaseEntity {
+  reviewId: string;
+  providerId: string;
+  content: string;
+}
+
+// Enhanced Reviews & Trust (Dianping/Yelp Inspired)
+export interface Review extends BaseEntity {
   listingId: string;
   orderId?: string;
-  userId: string; // Reviewer
-  userName: string;
-  userAvatar: string;
-  rating: number; // Overall
-  // Detailed ratings (JinBean style)
-  details?: {
-    service: number;
-    communication: number;
-    punctuality: number;
-    quality: number;
-  };
-  content: string;
-  date: string;
-  images?: string[];
-  reply?: string; // Provider's reply
+  buyerId: string; // Reviewer
+  providerId: string;
 
-  // Neighbor Story Features
-  isFeaturedStory?: boolean;
-  storyImage?: string;
-  storyTitleZh?: string;
-  storyTitleEn?: string;
+  // UI Display Info (Denormalized or joined)
+  buyerName: string;
+  buyerAvatar?: string;
+
+  rating: number; // Overall 1-5
+  ratingDimensions: Record<string, number>; // e.g. { quality: 5, punctuality: 4 }
+
+  content: string; // The "Story"
+  media: string[]; // Image/Video URLs
+
+  isNeighborStory: boolean; // Promotion flag
+
+  // Relationships
+  replies?: ReviewReply[];
+  reactions?: ReviewReaction[];
 }
 
 // New Types from Reference Analysis

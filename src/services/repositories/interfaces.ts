@@ -1,4 +1,4 @@
-import { ListingMaster, ListingItem, User, ProviderProfile, RefCode, BeanTransaction } from '@/types/domain';
+import { ListingMaster, ListingItem, User, ProviderProfile, RefCode, BeanTransaction, Review, ReviewReaction, ReviewReply } from '@/types/domain';
 import { Order, CartItem } from '@/types/orders';
 
 /**
@@ -9,6 +9,8 @@ import { Order, CartItem } from '@/types/orders';
 export interface IAuthRepository {
     login(email: string, password: string): Promise<User | null>;
     signInWithOtp(email: string): Promise<void>; // New: Magic Link/OTP
+    resetPasswordForEmail(email: string): Promise<void>; // New: Password reset
+    updatePassword(newPassword: string): Promise<void>; // New: Update password
     logout(): Promise<void>;
     getCurrentUser(): Promise<User | null>;
     register(email: string, password: string, name: string, nodeId?: string): Promise<User | null>;
@@ -99,5 +101,24 @@ export interface IMessageRepository {
     subscribeToMessages(conversationId: string, callback: (message: Message) => void): () => void;
     getUnreadCount(userId: string): Promise<number>;
     getConversationUnreadCounts(userId: string): Promise<Map<string, number>>;
+}
+
+export interface CommunityStats {
+    newNeighborsThisWeek: number;
+    tasksCompletedToday: number;
+    avgCommunityRating: number;
+    neighborsHelped: number;
+}
+
+export interface IReviewRepository {
+    getByListing(listingId: string): Promise<Review[]>;
+    submitReview(review: Omit<Review, 'id' | 'createdAt' | 'updatedAt' | 'replies' | 'reactions' | 'buyerName' | 'buyerAvatar'>): Promise<Review>;
+    addReaction(reviewId: string, userId: string, type: ReviewReaction['type']): Promise<ReviewReaction>;
+    removeReaction(reviewId: string, userId: string, type: ReviewReaction['type']): Promise<void>;
+    submitReply(reviewId: string, providerId: string, content: string): Promise<ReviewReply>;
+}
+
+export interface ICommunityStatsRepository {
+    getStats(nodeId?: string): Promise<CommunityStats>;
 }
 

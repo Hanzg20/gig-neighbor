@@ -21,14 +21,28 @@ ON CONFLICT (code_id) DO UPDATE SET
   extra_data = EXCLUDED.extra_data;
  
 -- Community Nodes (Pilot Launch Sites)
+
+  - ==========================================
+-- GIG NEIGHBOR - BATCH LISTING DATA
+-- 专业服务 + 美业 + 交通出行
+-- Generated: 2026-01-06
+-- ==========================================
+
+-- ==========================================
+-- ADDITIONAL NODES (社区节点扩展)
+-- ==========================================
 INSERT INTO public.ref_codes (code_id, type, en_name, zh_name, extra_data, sort_order) VALUES
 ('NODE_LEES', 'NODE', 'Ottawa-Lees', '渥太华-利斯 (Lees Ave)', '{"city": "Ottawa", "postal_prefix": "K1S", "cluster": "Student/Urban"}', 1),
-('NODE_KANATA', 'NODE', 'Ottawa-Kanata', '渥太华-卡纳塔 (Kanata Lakes)', '{"city": "Ottawa", "postal_prefix": "K2K", "cluster": "Suburban/Family"}', 2)
-ON CONFLICT (code_id) DO UPDATE SET 
+('NODE_KANATA', 'NODE', 'Ottawa-Kanata', '渥太华-卡纳塔 (Kanata Lakes)', '{"city": "Ottawa", "postal_prefix": "K2K", "cluster": "Suburban/Family"}', 2),
+('NODE_ORLEANS', 'NODE', 'Ottawa-Orleans', '渥太华-奥尔良 (Orleans)', '{"city": "Ottawa", "postal_prefix": "K1E", "cluster": "Family/Growing"}', 3),
+('NODE_BARRHAVEN', 'NODE', 'Ottawa-Barrhaven', '渥太华-巴尔黑文 (Barrhaven)', '{"city": "Ottawa", "postal_prefix": "K2J", "cluster": "Suburban/Family"}', 4),
+('NODE_DOWNTOWN', 'NODE', 'Ottawa-Downtown', '渥太华-市中心 (Downtown)', '{"city": "Ottawa", "postal_prefix": "K1P", "cluster": "Urban/Professional"}', 5)
+ON CONFLICT (code_id) DO UPDATE SET
   type = EXCLUDED.type,
   en_name = EXCLUDED.en_name,
   zh_name = EXCLUDED.zh_name,
   extra_data = EXCLUDED.extra_data;
+
  
 -- Tier 2: Subcategories (High Information Density, 7 per Industry)
 INSERT INTO public.ref_codes (code_id, parent_id, type, en_name, zh_name, extra_data, sort_order) VALUES
@@ -233,55 +247,945 @@ ON CONFLICT (id) DO UPDATE SET
 -- ============================================================================
 -- 4. GOODS & TASKS TEST DATA
 -- ============================================================================
-
--- Seed a Provider
-INSERT INTO public.providers (id, user_id, business_name_zh, business_name_en, identity, status, location, stats)
-VALUES 
-('prov_test_01', 'user_hv1', 'Test Neighbor', 'Test Neighbor', 'NEIGHBOR', 'APPROVED', '{"address": "123 Test St", "city": "Kanata"}', '{"averageRating": 4.8, "reviewCount": 10, "totalOrders": 5}')
-ON CONFLICT (id) DO NOTHING;
-
--- Seed a Good (Nintendo Switch)
-INSERT INTO public.listing_masters (
-    id, provider_id, title_zh, title_en, description_zh, description_en, 
-    images, type, category_id, node_id, status, metadata, tags, location
-)
-VALUES (
-    'good_001', 'prov_test_01', '99新 Switch OLED', 'Switch OLED Like New', 
-    '买了吃灰，箱说全，带塞尔达卡带。', 'Bought but never used. Complete in box with Zelda.',
-    ARRAY['https://images.unsplash.com/photo-1578303512597-81de50a55058?auto=format&fit=crop&q=80&w=1000'],
-    'GOODS', 'cat_elec', 'node_kanata', 'PUBLISHED',
-    '{"deliveryOptions": ["PICKUP", "DELIVERY"]}',
-    ARRAY['Electronics', 'Gaming'],
-    '{"address": "Kanata Lakes", "city": "Ottawa"}'
-) ON CONFLICT (id) DO UPDATE SET title_zh = EXCLUDED.title_zh;
-
 INSERT INTO public.listing_items (
-    id, master_id, name_zh, price_amount, pricing_model, attributes, status
+  id,
+  master_id,
+  name_zh,
+  name_en,
+  description_zh,
+  description_en,
+  price_amount,
+  price_currency,
+  price_unit,
+  deposit_amount,
+  pricing_model,
+  status,
+  pricing
+) VALUES
+(
+  '50d7e5f6-5a6b-4c83-7e6f-5a6b7c8d9e00',
+  '30b5c3d4-7f8e-4a61-9c4d-3e4f5a6b7c80',
+  'Standard Driveway (2-Car)', -- name_zh (provided)
+  'Standard Driveway (2-Car)', -- name_en
+  NULL,
+  'Full cleaning of a standard family driveway.',
+  8500,
+  'CAD',
+  'per service',
+  0,
+  'FIXED',
+  'AVAILABLE',
+  '{"model": "FIXED", "price": {"amount": 8500, "currency": "CAD", "formatted": "$85.00"}, "unit": "per service"}'
+),
+(
+  '60e8f6a7-4b5c-4d94-6f7a-6b7c8d9e0f10',
+  '30b5c3d4-7f8e-4a61-9c4d-3e4f5a6b7c80',
+  'Large Driveway (4-Car+)',
+  'Large Driveway (4-Car+)',
+  NULL,
+  'Specialized for larger properties or interlocking stone.',
+  15000,
+  'CAD',
+  'per service',
+  0,
+  'FIXED',
+  'AVAILABLE',
+  '{"model": "FIXED", "price": {"amount": 15000, "currency": "CAD", "formatted": "$150.00"}, "unit": "per service"}'
+),
+(
+  '70f9a7b8-3c4d-4e05-5a6b-7c8d9e0f1a20',
+  '40c6d4e5-6f7a-4b72-8d5e-4f5a6b7c8d90',
+  'Daily Rental-zh',
+  'Daily Rental',
+  NULL,
+  'Includes drill, 2 batteries, and hard case.',
+  1500,
+  'CAD',
+  'per day',
+  10000,
+  'DAILY',
+  'AVAILABLE',
+  '{"model": "DAILY", "price": {"amount": 1500, "currency": "CAD", "formatted": "$15.00"}, "unit": "per day", "deposit": {"amount": 10000, "currency": "CAD", "formatted": "$100.00"}}'
+),
+(
+  '80a0b8c9-2d3e-4f16-4b5c-8d9e0f1a2b30',
+  '40c6d4e5-6f7a-4b72-8d5e-4f5a6b7c8d90',
+  'Weekend Special (3 Days)-zh',
+  'Weekend Special (3 Days)',
+  NULL,
+  'Pick up Friday, return Monday.',
+  3500,
+  'CAD',
+  'per weekend',
+  10000,
+  'FIXED',
+  'AVAILABLE',
+  '{"model": "FIXED", "price": {"amount": 3500, "currency": "CAD", "formatted": "$35.00"}, "unit": "per weekend", "deposit": {"amount": 10000, "currency": "CAD", "formatted": "$100.00"}}'
+),
+(
+  '90b1c9da-1e2f-4a27-3c4d-9e0f1a2b3c40',
+  '30b5c3d4-7f8e-4a61-9c4d-3e4f5a6b7c80',
+  'Custom Interlocking Repair-zh',
+  'Custom Interlocking Repair',
+  NULL,
+  'Requires on-site assessment for accurate quote.',
+  0,
+  'CAD',
+  'per project',
+  0,
+  'QUOTE',
+  'AVAILABLE',
+  '{"model": "QUOTE", "price": {"amount": 0, "currency": "CAD", "formatted": "$0.00"}, "unit": "per project"}'
+),
+(
+  'a0c2dab1-0f1e-4b38-2d3e-0f1a2b3c4d50',
+  '30b5c3d4-7f8e-4a61-9c4d-3e4f5a6b7c80',
+  'On-Site Assessment-zh',
+  'On-Site Assessment',
+  NULL,
+  'Professional visit to inspect property and provide detailed quote.',
+  5000,
+  'CAD',
+  'per visit',
+  0,
+  'VISIT_FEE',
+  'AVAILABLE',
+  '{"model": "VISIT_FEE", "price": {"amount": 5000, "currency": "CAD", "formatted": "$50.00"}, "unit": "per visit"}'
 )
-VALUES (
-    'item_good_001', 'good_001', 'Switch OLED', 180000, 'FIXED', 
-    '{"condition": "LIKE_NEW", "delivery": ["PICKUP"]}', 'AVAILABLE'
-) ON CONFLICT (id) DO UPDATE SET name_zh = EXCLUDED.name_zh;
+ON CONFLICT (id) DO UPDATE SET
+  name_en = EXCLUDED.name_en,
+  name_zh = EXCLUDED.name_zh,
+  description_en = EXCLUDED.description_en,
+  price_amount = EXCLUDED.price_amount,
+  price_currency = EXCLUDED.price_currency,
+  price_unit = EXCLUDED.price_unit,
+  deposit_amount = EXCLUDED.deposit_amount,
+  pricing_model = EXCLUDED.pricing_model,
+  pricing = EXCLUDED.pricing,
+  status = EXCLUDED.status;
 
--- Seed a Task (Move Sofa)
+
+
+
+
+-- ==========================================
+-- PROVIDER PROFILES (专业服务提供者)
+-- ==========================================
+INSERT INTO public.provider_profiles (
+    id, user_id, business_name_zh, business_name_en,
+    description_zh, description_en, identity, is_verified,
+    badges, stats, location_address, service_radius_km,
+    verification_level, status
+) VALUES
+(
+    '777b3240-3506-47ba-856e-c97f97687e49',
+    '16d48e8f-0952-4193-ab73-9e7f512b2996',
+    '持证电工服务',
+    'Licensed Electrician',
+    '安省持证电工，ECRA认证。提供住宅电路安装、维修、升级服务。包括断路器更换、插座安装、照明改造等。24小时紧急服务可用。...',
+    'Ontario licensed electrician with ECRA certification. Residential electrical installation, repair, and upgrades. Including breaker replacement, outlet...',
+    'MERCHANT',
+    true,
+    ARRAY['top_rated'],
+    '{"totalOrders": 47, "averageRating": 4.9, "totalIncome": 6204}',
+    '渥太华-利斯, Ottawa',
+    10.0,
+    3,
+    'ACTIVE'
+),
+(
+    '58127e84-378c-4963-ba95-1ebadc97e239',
+    '4ccc08eb-263b-4f40-9f44-5a5d1f1d44c1',
+    '持证水暖工',
+    'Licensed Plumber',
+    '持证水暖工，专业管道维修安装。提供水龙头维修、马桶安装、管道疏通、热水器更换等服务。快速响应，质量保证。...',
+    'Licensed plumber specializing in pipe repair and installation. Faucet repair, toilet installation, drain cleaning, water heater replacement. Fast resp...',
+    'MERCHANT',
+    false,
+    ARRAY['experienced'],
+    '{"totalOrders": 55, "averageRating": 4.6, "totalIncome": 24695}',
+    '渥太华-卡纳塔, Ottawa',
+    15.0,
+    2,
+    'ACTIVE'
+),
+(
+    'e3cb8bb8-31e9-4a3f-954f-a6139f878404',
+    'e1507f9e-7343-4474-a1da-301a213943ec',
+    'RECO持证地产经纪',
+    'RECO Licensed Real Estate Agent',
+    'RECO持证地产经纪，服务渥太华及周边地区。精通买卖、租赁、投资咨询。熟悉华人社区需求，提供中英双语服务。免费市场评估。...',
+    'RECO licensed real estate agent serving Ottawa and surrounding areas. Expert in buying, selling, leasing, and investment consultation. Familiar with C...',
+    'MERCHANT',
+    true,
+    ARRAY['top_rated', 'experienced'],
+    '{"totalOrders": 60, "averageRating": 4.9, "totalIncome": 14040}',
+    '渥太华-奥尔良, Ottawa',
+    10.0,
+    3,
+    'ACTIVE'
+),
+(
+    '23d9d4e9-4ee2-442b-8dbb-45efe7374d1e',
+    '16d48e8f-0952-4193-ab73-9e7f512b2996',
+    '专业美甲美睫工作室',
+    'Professional Nail & Lash Studio',
+    '专业美甲美睫服务，持证美容师。提供凝胶美甲、光疗甲、睫毛嫁接、半永久眉眼唇等服务。使用进口材料，环境舒适卫生。...',
+    'Professional nail and lash services by certified beautician. Gel nails, UV nails, lash extensions, semi-permanent makeup. Imported materials, comforta...',
+    'MERCHANT',
+    true,
+    ARRAY['top_rated', 'experienced'],
+    '{"totalOrders": 56, "averageRating": 4.8, "totalIncome": 6832}',
+    '渥太华-巴尔黑文, Ottawa',
+    25.0,
+    3,
+    'ACTIVE'
+),
+(
+    '80134956-7b17-437c-9a26-24cbe827d25e',
+    '4ccc08eb-263b-4f40-9f44-5a5d1f1d44c1',
+    '社区理发服务',
+    'Community Hair Salon',
+    '邻里理发服务，经验丰富的发型师。提供男女剪发、染发、烫发等服务。价格实惠，预约方便。...',
+    'Neighborhood hair services by experienced stylists. Men and women haircuts, coloring, perms. Affordable prices, easy booking....',
+    'MERCHANT',
+    false,
+    ARRAY['top_rated'],
+    '{"totalOrders": 21, "averageRating": 5.0, "totalIncome": 9891}',
+    '渥太华-市中心, Ottawa',
+    20.0,
+    1,
+    'ACTIVE'
+),
+(
+    '447fbcd9-c748-4953-960b-92e2c8826b89',
+    'e1507f9e-7343-4474-a1da-301a213943ec',
+    '渥太华-多伦多顺风车',
+    'Ottawa-Toronto Carpool',
+    '渥太华往返多伦多顺风车服务，每周固定时间发车。舒适商务车，安全可靠。可在指定地点接送，支持大件行李。需提前预约。...',
+    'Ottawa-Toronto carpool service with fixed weekly schedule. Comfortable business vehicle, safe and reliable. Pickup/dropoff at designated locations, la...',
+    'MERCHANT',
+    true,
+    ARRAY['experienced'],
+    '{"totalOrders": 54, "averageRating": 4.6, "totalIncome": 10206}',
+    '渥太华-利斯, Ottawa',
+    15.0,
+    3,
+    'ACTIVE'
+),
+(
+    'f9690d49-f7bb-4191-9750-c9d8477e9b56',
+    '16d48e8f-0952-4193-ab73-9e7f512b2996',
+    '社区购物接送',
+    'Community Shopping Shuttle',
+    '每周定期前往T&T大统华、八方等华人超市购物接送服务。固定路线，按时出发，价格实惠。适合没有车的邻居。...',
+    'Weekly shuttle to T&T, Asian supermarkets and Chinese groceries. Fixed routes, punctual departure, affordable. Perfect for neighbors without cars....',
+    'MERCHANT',
+    true,
+    ARRAY['top_rated', 'experienced'],
+    '{"totalOrders": 74, "averageRating": 4.8, "totalIncome": 22348}',
+    '渥太华-卡纳塔, Ottawa',
+    25.0,
+    3,
+    'ACTIVE'
+),
+(
+    'c7c7c367-6847-4f2a-9dd9-793ec4efce57',
+    '4ccc08eb-263b-4f40-9f44-5a5d1f1d44c1',
+    '渥太华机场专业接送服务',
+    'Ottawa Airport Professional Transfer',
+    '提供24小时渥太华机场接送服务。准时可靠，舒适商务车。可提前预约，支持航班追踪。司机经验丰富，熟悉各区域路线。...',
+    '24-hour Ottawa airport transfer service. Punctual and reliable, comfortable business vehicles. Advance booking available, flight tracking supported. E...',
+    'MERCHANT',
+    true,
+    ARRAY['top_rated'],
+    '{"totalOrders": 36, "averageRating": 4.9, "totalIncome": 13860}',
+    '渥太华-奥尔良, Ottawa',
+    10.0,
+    3,
+    'ACTIVE'
+)
+;
+
+
+-- ==========================================
+-- LISTING MASTERS (服务主表)
+-- ==========================================
 INSERT INTO public.listing_masters (
-    id, provider_id, title_zh, title_en, description_zh, description_en, 
-    images, type, category_id, node_id, status, metadata, tags, location
+    id, provider_id, title_zh, title_en,
+    description_zh, description_en, images, type,
+    category_id, tags, status, location_address,
+    rating, review_count, is_promoted, node_id,
+    latitude, longitude
+) VALUES
+(
+    '4c58b0f8-0a04-4a55-81a8-9f9111dd61fe',
+    '777b3240-3506-47ba-856e-c97f97687e49',
+    '持证电工服务 - ECRA认证',
+    'Licensed Electrician - ECRA Certified',
+    '安省持证电工，ECRA认证。提供住宅电路安装、维修、升级服务。包括断路器更换、插座安装、照明改造等。24小时紧急服务可用。',
+    'Ontario licensed electrician with ECRA certification. Residential electrical installation, repair, and upgrades. Including breaker replacement, outlet installation, lighting renovation. 24-hour emergency service available.',
+    ARRAY['https://images.unsplash.com/photo-1621905251189-08b45d6a269e'],
+    'SERVICE',
+    '1020100',
+    ARRAY['electrician', 'professional'],
+    'PUBLISHED',
+    '渥太华-利斯, Ottawa',
+    5.0,
+    56,
+    true,
+    'NODE_LEES',
+    45.4215,
+    -75.6972
+),
+(
+    '6d0c0929-4fbc-4b5c-b30c-bdefaf822039',
+    '58127e84-378c-4963-ba95-1ebadc97e239',
+    '持证水暖工 - 管道专家',
+    'Licensed Plumber - Pipeline Expert',
+    '持证水暖工，专业管道维修安装。提供水龙头维修、马桶安装、管道疏通、热水器更换等服务。快速响应，质量保证。',
+    'Licensed plumber specializing in pipe repair and installation. Faucet repair, toilet installation, drain cleaning, water heater replacement. Fast response, quality guaranteed.',
+    ARRAY['https://images.unsplash.com/photo-1607472586893-edb57bdc0e39'],
+    'SERVICE',
+    '1020200',
+    ARRAY['plumber', 'professional'],
+    'PUBLISHED',
+    '渥太华-卡纳塔, Ottawa',
+    4.6,
+    16,
+    true,
+    'NODE_KANATA',
+    45.3334,
+    -75.905
+),
+(
+    'bd80faff-e9a7-4798-9432-bda31883a970',
+    'e3cb8bb8-31e9-4a3f-954f-a6139f878404',
+    'RECO持证地产经纪 - 买卖租赁',
+    'RECO Licensed Real Estate Agent - Buy/Sell/Rent',
+    'RECO持证地产经纪，服务渥太华及周边地区。精通买卖、租赁、投资咨询。熟悉华人社区需求，提供中英双语服务。免费市场评估。',
+    'RECO licensed real estate agent serving Ottawa and surrounding areas. Expert in buying, selling, leasing, and investment consultation. Familiar with Chinese community needs, bilingual service. Free market evaluation.',
+    ARRAY['https://images.unsplash.com/photo-1560518883-ce09059eeffa'],
+    'CONSULTATION',
+    '1020500',
+    ARRAY['real-estate-agent', 'professional', 'property', 'reco'],
+    'PUBLISHED',
+    '渥太华-奥尔良, Ottawa',
+    4.7,
+    57,
+    true,
+    'NODE_ORLEANS',
+    45.4643,
+    -75.5204
+),
+(
+    '60b69518-a369-4e9c-90ce-c9ac61be84e6',
+    '23d9d4e9-4ee2-442b-8dbb-45efe7374d1e',
+    '专业美甲美睫工作室',
+    'Professional Nail & Lash Studio',
+    '专业美甲美睫服务，持证美容师。提供凝胶美甲、光疗甲、睫毛嫁接、半永久眉眼唇等服务。使用进口材料，环境舒适卫生。',
+    'Professional nail and lash services by certified beautician. Gel nails, UV nails, lash extensions, semi-permanent makeup. Imported materials, comfortable and hygienic environment.',
+    ARRAY['https://images.unsplash.com/photo-1604654894610-df63bc536371'],
+    'SERVICE',
+    '1020600',
+    ARRAY['beauty-services', 'professional'],
+    'PUBLISHED',
+    '渥太华-巴尔黑文, Ottawa',
+    4.5,
+    46,
+    true,
+    'NODE_BARRHAVEN',
+    45.2733,
+    -75.7597
+),
+(
+    '41fdc8a4-3aff-4791-a1c2-df1b67fdcd4a',
+    '80134956-7b17-437c-9a26-24cbe827d25e',
+    '社区理发服务 - 男女剪发',
+    'Community Hair Salon - Men & Women',
+    '邻里理发服务，经验丰富的发型师。提供男女剪发、染发、烫发等服务。价格实惠，预约方便。',
+    'Neighborhood hair services by experienced stylists. Men and women haircuts, coloring, perms. Affordable prices, easy booking.',
+    ARRAY['https://images.unsplash.com/photo-1560066984-138dadb4c035'],
+    'SERVICE',
+    '1020600',
+    ARRAY['beauty-services', 'professional'],
+    'PUBLISHED',
+    '渥太华-市中心, Ottawa',
+    4.9,
+    23,
+    true,
+    'NODE_DOWNTOWN',
+    45.4215,
+    -75.6972
+),
+(
+    '646b69dc-15e6-444a-adc1-9ace72160842',
+    '447fbcd9-c748-4953-960b-92e2c8826b89',
+    '渥太华-多伦多顺风车',
+    'Ottawa-Toronto Carpool',
+    '渥太华往返多伦多顺风车服务，每周固定时间发车。舒适商务车，安全可靠。可在指定地点接送，支持大件行李。需提前预约。',
+    'Ottawa-Toronto carpool service with fixed weekly schedule. Comfortable business vehicle, safe and reliable. Pickup/dropoff at designated locations, large luggage supported. Advance booking required.',
+    ARRAY['https://images.unsplash.com/photo-1449965408869-eaa3f722e40d'],
+    'SERVICE',
+    '1050600',
+    ARRAY['carpool', 'professional', 'transportation', 'travel'],
+    'PUBLISHED',
+    '渥太华-利斯, Ottawa',
+    4.6,
+    59,
+    false,
+    'NODE_LEES',
+    45.4215,
+    -75.6972
+),
+(
+    '0a5b1fac-1ab4-408b-9fb5-9d7ab84acc5c',
+    'f9690d49-f7bb-4191-9750-c9d8477e9b56',
+    '社区购物接送 - T&T/大统华',
+    'Community Shopping Shuttle - T&T/Asian Markets',
+    '每周定期前往T&T大统华、八方等华人超市购物接送服务。固定路线，按时出发，价格实惠。适合没有车的邻居。',
+    'Weekly shuttle to T&T, Asian supermarkets and Chinese groceries. Fixed routes, punctual departure, affordable. Perfect for neighbors without cars.',
+    ARRAY['https://images.unsplash.com/photo-1557804506-669a67965ba0'],
+    'SERVICE',
+    '1050600',
+    ARRAY['carpool', 'professional'],
+    'PUBLISHED',
+    '渥太华-卡纳塔, Ottawa',
+    4.7,
+    26,
+    true,
+    'NODE_KANATA',
+    45.3334,
+    -75.905
+),
+(
+    'ca41fe29-264d-481a-a9c5-092a949d54cf',
+    'c7c7c367-6847-4f2a-9dd9-793ec4efce57',
+    '渥太华机场专业接送服务',
+    'Ottawa Airport Professional Transfer',
+    '提供24小时渥太华机场接送服务。准时可靠，舒适商务车。可提前预约，支持航班追踪。司机经验丰富，熟悉各区域路线。',
+    '24-hour Ottawa airport transfer service. Punctual and reliable, comfortable business vehicles. Advance booking available, flight tracking supported. Experienced drivers familiar with all areas.',
+    ARRAY['https://images.unsplash.com/photo-1436491865332-7a61a109cc05'],
+    'SERVICE',
+    '1050700',
+    ARRAY['airport-transportation', 'professional', 'transportation', 'travel'],
+    'PUBLISHED',
+    '渥太华-奥尔良, Ottawa',
+    4.7,
+    45,
+    false,
+    'NODE_ORLEANS',
+    45.4643,
+    -75.5204
 )
-VALUES (
-    'task_001', 'prov_test_01', '求帮搬沙发上楼', 'Help moving sofa', 
-    '沙发在楼下车库，需要两个人搬到二楼，有电梯但是沙发太长进不去，需要走楼梯。', 'Sofa in garage, need 2 ppl to move to 2nd floor via stairs.',
-    ARRAY['https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?auto=format&fit=crop&q=80&w=1000'],
-    'TASK', 'cat_home', 'node_kanata', 'PUBLISHED',
-    '{}',
-    ARRAY['Moving', 'Heavy'],
-    '{"address": "Kanata Lakes", "city": "Ottawa"}'
-) ON CONFLICT (id) DO UPDATE SET title_zh = EXCLUDED.title_zh;
+;
 
+
+-- ==========================================
+-- LISTING ITEMS (服务明细/套餐)
+-- ==========================================
 INSERT INTO public.listing_items (
-    id, master_id, name_zh, price_amount, pricing_model, attributes, status
+    id, master_id, name_zh, name_en,
+    description_zh, description_en,
+    price_amount, price_currency, price_unit,
+    deposit_amount, pricing_model, status, sort_order,
+    pricing
+) VALUES
+(
+    '44116970-c33c-4599-b0ac-ec041d501398',
+    '4c58b0f8-0a04-4a55-81a8-9f9111dd61fe',
+    '基础电路检查',
+    'Basic Circuit Inspection',
+    null,
+    null,
+    12000,
+    'CAD',
+    'per visit',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    1,
+    '{"model": "FIXED", "unit": "per visit", "price": {"amount": 12000, "currency": "CAD", "formatted": "$120.00"}}'
+),
+(
+    'c44cae9d-b817-459b-ae94-b0f50f110045',
+    '4c58b0f8-0a04-4a55-81a8-9f9111dd61fe',
+    '插座/开关安装',
+    'Outlet/Switch Installation',
+    null,
+    null,
+    8500,
+    'CAD',
+    'per unit',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    2,
+    '{"model": "FIXED", "unit": "per unit", "price": {"amount": 8500, "currency": "CAD", "formatted": "$85.00"}}'
+),
+(
+    '80772903-05be-461e-8d9d-78efc2b54bbd',
+    '4c58b0f8-0a04-4a55-81a8-9f9111dd61fe',
+    '断路器更换',
+    'Breaker Replacement',
+    null,
+    null,
+    15000,
+    'CAD',
+    'per service',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    3,
+    '{"model": "FIXED", "unit": "per service", "price": {"amount": 15000, "currency": "CAD", "formatted": "$150.00"}}'
+),
+(
+    '4e673e29-3696-4ab6-a14c-b788079f94b3',
+    '4c58b0f8-0a04-4a55-81a8-9f9111dd61fe',
+    '紧急维修服务',
+    'Emergency Repair',
+    null,
+    null,
+    25000,
+    'CAD',
+    'per call',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    4,
+    '{"model": "FIXED", "unit": "per call", "price": {"amount": 25000, "currency": "CAD", "formatted": "$250.00"}}'
+),
+(
+    'fa4f79fb-0be0-497b-a3fc-0cdcf0b7b3b6',
+    '6d0c0929-4fbc-4b5c-b30c-bdefaf822039',
+    '管道疏通',
+    'Drain Cleaning',
+    null,
+    null,
+    15000,
+    'CAD',
+    'per service',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    1,
+    '{"model": "FIXED", "unit": "per service", "price": {"amount": 15000, "currency": "CAD", "formatted": "$150.00"}}'
+),
+(
+    'a7946b18-2bb2-43a7-ba24-0bb6b73a3ef8',
+    '6d0c0929-4fbc-4b5c-b30c-bdefaf822039',
+    '水龙头维修',
+    'Faucet Repair',
+    null,
+    null,
+    9500,
+    'CAD',
+    'per unit',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    2,
+    '{"model": "FIXED", "unit": "per unit", "price": {"amount": 9500, "currency": "CAD", "formatted": "$95.00"}}'
+),
+(
+    'c7738e56-361a-4f7c-84bd-70206e995b63',
+    '6d0c0929-4fbc-4b5c-b30c-bdefaf822039',
+    '马桶安装',
+    'Toilet Installation',
+    null,
+    null,
+    25000,
+    'CAD',
+    'per unit',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    3,
+    '{"model": "FIXED", "unit": "per unit", "price": {"amount": 25000, "currency": "CAD", "formatted": "$250.00"}}'
+),
+(
+    '689b5197-2f4f-4322-9248-5ff791547997',
+    '6d0c0929-4fbc-4b5c-b30c-bdefaf822039',
+    '热水器更换',
+    'Water Heater Replacement',
+    null,
+    null,
+    120000,
+    'CAD',
+    'per project',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    4,
+    '{"model": "FIXED", "unit": "per project", "price": {"amount": 120000, "currency": "CAD", "formatted": "$1200.00"}}'
+),
+(
+    'e254f25c-9341-41c5-95eb-4ac28d1cb3c5',
+    'bd80faff-e9a7-4798-9432-bda31883a970',
+    '买房咨询服务',
+    'Home Buying Consultation',
+    null,
+    null,
+    0,
+    'CAD',
+    'free consultation',
+    0,
+    'QUOTE',
+    'AVAILABLE',
+    1,
+    '{"model": "QUOTE", "unit": "free consultation", "price": {"amount": 0, "currency": "CAD", "formatted": "$0.00"}}'
+),
+(
+    '958a04e3-ce3a-4f62-8b9a-6b1d5ca1671d',
+    'bd80faff-e9a7-4798-9432-bda31883a970',
+    '卖房全程服务',
+    'Home Selling Full Service',
+    null,
+    null,
+    0,
+    'CAD',
+    'commission-based',
+    0,
+    'QUOTE',
+    'AVAILABLE',
+    2,
+    '{"model": "QUOTE", "unit": "commission-based", "price": {"amount": 0, "currency": "CAD", "formatted": "$0.00"}}'
+),
+(
+    '1302171d-4c89-49da-9912-510da0547bd2',
+    'bd80faff-e9a7-4798-9432-bda31883a970',
+    '房屋市场评估',
+    'Property Market Evaluation',
+    null,
+    null,
+    0,
+    'CAD',
+    'free',
+    0,
+    'QUOTE',
+    'AVAILABLE',
+    3,
+    '{"model": "QUOTE", "unit": "free", "price": {"amount": 0, "currency": "CAD", "formatted": "$0.00"}}'
+),
+(
+    '54fd5730-20d9-42fd-9572-d432bf1ee855',
+    'bd80faff-e9a7-4798-9432-bda31883a970',
+    '投资物业咨询',
+    'Investment Property Consultation',
+    null,
+    null,
+    20000,
+    'CAD',
+    'per session',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    4,
+    '{"model": "FIXED", "unit": "per session", "price": {"amount": 20000, "currency": "CAD", "formatted": "$200.00"}}'
+),
+(
+    'a60a34ac-64cf-47a9-9edc-460ceae73bb4',
+    '60b69518-a369-4e9c-90ce-c9ac61be84e6',
+    '凝胶美甲',
+    'Gel Manicure',
+    null,
+    null,
+    4500,
+    'CAD',
+    'per service',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    1,
+    '{"model": "FIXED", "unit": "per service", "price": {"amount": 4500, "currency": "CAD", "formatted": "$45.00"}}'
+),
+(
+    '10a4b90c-e14a-48f7-a7f6-1f6697df1932',
+    '60b69518-a369-4e9c-90ce-c9ac61be84e6',
+    '睫毛嫁接',
+    'Lash Extensions',
+    null,
+    null,
+    12000,
+    'CAD',
+    'per service',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    2,
+    '{"model": "FIXED", "unit": "per service", "price": {"amount": 12000, "currency": "CAD", "formatted": "$120.00"}}'
+),
+(
+    '80e64706-b1f6-4f3c-bdd8-ce1a0bb48fc4',
+    '60b69518-a369-4e9c-90ce-c9ac61be84e6',
+    '半永久眉毛',
+    'Semi-Permanent Eyebrows',
+    null,
+    null,
+    35000,
+    'CAD',
+    'per service',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    3,
+    '{"model": "FIXED", "unit": "per service", "price": {"amount": 35000, "currency": "CAD", "formatted": "$350.00"}}'
+),
+(
+    'cbf36723-a97e-49a3-a72d-915dbe423383',
+    '60b69518-a369-4e9c-90ce-c9ac61be84e6',
+    '修甲+护理套餐',
+    'Manicure + Care Package',
+    null,
+    null,
+    6500,
+    'CAD',
+    'per service',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    4,
+    '{"model": "FIXED", "unit": "per service", "price": {"amount": 6500, "currency": "CAD", "formatted": "$65.00"}}'
+),
+(
+    'd711bca0-5251-4b98-b546-b885d1bc9560',
+    '41fdc8a4-3aff-4791-a1c2-df1b67fdcd4a',
+    '男士剪发',
+    'Men's Haircut',
+    null,
+    null,
+    2500,
+    'CAD',
+    'per service',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    1,
+    '{"model": "FIXED", "unit": "per service", "price": {"amount": 2500, "currency": "CAD", "formatted": "$25.00"}}'
+),
+(
+    '73ec2117-3fe9-4463-a56b-42bf72e28ac6',
+    '41fdc8a4-3aff-4791-a1c2-df1b67fdcd4a',
+    '女士剪发',
+    'Women's Haircut',
+    null,
+    null,
+    4500,
+    'CAD',
+    'per service',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    2,
+    '{"model": "FIXED", "unit": "per service", "price": {"amount": 4500, "currency": "CAD", "formatted": "$45.00"}}'
+),
+(
+    '1a4f4179-6241-41e7-a43c-431c23b406d7',
+    '41fdc8a4-3aff-4791-a1c2-df1b67fdcd4a',
+    '染发服务',
+    'Hair Coloring',
+    null,
+    null,
+    8500,
+    'CAD',
+    'per service',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    3,
+    '{"model": "FIXED", "unit": "per service", "price": {"amount": 8500, "currency": "CAD", "formatted": "$85.00"}}'
+),
+(
+    '6ad44477-b0fe-4fd9-9664-2978c49de0ee',
+    '41fdc8a4-3aff-4791-a1c2-df1b67fdcd4a',
+    '烫发造型',
+    'Hair Perm',
+    null,
+    null,
+    12000,
+    'CAD',
+    'per service',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    4,
+    '{"model": "FIXED", "unit": "per service", "price": {"amount": 12000, "currency": "CAD", "formatted": "$120.00"}}'
+),
+(
+    '79bc1565-5273-4755-ac61-874f835f37d9',
+    '646b69dc-15e6-444a-adc1-9ace72160842',
+    '单程 (渥太华→多伦多)',
+    'One-Way (Ottawa→Toronto)',
+    null,
+    null,
+    5500,
+    'CAD',
+    'per person',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    1,
+    '{"model": "FIXED", "unit": "per person", "price": {"amount": 5500, "currency": "CAD", "formatted": "$55.00"}}'
+),
+(
+    '97d969ab-bc51-4344-9a98-9d117e91b457',
+    '646b69dc-15e6-444a-adc1-9ace72160842',
+    '往返优惠套票',
+    'Round Trip Package',
+    null,
+    null,
+    10000,
+    'CAD',
+    'per person',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    2,
+    '{"model": "FIXED", "unit": "per person", "price": {"amount": 10000, "currency": "CAD", "formatted": "$100.00"}}'
+),
+(
+    'c5fec016-b92b-4d03-a484-37864b862025',
+    '646b69dc-15e6-444a-adc1-9ace72160842',
+    '包车服务 (4人以下)',
+    'Private Charter (Up to 4)',
+    null,
+    null,
+    25000,
+    'CAD',
+    'per trip',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    3,
+    '{"model": "FIXED", "unit": "per trip", "price": {"amount": 25000, "currency": "CAD", "formatted": "$250.00"}}'
+),
+(
+    'caf8445a-5d26-4fde-b88a-46598cc78a76',
+    '0a5b1fac-1ab4-408b-9fb5-9d7ab84acc5c',
+    '往返T&T (Gloucester)',
+    'Round Trip to T&T (Gloucester)',
+    null,
+    null,
+    1500,
+    'CAD',
+    'per person',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    1,
+    '{"model": "FIXED", "unit": "per person", "price": {"amount": 1500, "currency": "CAD", "formatted": "$15.00"}}'
+),
+(
+    '2243c286-015b-42e5-9a07-66238bb01f17',
+    '0a5b1fac-1ab4-408b-9fb5-9d7ab84acc5c',
+    '往返大统华 (Hunt Club)',
+    'Round Trip to 大统华 (Hunt Club)',
+    null,
+    null,
+    1500,
+    'CAD',
+    'per person',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    2,
+    '{"model": "FIXED", "unit": "per person", "price": {"amount": 1500, "currency": "CAD", "formatted": "$15.00"}}'
+),
+(
+    '1cbe5abb-3693-486a-a0e7-681c39144f3c',
+    '0a5b1fac-1ab4-408b-9fb5-9d7ab84acc5c',
+    '市区华人超市购物游',
+    'Asian Market Shopping Tour',
+    null,
+    null,
+    2000,
+    'CAD',
+    'per person',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    3,
+    '{"model": "FIXED", "unit": "per person", "price": {"amount": 2000, "currency": "CAD", "formatted": "$20.00"}}'
+),
+(
+    'be5eb5b6-6a87-400e-9e14-4c9da2d294c3',
+    'ca41fe29-264d-481a-a9c5-092a949d54cf',
+    '市区往返机场 (Lees/Downtown)',
+    'Airport Transfer (Lees/Downtown)',
+    null,
+    null,
+    4500,
+    'CAD',
+    'one-way',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    1,
+    '{"model": "FIXED", "unit": "one-way", "price": {"amount": 4500, "currency": "CAD", "formatted": "$45.00"}}'
+),
+(
+    '499fc575-a111-41e3-b9bc-783dfc4b0316',
+    'ca41fe29-264d-481a-a9c5-092a949d54cf',
+    'Kanata/Barrhaven往返机场',
+    'Airport Transfer (Kanata/Barrhaven)',
+    null,
+    null,
+    6500,
+    'CAD',
+    'one-way',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    2,
+    '{"model": "FIXED", "unit": "one-way", "price": {"amount": 6500, "currency": "CAD", "formatted": "$65.00"}}'
+),
+(
+    '4eeb2c1a-205a-4845-8f11-2e1f9c2f0206',
+    'ca41fe29-264d-481a-a9c5-092a949d54cf',
+    'Orleans往返机场',
+    'Airport Transfer (Orleans)',
+    null,
+    null,
+    5500,
+    'CAD',
+    'one-way',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    3,
+    '{"model": "FIXED", "unit": "one-way", "price": {"amount": 5500, "currency": "CAD", "formatted": "$55.00"}}'
+),
+(
+    'c4f969f9-7502-43fd-b011-ac631ba8f35d',
+    'ca41fe29-264d-481a-a9c5-092a949d54cf',
+    '深夜/凌晨加急服务',
+    'Late Night/Early Morning Rush',
+    null,
+    null,
+    8000,
+    'CAD',
+    'one-way',
+    0,
+    'FIXED',
+    'AVAILABLE',
+    4,
+    '{"model": "FIXED", "unit": "one-way", "price": {"amount": 8000, "currency": "CAD", "formatted": "$80.00"}}'
 )
-VALUES (
-    'item_task_001', 'task_001', '搬运服务', 5000, 'BUDGET', 
-    '{"urgency": "HIGH", "locationType": "ON_SITE", "address": "123 Kanata Ave"}', 'AVAILABLE'
-) ON CONFLICT (id) DO UPDATE SET name_zh = EXCLUDED.name_zh;
+;
+
+-- ==========================================
+-- 插入完成统计
+-- ==========================================
+-- 总计插入:
+-- - 5 个社区节点 (Nodes)
+-- - 8 个服务提供者 (Provider Profiles)
+-- - 8 个服务主表 (Listing Masters)
+-- - 30 个服务明细 (Listing Items)
+--
+-- 涵盖类别:
+-- - 持证电工 (Electrician)
+-- - 持证水工 (Plumber)
+-- - 房地产经纪 (Real Estate Agent)
+-- - 美业服务 (Beauty Services) - 美甲美睫 + 理发
+-- - 顺风车 (Carpool) - 渥太华-多伦多 + T&T购物
+-- - 机场接送 (Airport Transportation)
