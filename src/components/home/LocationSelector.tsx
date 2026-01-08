@@ -15,15 +15,21 @@ import {
  */
 export function LocationSelector() {
   const { activeNodeId, setActiveNode } = useCommunity();
-  const { refCodes } = useConfigStore();
+  const { refCodes, language } = useConfigStore();
   const [isOpen, setIsOpen] = useState(false);
 
   // Get current node info
   const currentNode = refCodes.find(r => r.codeId === activeNodeId);
-  const displayName = currentNode?.zhName || currentNode?.enName || 'Community';
+  // Respect language setting
+  const displayName = language === 'zh'
+    ? (currentNode?.zhName || currentNode?.enName || '当前社区')
+    : (currentNode?.enName || currentNode?.zhName || 'Community');
 
-  // Get all nodes
-  const nodes = refCodes.filter(r => r.type === 'COMMUNITY_NODE');
+  // Get all nodes (Handle potential type drift: COMMUNITY vs COMMUNITY_NODE vs NODE)
+  const nodes = refCodes.filter(r => {
+    const type = r.type as string;
+    return type === 'NODE' || type === 'COMMUNITY_NODE' || type.startsWith('COMMUNITY');
+  });
 
   const handleNodeChange = (nodeId: string) => {
     setActiveNode(nodeId);
@@ -44,12 +50,12 @@ export function LocationSelector() {
               onClick={() => handleNodeChange(node.codeId)}
               className={activeNodeId === node.codeId ? 'bg-primary/10 font-semibold' : ''}
             >
-              {node.zhName || node.enName}
+              {language === 'zh' ? (node.zhName || node.enName) : (node.enName || node.zhName)}
             </DropdownMenuItem>
           ))
         ) : (
           <DropdownMenuItem disabled>
-            No communities available
+            {language === 'zh' ? '暂无社区' : 'No communities available'}
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

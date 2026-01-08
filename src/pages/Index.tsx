@@ -7,11 +7,9 @@ import { useCommunity } from "@/context/CommunityContext";
 import { useConfigStore } from "@/stores/configStore";
 import { TodayStories } from "@/components/home/TodayStories";
 import { IndustryIconGrid } from "@/components/home/IndustryIconGrid";
-import { CommunityHighlights } from "@/components/home/CommunityHighlights";
-import { WelcomeGreeting } from "@/components/home/WelcomeGreeting";
 import { PopularInCommunity } from "@/components/home/PopularInCommunity";
-import { QuickSearchTags } from "@/components/home/QuickSearchTags";
 import { LocationSelector } from "@/components/home/LocationSelector";
+import { PromoBanner } from "@/components/home/PromoBanner";
 import { TaskBoard } from "@/components/home/TaskBoard";
 import { ArrowRight, Sparkles, TrendingUp, Clock, MapPin } from "lucide-react";
 import { SearchBar } from "@/components/SearchBar";
@@ -146,8 +144,8 @@ const Index = () => {
           <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }} />
         </div>
 
-        <div className="container relative py-4">
-          <div className="flex flex-col gap-4">
+        <div className="container relative py-3 sm:py-4 px-4 sm:px-6">
+          <div className="flex flex-col gap-3 sm:gap-4">
 
             {/* Top Row: Location & Stats (Compact) */}
             <motion.div
@@ -155,12 +153,12 @@ const Index = () => {
               animate={{ opacity: 1, y: 0 }}
               className="flex items-center justify-between"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <LocationSelector />
               </div>
-              <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground bg-secondary/30 px-3 py-1 rounded-full">
+              <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-secondary/30 px-2 sm:px-3 py-1 rounded-full">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                {t.liveUpdates}
+                <span className="hidden md:inline">{t.liveUpdates}</span>
               </div>
             </motion.div>
 
@@ -173,61 +171,37 @@ const Index = () => {
             >
               <SearchBar />
               {/* Floating AI badge - Closer integration */}
-              <div className="absolute -top-3 right-0 md:-right-4">
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-primary/10 to-accent/10 text-primary border-primary/20 shadow-sm backdrop-blur-md">
-                  <Sparkles className="w-3 h-3 mr-1 text-primary" />
+              <div className="absolute -top-2 sm:-top-3 right-0 md:-right-4">
+                <Badge variant="secondary" className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 bg-gradient-to-r from-primary/10 to-accent/10 text-primary border-primary/20 shadow-sm backdrop-blur-md">
+                  <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1 text-primary" />
                   {t.aiSearch}
                 </Badge>
               </div>
             </motion.div>
 
-            {/* Bottom Row: Tags & Icons (Integrated) */}
+            {/* Bottom Row: Industry Icons Only */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="space-y-4"
+              className="pt-1 sm:pt-2"
             >
-              <div className="flex justify-center">
-                <QuickSearchTags />
-              </div>
-              <div className="pt-2">
-                <IndustryIconGrid />
-              </div>
+              <IndustryIconGrid />
             </motion.div>
           </div>
         </div>
       </div>
 
+      {/* Promotional Banner - Elegant Carousel */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
+        <PromoBanner />
+      </motion.div>
 
-      {/* Community Pulse Section */}
-      <div className="bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5 py-6 border-b">
-        <div className="container max-w-7xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-            className="flex items-center gap-2 mb-4"
-          >
-            <TrendingUp className="w-5 h-5 text-primary" />
-            <h3 className="font-bold text-lg">{t.pulse}</h3>
-            <Badge variant="outline" className="ml-auto">
-              <Clock className="w-3 h-3 mr-1" />
-              {t.liveUpdates}
-            </Badge>
-          </motion.div>
-          <CommunityHighlights />
-        </div>
-      </div>
-
-      {/* Welcome Section with gradient background */}
-      <div className="relative py-8 bg-gradient-to-b from-background to-transparent">
-        <div className="container max-w-7xl">
-          <WelcomeGreeting />
-        </div>
-      </div>
-
-      <main className="container max-w-7xl py-8 space-y-16">
+      <main className="container max-w-7xl py-6 sm:py-8 px-4 sm:px-6 space-y-12 sm:space-y-16">
         {/* Popular In Community - Enhanced Card Design */}
         {nearbyHotServices.length > 0 && (
           <motion.section
@@ -272,24 +246,25 @@ const Index = () => {
             viewport={{ once: true, margin: "-100px" }}
             variants={sectionVariants}
           >
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
               <div>
-                <h2 className="text-3xl font-black bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent flex items-center gap-3">
+                <h2 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent flex items-center gap-2 sm:gap-3">
                   🍪 {t.marketTitle}
                 </h2>
-                <p className="text-muted-foreground mt-1">{t.marketDesc}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t.marketDesc}</p>
               </div>
               <Link
                 to="/category/goods"
-                className="group flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
+                className="group flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-semibold text-primary hover:text-primary/80 transition-colors flex-shrink-0"
               >
-                {t.viewAll}
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <span className="hidden sm:inline">{t.viewAll}</span>
+                <span className="sm:hidden">{language === 'zh' ? '全部' : 'All'}</span>
+                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
             <AnimatePresence mode="wait">
               {isLoading ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                   {[...Array(8)].map((_, i) => (
                     <SkeletonCard key={i} />
                   ))}
@@ -299,7 +274,7 @@ const Index = () => {
                   variants={cardContainerVariants}
                   initial="hidden"
                   animate="visible"
-                  className="grid grid-cols-2 md:grid-cols-4 gap-4"
+                  className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"
                 >
                   {goods.slice(0, 8).map(item => (
                     <motion.div key={item.id} variants={cardVariants}>
@@ -320,24 +295,25 @@ const Index = () => {
             viewport={{ once: true, margin: "-100px" }}
             variants={sectionVariants}
           >
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
               <div>
-                <h2 className="text-3xl font-black bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent flex items-center gap-3">
+                <h2 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent flex items-center gap-2 sm:gap-3">
                   🧹 {t.serviceTitle}
                 </h2>
-                <p className="text-muted-foreground mt-1">{t.serviceDesc}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t.serviceDesc}</p>
               </div>
               <Link
                 to="/category/service"
-                className="group flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
+                className="group flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-semibold text-primary hover:text-primary/80 transition-colors flex-shrink-0"
               >
-                {t.viewAll}
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <span className="hidden sm:inline">{t.viewAll}</span>
+                <span className="sm:hidden">{language === 'zh' ? '全部' : 'All'}</span>
+                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
             <AnimatePresence mode="wait">
               {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                   {[...Array(6)].map((_, i) => (
                     <SkeletonCard key={i} />
                   ))}
@@ -347,7 +323,7 @@ const Index = () => {
                   variants={cardContainerVariants}
                   initial="hidden"
                   animate="visible"
-                  className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                  className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6"
                 >
                   {services.slice(0, 6).map(item => (
                     <motion.div key={item.id} variants={cardVariants}>
@@ -368,24 +344,25 @@ const Index = () => {
             viewport={{ once: true, margin: "-100px" }}
             variants={sectionVariants}
           >
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-6 sm:mb-8">
               <div>
-                <h2 className="text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center gap-3">
+                <h2 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center gap-2 sm:gap-3">
                   📸 {t.rentalTitle}
                 </h2>
-                <p className="text-muted-foreground mt-1">{t.rentalDesc}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t.rentalDesc}</p>
               </div>
               <Link
                 to="/category/rental"
-                className="group flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
+                className="group flex items-center gap-1 sm:gap-2 text-xs sm:text-sm font-semibold text-primary hover:text-primary/80 transition-colors flex-shrink-0"
               >
-                {t.viewAll}
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <span className="hidden sm:inline">{t.viewAll}</span>
+                <span className="sm:hidden">{language === 'zh' ? '全部' : 'All'}</span>
+                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
             <AnimatePresence mode="wait">
               {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                   {[...Array(6)].map((_, i) => (
                     <SkeletonCard key={i} />
                   ))}
@@ -395,7 +372,7 @@ const Index = () => {
                   variants={cardContainerVariants}
                   initial="hidden"
                   animate="visible"
-                  className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                  className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6"
                 >
                   {rentals.slice(0, 6).map(item => (
                     <motion.div key={item.id} variants={cardVariants}>

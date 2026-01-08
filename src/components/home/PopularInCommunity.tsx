@@ -92,3 +92,4 @@ export function PopularInCommunity({ listings }: PopularInCommunityProps) {
     </section>
   );
 }
+

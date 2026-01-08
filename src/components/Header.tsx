@@ -45,9 +45,7 @@ const Header = () => {
       <div className="container flex items-center justify-between h-16">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-hero flex items-center justify-center shadow-warm">
-            <span className="text-xl font-black text-white">H</span>
-          </div>
+          <img src="/logo.png" alt="HangHand" className="w-10 h-10 rounded-2xl object-cover shadow-warm" />
           <div className="hidden sm:block">
             <h1 className="text-xl font-black text-foreground tracking-tighter">HangHand</h1>
             <p className="text-[10px] font-bold text-primary/80 uppercase tracking-widest -mt-1 text-center sm:text-left">{t.neighborly}</p>

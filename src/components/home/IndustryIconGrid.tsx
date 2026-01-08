@@ -109,8 +109,8 @@ export function IndustryIconGrid() {
             </motion.div>
 
             {/* Label */}
-            <div className="text-center">
-              <p className="text-xs md:text-sm font-bold text-foreground group-hover:text-primary transition-colors whitespace-nowrap">
+            <div className="text-center w-full px-0.5">
+              <p className="text-[10px] sm:text-xs md:text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-tight break-words">
                 {displayName}
               </p>
             </div>
