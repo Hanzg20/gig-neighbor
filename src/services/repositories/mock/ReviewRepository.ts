@@ -26,7 +26,7 @@ export class MockReviewRepository implements IReviewRepository {
                 { id: 'rc1', reviewId: 'r1', userId: 'u2', type: 'HELPFUL' }
             ],
             replies: [
-                { id: 'rep1', reviewId: 'r1', providerId: 'p1', content: "Thank you Han! Happy to help anytime.", createdAt: new Date().toISOString() }
+                { id: 'rep1', reviewId: 'r1', providerId: 'p1', content: "Thank you Han! Happy to help anytime.", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
             ]
         }
     ];
@@ -78,7 +78,8 @@ export class MockReviewRepository implements IReviewRepository {
             reviewId,
             providerId,
             content,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         };
         const review = this.reviews.find(r => r.id === reviewId);
         if (review) {
