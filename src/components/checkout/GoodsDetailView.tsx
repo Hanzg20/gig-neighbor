@@ -1,4 +1,4 @@
-import { ListingMaster, ListingItem, UserProfile } from "@/types/domain";
+import { ListingMaster, ListingItem, User } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MessageCircle, ShoppingBag, Truck, ShieldCheck, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { useConfigStore } from "@/stores/configStore";
 interface GoodsDetailViewProps {
     master: ListingMaster;
     item: ListingItem;
-    provider: UserProfile;
+    provider: User;
     onBuy: () => void;
     onChat: () => void;
 }
@@ -73,7 +73,7 @@ export const GoodsDetailView = ({ master, item, provider, onBuy, onChat }: Goods
                     <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6">
                         <div className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            {master.location.address?.split(',')[0] || t.location}
+                            {master.location.fullAddress?.split(',')[0] || t.location}
                         </div>
                         <div className="flex items-center gap-1">
                             <Truck className="w-3 h-3" />
@@ -91,13 +91,8 @@ export const GoodsDetailView = ({ master, item, provider, onBuy, onChat }: Goods
                         </div>
                         <div className="flex-1">
                             <p className="text-xs font-bold text-muted-foreground uppercase">{t.postedBy}</p>
-                            <p className="font-black text-foreground">{provider.username || 'Neighbor'}</p>
+                            <p className="font-black text-foreground">{provider.name || 'Neighbor'}</p>
                         </div>
-                        {provider.isVerified && (
-                            <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
-                                <ShieldCheck className="w-3 h-3 mr-1" /> {t.verified}
-                            </Badge>
-                        )}
                     </div>
                 </div>
             </div>

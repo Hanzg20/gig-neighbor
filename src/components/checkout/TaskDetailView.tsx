@@ -1,4 +1,4 @@
-import { ListingMaster, ListingItem, UserProfile } from "@/types/domain";
+import { ListingMaster, ListingItem, User } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MessageCircle, FileText, Calendar, Clock, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { useConfigStore } from "@/stores/configStore";
 interface TaskDetailViewProps {
     master: ListingMaster;
     item: ListingItem;
-    author: UserProfile;
+    author: User;
     onQuote: () => void;
     onChat: () => void;
 }
@@ -62,7 +62,7 @@ export const TaskDetailView = ({ master, item, author, onQuote, onChat }: TaskDe
                             <MapPin className="w-5 h-5 text-primary mt-0.5" />
                             <div>
                                 <p className="text-[10px] uppercase font-bold text-muted-foreground">{t.location}</p>
-                                <p className="font-bold">{master.location.address?.split(',')[0] || 'Remote'}</p>
+                                <p className="font-bold">{master.location.fullAddress?.split(',')[0] || 'Remote'}</p>
                             </div>
                         </div>
                     </div>
@@ -76,7 +76,7 @@ export const TaskDetailView = ({ master, item, author, onQuote, onChat }: TaskDe
                     <img src={author?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${author.id}`} className="w-12 h-12 rounded-2xl bg-white shadow-sm" />
                     <div>
                         <p className="text-xs font-bold text-muted-foreground uppercase">{t.postedBy}</p>
-                        <p className="font-black text-lg">{author.username || 'Neighbor'}</p>
+                        <p className="font-black text-lg">{author.name || 'Neighbor'}</p>
                     </div>
                 </div>
             </div>

@@ -23,7 +23,7 @@ export function LocationSelector() {
   const displayName = currentNode?.zhName || currentNode?.enName || 'Community';
 
   // Get all nodes
-  const nodes = refCodes.filter(r => r.type === 'NODE');
+  const nodes = refCodes.filter(r => r.type === 'COMMUNITY_NODE');
 
   const handleNodeChange = (nodeId: string) => {
     setActiveNode(nodeId);

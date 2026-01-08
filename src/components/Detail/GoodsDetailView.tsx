@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ListingMaster, ListingItem, ProviderProfile } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import EnhancedReviewList from "@/components/reviews/EnhancedReviewList";
+import { EnhancedReviewList } from "@/components/reviews/EnhancedReviewList";
 
 interface GoodsDetailViewProps {
     master: ListingMaster;

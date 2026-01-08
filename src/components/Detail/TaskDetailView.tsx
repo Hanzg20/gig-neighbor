@@ -3,7 +3,7 @@ import { ListingMaster, ListingItem, ProviderProfile } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, MapPin, Share2, MoreHorizontal, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import EnhancedReviewList from "@/components/reviews/EnhancedReviewList";
+import { EnhancedReviewList } from "@/components/reviews/EnhancedReviewList";
 
 interface TaskDetailViewProps {
     master: ListingMaster;
