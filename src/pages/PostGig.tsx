@@ -8,6 +8,8 @@ import PostGoodWizard from "@/components/Post/PostGoodWizard";
 import PostTaskWizard from "@/components/Post/PostTaskWizard";
 import { RefCode } from "@/types/domain";
 import { useEffect } from "react";
+import ImageUploader from "../components/common/ImageUploader";
+import { useAuthStore } from "@/stores/authStore";
 
 type ListingType = 'SERVICE' | 'RENTAL' | 'CONSULTATION' | 'GOODS' | 'TASK';
 
@@ -29,7 +31,10 @@ const PostGig = () => {
 
     // Form State
     const [title, setTitle] = useState("");
+    const [images, setImages] = useState<string[]>([]);
     const [price, setPrice] = useState("");
+    const [isUploading, setIsUploading] = useState(false);
+    const { currentUser } = useAuthStore();
 
     const steps = [
         { id: 1, title: "选择类型" },
@@ -114,9 +119,15 @@ const PostGig = () => {
                 <label className="text-sm font-semibold flex items-center gap-2">
                     <Upload className="w-4 h-4" /> 上传照片
                 </label>
-                <div className="h-40 rounded-xl border-2 border-dashed border-muted flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/30 cursor-pointer transition-colors">
-                    <Upload className="w-8 h-8 mb-2" />
-                    <p>点击上传或拖拽图片到这里</p>
+                <div className="bg-card border-none p-4 rounded-3xl">
+                    <ImageUploader
+                        bucketName="listing-media"
+                        onUpload={(urls) => setImages(urls)}
+                        onUploadingChange={setIsUploading}
+                        maxFiles={6}
+                        existingImages={images}
+                        folderPath={`listings/${currentUser?.id || 'anonymous'}`}
+                    />
                 </div>
             </div>
 
@@ -131,8 +142,12 @@ const PostGig = () => {
                 />
             </div>
 
-            <Button onClick={() => setStep(4)} className="w-full py-6 font-bold text-lg rounded-xl" disabled={!title}>
-                下一步
+            <Button
+                onClick={() => setStep(4)}
+                className="w-full py-6 font-bold text-lg rounded-xl"
+                disabled={!title || isUploading}
+            >
+                {isUploading ? '正在上传图片...' : '下一步'}
             </Button>
         </div>
     );

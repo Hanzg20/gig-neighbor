@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useListingStore } from "@/stores/listingStore";
 import { autoMatchSubcategory } from "@/utils/categoryMatcher";
+import ImageUploader from "../common/ImageUploader";
 
 interface PostTaskWizardProps {
     category: RefCode | null;
@@ -30,8 +31,10 @@ const PostTaskWizard = ({ category, onBack }: PostTaskWizardProps) => {
     const [step, setStep] = useState(1);
 
     // State
+    const [images, setImages] = useState<string[]>([]);
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
+    const [isUploading, setIsUploading] = useState(false);
 
     const applyTemplate = (tpl: typeof TASK_TEMPLATES[0]) => {
         setTitle(tpl.title);
@@ -68,7 +71,7 @@ const PostTaskWizard = ({ category, onBack }: PostTaskWizardProps) => {
             titleZh: title,
             descriptionEn: description,
             descriptionZh: description,
-            images: ["https://images.unsplash.com/photo-1544256718-3bcf237f3974?w=800&auto=format&fit=crop&q=60"],
+            images: images.length > 0 ? images : ["https://images.unsplash.com/photo-1544256718-3bcf237f3974?w=800&auto=format&fit=crop&q=60"],
             rating: 5,
             reviewCount: 0,
             status: 'PUBLISHED' as const,
@@ -109,6 +112,44 @@ const PostTaskWizard = ({ category, onBack }: PostTaskWizardProps) => {
         alert("Bounty task successfully posted!");
         navigate('/my-listings');
     };
+
+    // --- Steps ---
+
+    const renderPhotoStep = () => (
+        <div className="space-y-6 animate-fade-in text-center">
+            <div className="bg-primary/5 p-4 rounded-xl mb-4 text-left">
+                <h3 className="font-bold text-primary flex items-center gap-2">
+                    <span className="text-xl">📸</span>
+                    上传任务相关照片
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                    如有参考图、现场图或说明图，上传后邻居们更容易理解。
+                </p>
+            </div>
+
+            <div className="bg-card border-none p-4 rounded-3xl">
+                <ImageUploader
+                    bucketName="listing-media"
+                    onUpload={(urls) => setImages(urls)}
+                    onUploadingChange={setIsUploading}
+                    maxFiles={3}
+                    existingImages={images}
+                    folderPath={`tasks/${currentUser?.id || 'anonymous'}`}
+                />
+            </div>
+
+            <Button
+                onClick={() => setStep(2)}
+                className="w-full py-6 text-lg rounded-xl font-bold"
+                disabled={isUploading}
+            >
+                {isUploading ? '正在上传图片...' : '下一步 (可跳过)'}
+            </Button>
+            {images.length === 0 && !isUploading && (
+                <p className="text-xs text-muted-foreground">如果您现在没有照片，可以直接点下一步</p>
+            )}
+        </div>
+    );
 
     const renderDescriptionStep = () => (
         <div className="space-y-6 animate-fade-in">
@@ -161,7 +202,7 @@ const PostTaskWizard = ({ category, onBack }: PostTaskWizardProps) => {
                 />
             </div>
 
-            <Button onClick={() => setStep(2)} disabled={!title || !description} className="w-full py-6 text-lg rounded-xl font-bold">
+            <Button onClick={() => setStep(3)} disabled={!title || !description} className="w-full py-6 text-lg rounded-xl font-bold">
                 下一步
             </Button>
         </div>
@@ -221,7 +262,7 @@ const PostTaskWizard = ({ category, onBack }: PostTaskWizardProps) => {
                 )}
             </div>
 
-            <Button onClick={() => setStep(3)} className="w-full py-6 text-lg rounded-xl font-bold">
+            <Button onClick={() => setStep(4)} className="w-full py-6 text-lg rounded-xl font-bold">
                 下一步
             </Button>
         </div>
@@ -262,16 +303,19 @@ const PostTaskWizard = ({ category, onBack }: PostTaskWizardProps) => {
             {/* Simple Step Indicator */}
             <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">
                 <button onClick={onBack} className="hover:text-foreground"><ArrowLeft className="w-4 h-4" /></button>
-                <span className={step >= 1 ? "text-primary font-bold" : ""}>需求</span>
+                <span className={step >= 1 ? "text-primary font-bold" : ""}>照片</span>
                 <span className="text-muted/30">/</span>
-                <span className={step >= 2 ? "text-primary font-bold" : ""}>时间地点</span>
+                <span className={step >= 2 ? "text-primary font-bold" : ""}>需求</span>
                 <span className="text-muted/30">/</span>
-                <span className={step >= 3 ? "text-primary font-bold" : ""}>预算</span>
+                <span className={step >= 3 ? "text-primary font-bold" : ""}>时间地点</span>
+                <span className="text-muted/30">/</span>
+                <span className={step >= 4 ? "text-primary font-bold" : ""}>预算</span>
             </div>
 
-            {step === 1 && renderDescriptionStep()}
-            {step === 2 && renderLogisticsStep()}
-            {step === 3 && renderBudgetStep()}
+            {step === 1 && renderPhotoStep()}
+            {step === 2 && renderDescriptionStep()}
+            {step === 3 && renderLogisticsStep()}
+            {step === 4 && renderBudgetStep()}
         </div>
     );
 };

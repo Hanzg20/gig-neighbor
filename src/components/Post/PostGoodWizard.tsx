@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useListingStore } from "@/stores/listingStore";
 import { autoMatchSubcategory } from "@/utils/categoryMatcher";
+import ImageUploader from "../common/ImageUploader";
 
 interface PostGoodWizardProps {
     category: RefCode | null;
@@ -43,6 +44,7 @@ const PostGoodWizard = ({ category, onBack }: PostGoodWizardProps) => {
     const [condition, setCondition] = useState("");
     const [price, setPrice] = useState("");
     const [delivery, setDelivery] = useState<string[]>(['PICKUP']);
+    const [isUploading, setIsUploading] = useState(false);
 
     const handleDeliveryToggle = (method: string) => {
         setDelivery(prev =>
@@ -116,26 +118,23 @@ const PostGoodWizard = ({ category, onBack }: PostGoodWizardProps) => {
 
     const renderPhotoStep = () => (
         <div className="space-y-6 animate-fade-in text-center">
-            <div className="bg-muted/30 border-2 border-dashed border-primary/30 rounded-3xl p-10 flex flex-col items-center justify-center cursor-pointer hover:bg-primary/5 transition-colors h-[300px]">
-                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
-                    <Camera className="w-10 h-10" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">上传宝贝照片</h3>
-                <p className="text-muted-foreground mb-6">多角度拍摄，更容易卖出哦</p>
-                <Button variant="outline" className="rounded-full px-8">
-                    <Upload className="w-4 h-4 mr-2" /> 选择照片
-                </Button>
+            <div className="bg-card border-none p-4 rounded-3xl">
+                <ImageUploader
+                    bucketName="listing-media"
+                    onUpload={(urls) => setImages(urls)}
+                    onUploadingChange={setIsUploading}
+                    maxFiles={6}
+                    existingImages={images}
+                    folderPath={`listings/${currentUser?.id || 'anonymous'}`}
+                />
             </div>
 
-            {/* Mock Thumbnails */}
-            {images.length > 0 && (
-                <div className="flex gap-2 justify-center">
-                    {/* ... thumbnails ... */}
-                </div>
-            )}
-
-            <Button onClick={() => setStep(2)} className="w-full py-6 text-lg rounded-xl font-bold">
-                下一步
+            <Button
+                onClick={() => setStep(2)}
+                className="w-full py-6 text-lg rounded-xl font-bold"
+                disabled={isUploading || images.length === 0}
+            >
+                {isUploading ? '正在上传图片...' : '下一步'}
             </Button>
         </div>
     );
