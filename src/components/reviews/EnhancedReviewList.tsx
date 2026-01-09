@@ -118,11 +118,19 @@ export const EnhancedReviewList: React.FC<EnhancedReviewListProps> = ({ listingI
                             {review.content}
                         </p>
 
-                        {review.media && review.media.length > 0 && (
+                        {/* Media Gallery */}
+                        {review.media && Array.isArray(review.media) && review.media.length > 0 && (
                             <div className="flex gap-3 mb-6 overflow-x-auto pb-2 scrollbar-none">
                                 {review.media.map((url, i) => (
                                     <div key={i} className="min-w-[140px] h-[140px] rounded-[32px] overflow-hidden border border-white shadow-card shrink-0 group/img cursor-pointer">
-                                        <img src={url} className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-500" alt="Review media" />
+                                        <img
+                                            src={url}
+                                            className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-500"
+                                            alt="Review media"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/140?text=Image+Error';
+                                            }}
+                                        />
                                     </div>
                                 ))}
                             </div>

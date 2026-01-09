@@ -22,6 +22,8 @@ import MyListings from "./pages/MyListings";
 import ProviderDashboard from "./pages/ProviderDashboard";
 import ReviewSubmission from "./pages/ReviewSubmission";
 import ProviderProfile from "./pages/ProviderProfile";
+import BecomeProvider from "./pages/BecomeProvider";
+import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 import { CommunityProvider } from "./context/CommunityContext";
 
@@ -59,6 +61,8 @@ const App = () => {
               <Route path="/provider/orders" element={<Orders />} />
               <Route path="/review/:id" element={<ReviewSubmission />} />
               <Route path="/provider/:providerId" element={<ProviderProfile />} />
+              <Route path="/become-provider" element={<BecomeProvider />} />
+              <Route path="/about" element={<About />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

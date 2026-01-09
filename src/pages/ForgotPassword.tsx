@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Mail, ArrowLeft, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 const ForgotPassword = () => {
@@ -44,8 +44,8 @@ const ForgotPassword = () => {
             const msg = err.message.includes('rate_limit')
                 ? '操作太频繁，请稍后再试'
                 : err.message.includes('not found')
-                ? '该邮箱尚未注册'
-                : "发送失败，请检查邮箱地址";
+                    ? '该邮箱尚未注册'
+                    : "发送失败，请检查邮箱地址";
             setError(msg);
             toast.error(msg);
             console.error(err);

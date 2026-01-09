@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { Order, OrderStatus } from '@/types/orders';
 import { IOrderRepository } from '../interfaces';
 

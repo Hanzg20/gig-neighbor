@@ -1,4 +1,5 @@
 import { Heart } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useConfigStore } from "@/stores/configStore";
 
 const Footer = () => {
@@ -19,9 +20,10 @@ const Footer = () => {
     userAgreement: language === 'zh' ? '用户协议' : 'User Agreement',
     privacy: language === 'zh' ? '隐私政策' : 'Privacy Policy',
     terms: language === 'zh' ? '服务条款' : 'Terms of Service',
-    slogan: language === 'zh' ? '邻里互助，温情相伴。让每一份服务都充满信任。' : 'Neighborly help, heartfelt support. Making every service feel warm and trusted.',
+    slogan: language === 'zh' ? '一个连接邻居、专业人士和商家的本地便民服务平台，让生活和办事更轻松，更放心' : 'A local platform connecting neighbors, professionals, and businesses for easy, trusted services.',
     madeIn: language === 'zh' ? '加拿大制作' : 'Made with',
     inCanada: language === 'zh' ? '' : 'in Canada', // "Made with <love> in Canada" structure handling
+    brandName: language === 'zh' ? '恒帮' : 'HangHand',
   };
 
   return (
@@ -31,11 +33,9 @@ const Footer = () => {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-hero flex items-center justify-center">
-                <span className="text-xl">🤝</span>
-              </div>
+              <img src="/logo.png" alt="HangHand" className="w-10 h-10 rounded-2xl object-cover shadow-warm" />
               <div>
-                <h3 className="text-lg font-extrabold text-gradient">HangHand</h3>
+                <h3 className="text-lg font-extrabold text-gradient">{t.brandName}</h3>
                 <p className="text-xs text-muted-foreground">Neighborly</p>
               </div>
             </div>
@@ -58,7 +58,7 @@ const Footer = () => {
           <div>
             <h4 className="font-bold text-foreground mb-4">{t.about}</h4>
             <ul className="space-y-2">
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.aboutUs}</a></li>
+              <li><Link to="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.aboutUs}</Link></li>
               <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.becomePro}</a></li>
               <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.helpCenter}</a></li>
               <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t.contactUs}</a></li>
@@ -77,8 +77,8 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="pt-8 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
-            © 2025 HangHand. {t.madeIn} <Heart className="w-4 h-4 text-accent fill-accent" /> {t.inCanada}
+          <p className="text-sm text-muted-foreground">
+            © 2026 <a href="https://goldsky.jinbean.com" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors font-bold">GoldSky Technologies</a>. All rights reserved.
           </p>
           <div className="flex items-center gap-4 opacity-50">
             {/* Simple indicator since it's controlled in header */}

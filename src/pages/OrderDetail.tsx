@@ -8,7 +8,7 @@ import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMessageStore } from "@/stores/messageStore";
 import { OrderStatus } from "@/types/orders";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 
 const OrderDetail = () => {
     const { id } = useParams();

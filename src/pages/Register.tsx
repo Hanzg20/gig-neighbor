@@ -2,7 +2,7 @@ import { useState } from "react";
 import { User as UserIcon, Mail, ArrowRight, Building2, CheckCircle2, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 const Register = () => {

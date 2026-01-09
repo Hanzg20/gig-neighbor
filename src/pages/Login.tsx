@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { UserRoleType } from "@/types/domain";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 const Login = () => {
@@ -101,8 +101,8 @@ const Login = () => {
         } catch (err: any) {
             const msg = err.message === 'Invalid login credentials' ? '邮箱或密码错误' :
                 err.message === 'Email not confirmed' ? '邮箱未验证，请检查收件箱' :
-                err.message.includes('rate_limit') ? '登录尝试次数过多，请稍后再试' :
-                    "登录失败，请稍后重试";
+                    err.message.includes('rate_limit') ? '登录尝试次数过多，请稍后再试' :
+                        "登录失败，请稍后重试";
             setError(msg);
             toast.error(msg);
             console.error(err);
@@ -235,9 +235,8 @@ const Login = () => {
                                     }}
                                     onBlur={() => validateEmail(email)}
                                     placeholder="电子邮箱"
-                                    className={`w-full pl-12 pr-4 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none ${
-                                        emailError ? 'border-red-500' : ''
-                                    }`}
+                                    className={`w-full pl-12 pr-4 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none ${emailError ? 'border-red-500' : ''
+                                        }`}
                                 />
                                 {emailError && <p className="text-xs text-red-600 mt-1">{emailError}</p>}
                             </div>
@@ -252,9 +251,8 @@ const Login = () => {
                                         setPasswordError(null);
                                     }}
                                     placeholder="请输入密码"
-                                    className={`w-full pl-12 pr-12 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none ${
-                                        passwordError ? 'border-red-500' : ''
-                                    }`}
+                                    className={`w-full pl-12 pr-12 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none ${passwordError ? 'border-red-500' : ''
+                                        }`}
                                 />
                                 <button
                                     type="button"
@@ -317,9 +315,8 @@ const Login = () => {
                                             }}
                                             onBlur={() => validateEmail(email)}
                                             placeholder="电子邮箱"
-                                            className={`w-full pl-12 pr-4 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none ${
-                                                emailError ? 'border-red-500' : ''
-                                            }`}
+                                            className={`w-full pl-12 pr-4 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none ${emailError ? 'border-red-500' : ''
+                                                }`}
                                         />
                                         {emailError && <p className="text-xs text-red-600 mt-1">{emailError}</p>}
                                     </div>

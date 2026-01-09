@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { ListingMaster } from '@/types/domain';
 import { useCommunity } from '@/context/CommunityContext';
 

@@ -10,6 +10,7 @@ import { repositoryFactory } from "@/services/repositories/factory";
 import { useAuthStore } from "@/stores/authStore";
 import { Order } from "@/types/orders";
 import { toast } from "sonner";
+import ImageUploader from "@/components/common/ImageUploader";
 
 const ReviewSubmission = () => {
     const { id } = useParams();
@@ -23,6 +24,8 @@ const ReviewSubmission = () => {
         Communication: 5,
         Value: 5,
     });
+    const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
     const [content, setContent] = useState("");
     const [isNeighborStory, setIsNeighborStory] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,7 +61,7 @@ const ReviewSubmission = () => {
                 rating,
                 ratingDimensions: dimensions,
                 content,
-                media: [], // Demo: no uploads yet
+                media: uploadedImages,
                 isNeighborStory,
             });
             toast.success("Review submitted! You've earned 50 JinBeans! 🎉");
@@ -130,6 +133,16 @@ const ReviewSubmission = () => {
                         </div>
 
                         <div className="space-y-4">
+                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground block leading-none">Add Photos (Optional)</label>
+                            <ImageUploader
+                                bucketName="review-media"
+                                onUpload={setUploadedImages}
+                                onUploadingChange={setIsUploading}
+                                maxFiles={3}
+                            />
+                        </div>
+
+                        <div className="space-y-4">
                             <label className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground block leading-none">Tell the story</label>
                             <Textarea
                                 placeholder="Helpful neighbors deserve recognition! Describe what made this special..."
@@ -155,9 +168,10 @@ const ReviewSubmission = () => {
                         <Button
                             onClick={handleSubmit}
                             className="w-full h-20 rounded-[40px] text-lg font-black uppercase tracking-[0.2em] shadow-glow hover:shadow-glow-lg transition-all active:scale-95 disabled:opacity-50"
-                            disabled={isSubmitting || !content || content.length < 5}
+                            disabled={isSubmitting || isUploading || !content || content.length < 5}
                         >
-                            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Complete & Earn Beans'}
+                            {isSubmitting ? <Loader2 className="animate-spin" /> :
+                                isUploading ? 'Uploading Images...' : 'Complete & Earn Beans'}
                         </Button>
                     </section>
                 </div>

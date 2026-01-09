@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from '@/types/domain';
-import { supabase, onAuthStateChange } from '@/lib/supabaseClient';
+import { supabase, onAuthStateChange } from '@/lib/supabase';
 
 interface AuthState {
     currentUser: User | null;

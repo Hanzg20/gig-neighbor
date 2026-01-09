@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Lock, Eye, EyeOff, CheckCircle2, Shield, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 const ResetPassword = () => {
@@ -211,11 +211,10 @@ const ResetPassword = () => {
                                     {[...Array(5)].map((_, i) => (
                                         <div
                                             key={i}
-                                            className={`h-1 rounded-full transition-all duration-300 ${
-                                                i < Object.values(passwordStrength).filter(Boolean).length
+                                            className={`h-1 rounded-full transition-all duration-300 ${i < Object.values(passwordStrength).filter(Boolean).length
                                                     ? getPasswordStrengthColor().replace('text-', 'bg-')
                                                     : 'bg-muted'
-                                            }`}
+                                                }`}
                                         />
                                     ))}
                                 </div>
@@ -253,9 +252,8 @@ const ResetPassword = () => {
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     placeholder="再次输入新密码"
-                                    className={`w-full pl-12 pr-4 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none ${
-                                        confirmPassword && password !== confirmPassword ? 'border-red-500' : ''
-                                    }`}
+                                    className={`w-full pl-12 pr-4 py-4 rounded-xl border bg-muted/30 focus:border-primary focus:bg-background transition-all outline-none ${confirmPassword && password !== confirmPassword ? 'border-red-500' : ''
+                                        }`}
                                 />
                                 {confirmPassword && password === confirmPassword && (
                                     <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-600" />

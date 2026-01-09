@@ -38,6 +38,8 @@ const Header = () => {
     me: language === 'zh' ? '我' : 'Me',
     join: language === 'zh' ? '登录' : 'Join',
     neighborly: language === 'zh' ? '友爱邻里' : 'Neighborly',
+    becomeProvider: language === 'zh' ? '成为达人' : 'Become Provider',
+    brandName: language === 'zh' ? '恒帮' : 'HangHand',
   };
 
   return (
@@ -47,13 +49,13 @@ const Header = () => {
         <Link to="/" className="flex items-center gap-2">
           <img src="/logo.png" alt="HangHand" className="w-10 h-10 rounded-2xl object-cover shadow-warm" />
           <div className="hidden sm:block">
-            <h1 className="text-xl font-black text-foreground tracking-tighter">HangHand</h1>
+            <h1 className="text-xl font-black tracking-tighter text-gradient">{t.brandName}</h1>
             <p className="text-[10px] font-bold text-primary/80 uppercase tracking-widest -mt-1 text-center sm:text-left">{t.neighborly}</p>
           </div>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="hidden lg:flex items-center gap-8">
           <Link to="/" className="text-sm font-bold text-foreground hover:text-primary transition-colors">
             {t.discover}
           </Link>
@@ -63,17 +65,8 @@ const Header = () => {
           <Link to="/orders" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
             {t.orders}
           </Link>
-          <Link to="/my-listings" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
-            {t.myPosts}
-          </Link>
-          <Link to="/chat" className="relative text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
-            <MessageCircle className="w-5 h-5 inline mr-1" />
-            {t.chat}
-            {totalUnreadCount > 0 && (
-              <span className="absolute -top-1 -right-3 w-4 h-4 bg-accent rounded-full text-[10px] font-black text-accent-foreground flex items-center justify-center">
-                {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
-              </span>
-            )}
+          <Link to="/become-provider" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
+            {t.becomeProvider}
           </Link>
         </nav>
 
@@ -100,15 +93,6 @@ const Header = () => {
             <Button size="sm" className="btn-action shadow-warm px-5">
               <PlusCircle className="w-4 h-4 mr-2" /> {t.post}
             </Button>
-          </Link>
-
-          <Link to="/chat" className="relative w-10 h-10 rounded-2xl bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors">
-            <MessageCircle className="w-5 h-5 text-muted-foreground" />
-            {totalUnreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-accent rounded-full text-[10px] font-black text-accent-foreground flex items-center justify-center border-2 border-card">
-                {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
-              </span>
-            )}
           </Link>
 
           {currentUser && (
@@ -154,6 +138,9 @@ const Header = () => {
             </Link>
             <Link to="/community" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
               {t.community}
+            </Link>
+            <Link to="/become-provider" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
+              {t.becomeProvider}
             </Link>
             <Link to="/post-gig" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
               {t.postSomething}

@@ -361,8 +361,8 @@ export default function ProviderProfile() {
                                                                     <Star
                                                                         key={i}
                                                                         className={`w-4 h-4 ${i < review.rating
-                                                                                ? 'text-amber-500 fill-amber-500'
-                                                                                : 'text-muted stroke-muted'
+                                                                            ? 'text-amber-500 fill-amber-500'
+                                                                            : 'text-muted stroke-muted'
                                                                             }`}
                                                                     />
                                                                 ))}
@@ -385,7 +385,25 @@ export default function ProviderProfile() {
                                             </div>
 
                                             {/* Review Content */}
-                                            <p className="text-sm leading-relaxed">{review.content}</p>
+                                            <p className="text-sm leading-relaxed mb-4">{review.content}</p>
+
+                                            {/* Media Gallery */}
+                                            {review.media && Array.isArray(review.media) && review.media.length > 0 && (
+                                                <div className="flex gap-3 mb-4 overflow-x-auto pb-2 scrollbar-none">
+                                                    {review.media.map((url, i) => (
+                                                        <div key={i} className="min-w-[120px] h-[120px] rounded-2xl overflow-hidden border border-muted/20 shadow-sm shrink-0 group/img cursor-pointer">
+                                                            <img
+                                                                src={url}
+                                                                className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-500"
+                                                                alt="Review media"
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/120?text=Image+Error';
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
 
                                             {/* Neighbor Story Badge */}
                                             {review.isNeighborStory && (

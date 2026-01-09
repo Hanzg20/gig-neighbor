@@ -2,10 +2,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Home, Compass, MessageCircle, ShoppingCart, User } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useCartStore } from "@/stores/cartStore";
+import { useConfigStore } from "@/stores/configStore";
 import { motion } from "framer-motion";
 
 const MobileBottomNav = () => {
     const navigate = useNavigate();
+    const language = useConfigStore(state => state.language);
     const location = useLocation();
     const { currentUser } = useAuthStore();
     const { getTotalItems } = useCartStore();
@@ -41,11 +43,10 @@ const MobileBottomNav = () => {
                             key={item.path}
                             onClick={() => navigate(item.path)}
                             whileTap={{ scale: 0.9 }}
-                            className={`relative flex flex-col items-center justify-center gap-1 transition-colors ${
-                                active
+                            className={`relative flex flex-col items-center justify-center gap-1 transition-colors ${active
                                     ? 'text-primary'
                                     : 'text-muted-foreground hover:text-foreground'
-                            }`}
+                                }`}
                         >
                             <motion.div
                                 animate={{ scale: active ? 1.1 : 1 }}
@@ -62,11 +63,11 @@ const MobileBottomNav = () => {
                                     </motion.span>
                                 )}
                             </motion.div>
-                            
+
                             <span className={`text-[10px] font-medium ${active ? 'font-bold' : ''}`}>
                                 {item.label}
                             </span>
-                            
+
                             {active && (
                                 <motion.div
                                     layoutId="activeTab"
