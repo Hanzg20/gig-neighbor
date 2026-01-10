@@ -9,7 +9,9 @@ import {
     IBeanRepository,
     IMessageRepository,
     ICommunityStatsRepository,
-    IReviewRepository
+    IReviewRepository,
+    IUserRepository,
+    IInventoryRepository
 } from './interfaces';
 
 // Supabase implementations
@@ -24,6 +26,8 @@ import { SupabaseBeanRepository } from './supabase/BeanRepository';
 import { SupabaseMessageRepository } from './supabase/MessageRepository';
 import { CommunityStatsRepository } from './supabase/CommunityStatsRepository';
 import { SupabaseReviewRepository } from './supabase/ReviewRepository';
+import { SupabaseUserRepository } from './supabase/UserRepository';
+import { SupabaseInventoryRepository } from './supabase/InventoryRepository';
 
 // Mock implementations
 import { MockReviewRepository } from './mock/ReviewRepository';
@@ -127,6 +131,15 @@ class RepositoryFactory {
             return new SupabaseReviewRepository();
         }
         return new MockReviewRepository();
+    }
+
+    getUserRepository(): IUserRepository {
+        // We only have the Supabase implementation for now as requested
+        return new SupabaseUserRepository();
+    }
+
+    getInventoryRepository(): IInventoryRepository {
+        return new SupabaseInventoryRepository();
     }
 
     // Convenience methods for common operations

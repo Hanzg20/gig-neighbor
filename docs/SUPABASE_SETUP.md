@@ -106,3 +106,30 @@ Before deploying to production:
 - [ ] Configure custom SMTP (optional, reduces Supabase email limits)
 - [ ] Set up database backups (Supabase → Database → Backups)
 - [ ] Enable 2FA for Supabase dashboard access
+
+## Storage Configuration
+
+Run these commands to set up the necessary media buckets and permissions:
+
+```sql
+-- 1. Create buckets
+INSERT INTO storage.buckets (id, name, public) VALUES ('review-media', 'review-media', true) ON CONFLICT (id) DO NOTHING;
+INSERT INTO storage.buckets (id, name, public) VALUES ('listing-media', 'listing-media', true) ON CONFLICT (id) DO NOTHING;
+
+-- 2. Review Media Policies
+DROP POLICY IF EXISTS "Public Read Review" ON storage.objects;
+CREATE POLICY "Public Read Review" ON storage.objects FOR SELECT TO public USING (bucket_id = 'review-media');
+
+DROP POLICY IF EXISTS "Auth Upload Review" ON storage.objects;
+CREATE POLICY "Auth Upload Review" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'review-media' AND auth.role() = 'authenticated');
+
+-- 3. Listing Media Policies
+DROP POLICY IF EXISTS "Public Read Listing" ON storage.objects;
+CREATE POLICY "Public Read Listing" ON storage.objects FOR SELECT TO public USING (bucket_id = 'listing-media');
+
+DROP POLICY IF EXISTS "Auth Upload Listing" ON storage.objects;
+CREATE POLICY "Auth Upload Listing" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'listing-media' AND auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Owner Delete Listing" ON storage.objects;
+CREATE POLICY "Owner Delete Listing" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'listing-media' AND owner = auth.uid());
+```

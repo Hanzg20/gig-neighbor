@@ -20,10 +20,10 @@ const Footer = () => {
     userAgreement: language === 'zh' ? '用户协议' : 'User Agreement',
     privacy: language === 'zh' ? '隐私政策' : 'Privacy Policy',
     terms: language === 'zh' ? '服务条款' : 'Terms of Service',
-    slogan: language === 'zh' ? '一个连接邻居、专业人士和商家的本地便民服务平台，让生活和办事更轻松，更放心' : 'A local platform connecting neighbors, professionals, and businesses for easy, trusted services.',
+    slogan: language === 'zh' ? '一个连接渥太华邻居、专业人士和商家的本地便民服务平台，让生活和办事更轻松，更放心' : 'A local platform connecting Ottawa neighbors, professionals, and businesses for easy, trusted services.',
     madeIn: language === 'zh' ? '加拿大制作' : 'Made with',
     inCanada: language === 'zh' ? '' : 'in Canada', // "Made with <love> in Canada" structure handling
-    brandName: language === 'zh' ? '恒帮' : 'HangHand',
+    brandName: language === 'zh' ? '渥帮' : 'HangHand',
   };
 
   return (
@@ -35,8 +35,8 @@ const Footer = () => {
             <div className="flex items-center gap-2 mb-4">
               <img src="/logo.png" alt="HangHand" className="w-10 h-10 rounded-2xl object-cover shadow-warm" />
               <div>
-                <h3 className="text-lg font-extrabold text-gradient">{t.brandName}</h3>
-                <p className="text-xs text-muted-foreground">Neighborly</p>
+                <h3 className="text-xl font-extrabold text-gradient">{t.brandName}</h3>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Powered by HangHand</p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">

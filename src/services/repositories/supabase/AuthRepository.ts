@@ -81,6 +81,49 @@ export class SupabaseAuthRepository implements IAuthRepository {
         return profile;
     }
 
+    async updateProfile(userId: string, data: Partial<User>): Promise<User> {
+        const updateData: any = {};
+        if (data.name) updateData.name = data.name;
+        if (data.avatar) updateData.avatar = data.avatar;
+        if (data.phone) updateData.phone = data.phone;
+        if (data.bio) updateData.bio = data.bio;
+        if (data.settings) updateData.settings = data.settings;
+        if (data.nodeId) updateData.node_id = data.nodeId;
+
+        const { error, count } = await supabase
+            .from('user_profiles')
+            .update(updateData, { count: 'exact' })
+            .eq('id', userId);
+
+        if (error) {
+            throw error;
+        }
+
+        const updatedUser = await this.getUserProfile(userId);
+        if (!updatedUser) throw new Error('User not found after update');
+        return updatedUser;
+    }
+
+    async uploadAvatar(userId: string, file: File): Promise<string> {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${userId}/${Date.now()}.${fileExt}`;
+        const filePath = `avatars/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, file, {
+                upsert: true
+            });
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+
+        return data.publicUrl;
+    }
+
     private async getUserProfile(userId: string): Promise<User | null> {
         const { data, error } = await supabase
             .from('user_profiles')
@@ -88,11 +131,11 @@ export class SupabaseAuthRepository implements IAuthRepository {
         *,
         user_roles (
           role:roles (
-            role_name
+            name
           )
         )
       `)
-            .eq('user_id', userId)
+            .eq('id', userId)
             .single();
 
         if (error) {
@@ -103,15 +146,18 @@ export class SupabaseAuthRepository implements IAuthRepository {
         if (!data) return null;
 
         // Map roles
-        const roles = data.user_roles?.map((ur: any) => ur.role.role_name) || ['BUYER'];
+        const roles = data.user_roles?.map((ur: any) => ur.role.name) || ['BUYER'];
 
         return {
-            id: data.user_id,
+            id: data.id,
             email: data.email,
-            name: data.display_name || data.email,
-            avatar: data.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`,
-            roles,
-            permissions: [], // TODO: Fetch from role_permissions
+            name: data.name,
+            avatar: data.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.id}`,
+            phone: data.phone,
+            bio: data.bio,
+            settings: data.settings,
+            roles: roles,
+            permissions: data.permissions || [],
             joinedDate: data.created_at,
             beansBalance: data.beans_balance || 0,
             nodeId: data.node_id,
@@ -124,9 +170,9 @@ export class SupabaseAuthRepository implements IAuthRepository {
         const { data, error } = await supabase
             .from('user_profiles')
             .insert({
-                user_id: userId,
+                id: userId,
                 email,
-                display_name: name,
+                name: name,
                 node_id: nodeId,
                 beans_balance: 100 // Welcome bonus
             })

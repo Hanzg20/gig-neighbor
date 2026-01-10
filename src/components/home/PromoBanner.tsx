@@ -18,10 +18,10 @@ const demoSlides: PromoSlide[] = [
     {
         id: "1",
         imageUrl: "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800&auto=format&fit=crop",
-        titleEn: "Ottawa Pilot Community",
-        titleZh: "上恒帮 —— 让生活更轻松",
-        descEn: "Help from your neighbour, made easy.",
-        descZh: "渥太华试点社区",
+        titleEn: "HangHand – Ottawa Neighbor Help",
+        titleZh: "渥帮：渥太华有事，找渥帮",
+        descEn: "Your community toolbox for neighborly help.",
+        descZh: "渥太华邻里互助的便民工具箱",
         ctaLink: "/about"
     },
     {
@@ -159,8 +159,8 @@ export const PromoBanner = () => {
                         key={index}
                         onClick={() => goToSlide(index)}
                         className={`transition-all duration-300 rounded-full ${index === currentSlide
-                                ? 'w-6 sm:w-8 h-1.5 sm:h-2 bg-white'
-                                : 'w-1.5 sm:w-2 h-1.5 sm:h-2 bg-white/50 hover:bg-white/75'
+                            ? 'w-6 sm:w-8 h-1.5 sm:h-2 bg-white'
+                            : 'w-1.5 sm:w-2 h-1.5 sm:h-2 bg-white/50 hover:bg-white/75'
                             }`}
                         aria-label={`Go to slide ${index + 1}`}
                     />

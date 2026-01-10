@@ -54,6 +54,15 @@ export interface User {
 
   // Points System: JinBean (金豆)
   beansBalance: number;
+  phone?: string;
+  bio?: string;
+  settings?: {
+    language: 'en' | 'zh';
+    notifications: {
+      email: boolean;
+      push: boolean;
+    };
+  };
 
   // Role Logic
   isVerifiedProvider?: boolean;
@@ -63,6 +72,13 @@ export interface User {
 
   // Pilot Node Context
   nodeId?: string; // Preferred community node (e.g., NODE_LEES)
+}
+
+export interface UserAddress extends BaseEntity {
+  userId: string;
+  label: string;
+  address: Address;
+  isDefault: boolean;
 }
 
 export interface BeanTransaction {
@@ -294,4 +310,31 @@ export interface ScheduleSlot extends BaseEntity {
   endTime: string;
   status: 'AVAILABLE' | 'BOOKED' | 'BLOCKED';
   orderId?: string; // Link to order if booked
+}
+
+// --- GigBridge (Scan-to-Buy) Inventory Models ---
+
+export type InventoryStatus = 'available' | 'reserved' | 'sold' | 'defective' | 'expired' | 'archived';
+
+export interface InventoryItem extends BaseEntity {
+  listingItemId: string;
+  providerId?: string;
+  serialNumber: string;
+  secretCode?: string;
+  status: InventoryStatus;
+  validFrom?: string;
+  validUntil?: string;
+  metadata?: Record<string, any>;
+  orderId?: string;
+  buyerId?: string;
+}
+
+export interface InventoryUsageLog {
+  id: string;
+  inventoryId: string;
+  actionType: 'USE' | 'RECHARGE' | 'VOID';
+  amount: number;
+  locationId?: string;
+  metadata?: Record<string, any>;
+  createdAt: string;
 }

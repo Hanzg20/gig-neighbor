@@ -24,6 +24,11 @@ import ReviewSubmission from "./pages/ReviewSubmission";
 import ProviderProfile from "./pages/ProviderProfile";
 import BecomeProvider from "./pages/BecomeProvider";
 import About from "./pages/About";
+import PersonalProfile from "./pages/PersonalProfile";
+import LanguageSettings from "./pages/LanguageSettings";
+import Wallet from "./pages/Wallet";
+import Addresses from "./pages/Addresses";
+import QuickScanCheckout from "./pages/QuickScanCheckout";
 import NotFound from "./pages/NotFound";
 import { CommunityProvider } from "./context/CommunityContext";
 
@@ -63,6 +68,11 @@ const App = () => {
               <Route path="/provider/:providerId" element={<ProviderProfile />} />
               <Route path="/become-provider" element={<BecomeProvider />} />
               <Route path="/about" element={<About />} />
+              <Route path="/settings/profile" element={<PersonalProfile />} />
+              <Route path="/settings/language" element={<LanguageSettings />} />
+              <Route path="/wallet" element={<Wallet />} />
+              <Route path="/addresses" element={<Addresses />} />
+              <Route path="/scan/:id" element={<QuickScanCheckout />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

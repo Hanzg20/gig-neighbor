@@ -1,4 +1,8 @@
-import { ListingMaster, ListingItem, User, ProviderProfile, RefCode, BeanTransaction, Review, ReviewReaction, ReviewReply } from '@/types/domain';
+import {
+    ListingMaster, ListingItem, User, ProviderProfile, RefCode, BeanTransaction,
+    Review, ReviewReaction, ReviewReply, UserAddress,
+    InventoryItem, InventoryUsageLog
+} from '@/types/domain';
 import { Order, CartItem } from '@/types/orders';
 
 /**
@@ -13,7 +17,16 @@ export interface IAuthRepository {
     updatePassword(newPassword: string): Promise<void>; // New: Update password
     logout(): Promise<void>;
     getCurrentUser(): Promise<User | null>;
+    updateProfile(userId: string, data: Partial<User>): Promise<User>;
+    uploadAvatar(userId: string, file: File): Promise<string>;
     register(email: string, password: string, name: string, nodeId?: string): Promise<User | null>;
+}
+
+export interface IUserRepository {
+    getAddresses(userId: string): Promise<UserAddress[]>;
+    addAddress(address: Omit<UserAddress, 'id' | 'createdAt' | 'updatedAt'>): Promise<UserAddress>;
+    updateAddress(id: string, data: Partial<UserAddress>): Promise<UserAddress>;
+    deleteAddress(id: string): Promise<void>;
 }
 
 export interface IListingRepository {
@@ -120,5 +133,14 @@ export interface IReviewRepository {
 
 export interface ICommunityStatsRepository {
     getStats(nodeId?: string): Promise<CommunityStats>;
+}
+
+export interface IInventoryRepository {
+    getByListingItem(listingItemId: string): Promise<InventoryItem[]>;
+    getByOrder(orderId: string): Promise<InventoryItem | null>;
+    allocateSerialNumber(listingItemId: string, orderId: string, buyerId: string): Promise<InventoryItem>;
+    addUsageLog(log: Omit<InventoryUsageLog, 'id' | 'createdAt'>): Promise<InventoryUsageLog>;
+    getUsageLogs(inventoryId: string): Promise<InventoryUsageLog[]>;
+    importInventory(items: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'orderId' | 'buyerId'>[]): Promise<void>;
 }
 

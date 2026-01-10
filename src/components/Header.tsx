@@ -37,9 +37,9 @@ const Header = () => {
     wait: language === 'zh' ? '稍候...' : 'Wait...',
     me: language === 'zh' ? '我' : 'Me',
     join: language === 'zh' ? '登录' : 'Join',
-    neighborly: language === 'zh' ? '友爱邻里' : 'Neighborly',
+    neighborly: language === 'zh' ? '让生活更轻松' : 'Make Life Easier',
     becomeProvider: language === 'zh' ? '成为达人' : 'Become Provider',
-    brandName: language === 'zh' ? '恒帮' : 'HangHand',
+    brandName: language === 'zh' ? '渥帮' : 'HangHand',
   };
 
   return (
@@ -50,7 +50,7 @@ const Header = () => {
           <img src="/logo.png" alt="HangHand" className="w-10 h-10 rounded-2xl object-cover shadow-warm" />
           <div className="hidden sm:block">
             <h1 className="text-xl font-black tracking-tighter text-gradient">{t.brandName}</h1>
-            <p className="text-[10px] font-bold text-primary/80 uppercase tracking-widest -mt-1 text-center sm:text-left">{t.neighborly}</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest -mt-1 text-center sm:text-left">{t.neighborly}</p>
           </div>
         </Link>
 

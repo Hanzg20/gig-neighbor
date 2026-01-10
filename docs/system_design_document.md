@@ -32,6 +32,7 @@
 22. [Cross-Platform Expansion Strategy (App & Mini-Program)](#22-cross-platform-expansion-strategy-app--mini-program)
 23. [AI Assistance Layer](#23-ai-assistance-layer)
 24. [Messaging & Real-time Communication](#24-messaging--real-time-communication)
+25. [User Hub & Profile Design](#25-user-hub--profile-design)
 
 ---
 
@@ -295,7 +296,8 @@ interface IListingRepository {
 For a detailed column-by-column reference, see the self-documenting [SQL Schema](file:///d:/My%20Project/ts/hangs/gig-neighbor/docs/supabase_schema.sql).
 
 **Core Table Overview:**
-- `public.user_profiles`: Extended user data (Email, Beans, Node).
+- `public.user_profiles`: Extended user data (Email, Beans, Node, **Bio, Settings**).
+- `public.user_addresses`: Multi-node address book for users (Home, Office, etc.).
 - `public.ref_codes`: Global categories and community nodes.
 - `public.listing_masters`: Service and product catalog entries.
 - `public.bean_transactions`: Ledger for the JinBean ecosystem.
@@ -1840,6 +1842,75 @@ To ensure a seamless and professional user experience, HangHand enforces strict 
    - **Static Text**: Use dictionary objects or translation helpers.
    - **Dynamic Data**: Use helper functions (e.g., `getLocalized(en, zh)`) or conditional rendering (`language === 'zh' ? zh : en`).
    - **Prohibited**: `<div>{en} / {zh}</div>` matches are forbidden.
+
+---
+
+## 25. User Hub & Profile Design
+
+The Profile page is the "Mission Control" for every HangHand user, serving as the central hub for managing both personal community activities and business operations.
+
+### 25.1 Design Philosophy: The Command Center
+- **Persona Duality**: Seamless transition between **Buyer (Neighbor)** and **Provider (Helper)** roles within a single interface.
+- **Trust as Asset**: The profile is a "Trust Ledger" accumulating badges, verification levels, and reputation scores.
+- **Contextual Actions**: Proactively surfaces urgent tasks (e.g., "Confirm Order", "Review Neighbor").
+
+### 25.2 Core Functionalities
+
+#### 1. Identity & Reputation Hub
+- **Unified Identity**: Single profile across nodes.
+- **Trust Badges**: Pro-license, Insurance, Background-check success indicators.
+- **Reputation Metrics**: Aggregated rating, "Expert" level, Community "Warmth" score.
+
+#### 2. Buyer Center (Neighbor Role)
+- **Order Management**: History of services booked and items purchased.
+- **My Posts**: Central hub for managing Goods (Sales/Free) and Tasks (Gigs) posted as a neighbor.
+- **Favorites & Saved**: Quick access to trusted providers and desired items.
+- **Wallet**: JinBean balance, recharge options, and transaction history.
+
+#### 3. Provider Center (Helper Role) - *Conditional*
+- **Helper Dashboard**: Real-time sales stats, rating trends, and response rate.
+- **Listing Workbench**: Tooling to create, edit, and toggle visibility of services.
+- **Appointment Calendar**: Visibility into scheduled gigs and service windows.
+
+#### 4. Account & Safety
+- **Multi-Node Address Book**: Manage home, office, or university campus locations.
+- **Security Hub**: Login method management (connect/disconnect Oauth/OTP), device history.
+- **Privacy Controls**: Visibility toggles for location data and contact methods.
+
+### 25.3 UI/UX Standards
+- **Role Switcher**: High-contrast toggle (e.g., "Switch to Provider Center") to prevent context confusion.
+- **Progressive Disclosure**: Hide complex provider tools for users who only use the platform as buyers.
+- **Actionable Badges**: Visual indicators (counts) on menu items for pending tasks.
+
+### 25.4 Data Architecture
+
+To support the dual-role hub and personalized settings, the following schema extensions are utilized:
+
+#### 1. User Profile Enhancements
+```sql
+ALTER TABLE public.user_profiles 
+ADD COLUMN bio TEXT, -- Professional or personal introduction
+ADD COLUMN settings JSONB DEFAULT '{
+  "language": "en", 
+  "notifications": {"email": true, "push": true}
+}'; -- Centralized user preferences
+```
+
+#### 2. Address Book (Multi-Node Support)
+```sql
+CREATE TABLE public.user_addresses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+  label TEXT, -- e.g., 'Home', 'Lees Ave', 'Carleton U'
+  address_text TEXT,
+  geom GEOMETRY(Point, 4326), -- PostGIS for proximity matching
+  is_default BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+#### 3. Transaction Metadata
+The existing `bean_transactions` and `orders` tables are linked to the hub to display real-time balances and pending actions.
 
 ---
 
