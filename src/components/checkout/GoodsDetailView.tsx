@@ -10,12 +10,14 @@ import { useConfigStore } from "@/stores/configStore";
 interface GoodsDetailViewProps {
     master: ListingMaster;
     item: ListingItem;
+    items?: ListingItem[]; // Added for variants
     provider: User;
     onBuy: () => void;
     onChat: () => void;
+    onSelect?: (item: ListingItem) => void; // Added for selection
 }
 
-export const GoodsDetailView = ({ master, item, provider, onBuy, onChat }: GoodsDetailViewProps) => {
+export const GoodsDetailView = ({ master, item, items = [], provider, onBuy, onChat, onSelect }: GoodsDetailViewProps) => {
     const [currentImage, setCurrentImage] = useState(0);
     const { language } = useConfigStore();
 
@@ -31,6 +33,7 @@ export const GoodsDetailView = ({ master, item, provider, onBuy, onChat }: Goods
         buyNow: language === 'zh' ? '立即购买' : 'Buy Now',
         postedBy: language === 'zh' ? '发布者' : 'Posted by',
         location: language === 'zh' ? '位置' : 'Location',
+        selectOption: language === 'zh' ? '选择规格' : 'Select Option',
     };
 
     return (
@@ -59,9 +62,12 @@ export const GoodsDetailView = ({ master, item, provider, onBuy, onChat }: Goods
                             </p>
                         </div>
                         <div className="flex flex-col gap-1 items-end">
-                            <Badge variant="outline" className="border-primary text-primary font-bold">
-                                {t.condition}: {item.attributes?.condition || 'Used'}
-                            </Badge>
+                            {/* Only show condition if explicitly set */}
+                            {item.attributes?.condition && (
+                                <Badge variant="outline" className="border-primary text-primary font-bold">
+                                    {t.condition}: {item.attributes.condition}
+                                </Badge>
+                            )}
                             {item.attributes?.brand && (
                                 <Badge variant="secondary" className="font-bold">
                                     {item.attributes.brand}
@@ -80,6 +86,39 @@ export const GoodsDetailView = ({ master, item, provider, onBuy, onChat }: Goods
                             {t.meetup}
                         </div>
                     </div>
+
+                    {/* Variant Selector */}
+                    {items && items.length > 1 && onSelect && (
+                        <div className="mb-6">
+                            <h3 className="text-sm font-bold mb-3 text-muted-foreground uppercase tracking-wide">{t.selectOption}</h3>
+                            <div className="grid gap-2">
+                                {items.map((variant) => (
+                                    <div
+                                        key={variant.id}
+                                        onClick={() => onSelect(variant)}
+                                        className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${item.id === variant.id
+                                            ? 'border-primary bg-primary/5 shadow-sm'
+                                            : 'border-transparent bg-muted/50 hover:bg-muted'
+                                            }`}
+                                    >
+                                        <div>
+                                            <p className={`font-bold text-sm ${item.id === variant.id ? 'text-primary' : ''}`}>
+                                                {getTranslation(variant, 'name')}
+                                            </p>
+                                            {variant.descriptionEn && (
+                                                <p className="text-xs text-muted-foreground line-clamp-1">
+                                                    {getTranslation(variant, 'description')}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="font-black text-foreground">
+                                            ${variant.pricing.price.amount / 100}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <p className="text-sm font-medium text-muted-foreground leading-relaxed mb-6">
                         {getTranslation(master, 'description')}

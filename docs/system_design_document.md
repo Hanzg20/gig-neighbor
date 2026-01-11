@@ -1235,11 +1235,39 @@ The **Seller Workbench** is a dedicated productivity suite for service providers
 
 To support the diverse listing types (Goods, Tasks, Services), the management interface differentiates based on the user's role in the transaction:
 
-#### 14.6.1 Provider Management: Seller Workbench
-*   **Focus**: Supply-side persistence and business metrics.
-*   **Target Types**: `SERVICE`, `RENTAL`, `GOODS`.
-*   **Key Operations**: Adjustment of SKUs, inventory toggle, and revenue/reputation tracking.
-*   **Lifecycle**: Listings are persistent and lifecycle-managed (Draft -> Published -> Busy -> Archived).
+#### 14.6.1 Provider Command Center (Pro Workbench)
+Make the "Provider Dashboard" a high-efficiency **Command Center**. "Less browsing, more doing."
+**Core Philosophy**: Providers shouldn't "shop" for features; features should come to them based on urgency.
+
+**A. Key User Personas**
+1.  **The Merchant (e.g., Eagleson Car Wash)**: Needs "POS-like" speed for validation and inventory.
+2.  **The Expert (e.g., Handyman/Consultant)**: Needs "Planner/Inbox" for leads and schedule.
+
+**B. "Pro Workbench" Layout**
+
+*   **1. The "Heads-Up" Header (Top Bar)**
+    *   **Status Toggle**: `[🟢 Accepting Orders]` vs `[🔴 Busy/Closed]` (Instant availability switch).
+    *   **Quick Scan**: Prominent `[📷 Scan QR]` button for rapid order fulfillment.
+    *   **Notifications**: Badge for unread Urgent Messages only.
+
+*   **2. "Action Stream" (Left/Main Column)**
+    *   *Instead of buttons, show the work.*
+    *   **Pending Orders Widget**: List of orders waiting for Accept/Ship with inline action buttons.
+    *   **Urgent Messages**: Last 3 conversations with "Enquiry" or "Support" tags.
+
+*   **3. "Business Pulpit" (Right/Side Column)**
+    *   **Live Metrics**: `$$ Earned` | `## Orders` | `## Views`.
+    *   **Quick Inventory**: List of *Top 5 Selling Items* with inline `[Available / Out of Stock]` toggle.
+
+*   **4. "Management Grid" (Lower Section)**
+    *   **Quick Access Cards**: [📦 My Listings], [⚙️ Store Settings], [💳 Wallet/Withdraw], [📊 Analytics].
+
+**C. Feature Flow (Example: Eagleson Wash)**
+1.  **Glance**: Checks "Live Metrics" ($300 overnight).
+2.  **Action**: Sees "Low Stock" alert for cards.
+3.  **Resolve**: Restocks physically, ignores dashboard (already "Available").
+4.  **Customer Arrives**: Shows QR code.
+5.  **Interact**: Owner hits `[Scan]` button -> Validates -> Done.
 
 #### 14.6.2 Buyer Management: Demand Tracking (My Demands)
 *   **Focus**: Demand-side fulfillment and decision making.

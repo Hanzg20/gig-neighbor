@@ -138,6 +138,7 @@ export interface ICommunityStatsRepository {
 export interface IInventoryRepository {
     getByListingItem(listingItemId: string): Promise<InventoryItem[]>;
     getByOrder(orderId: string): Promise<InventoryItem | null>;
+    getByProvider(providerId: string): Promise<InventoryItem[]>; // New method
     allocateSerialNumber(listingItemId: string, orderId: string, buyerId: string): Promise<InventoryItem>;
     addUsageLog(log: Omit<InventoryUsageLog, 'id' | 'createdAt'>): Promise<InventoryUsageLog>;
     getUsageLogs(inventoryId: string): Promise<InventoryUsageLog[]>;

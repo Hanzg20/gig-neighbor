@@ -24,6 +24,17 @@ export class SupabaseInventoryRepository implements IInventoryRepository {
         return data ? this.mapToDomain(data) : null;
     }
 
+    async getByProvider(providerId: string): Promise<InventoryItem[]> {
+        const { data, error } = await supabase
+            .from('listing_inventory')
+            .select('*')
+            .eq('provider_id', providerId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data.map(this.mapToDomain);
+    }
+
     async allocateSerialNumber(listingItemId: string, orderId: string, buyerId: string): Promise<InventoryItem> {
         const { data, error } = await supabase.rpc('allocate_inventory_item', {
             p_listing_item_id: listingItemId,

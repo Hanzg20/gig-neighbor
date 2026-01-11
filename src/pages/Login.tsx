@@ -177,20 +177,27 @@ const Login = () => {
         const domainRole: UserRoleType = role === 'SELLER' ? 'PROVIDER' : 'BUYER';
         setTimeout(() => {
             login({
-                id: role === 'BUYER' ? 'u1' : 'p1',
+                // Use VALID UUIDs to avoid 400 Bad Request from Supabase
+                id: role === 'BUYER'
+                    ? '99999999-9999-9999-9999-999999999999' // Valid UUID format for Demo Buyer
+                    : 'e1507f9e-7343-4474-a1da-301a213943ec', // Actual ID from Seed Script
                 email: 'demo@hanghand.com',
-                name: role === 'BUYER' ? '张三 (Demo)' : '李阿姨 (Demo Provider)',
+                name: role === 'BUYER' ? '张三 (Demo)' : 'Eagleson Owner (Demo)',
                 avatar: role === 'BUYER'
                     ? 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop'
-                    : 'https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?w=100&h=100&fit=crop',
+                    : 'https://images.unsplash.com/photo-1601362840469-51e4d8d58785?w=100&h=100&fit=crop', // Car wash logo
                 roles: [domainRole],
                 permissions: domainRole === 'BUYER' ? ["VIEW_LISTINGS", "POST_REVIEW"] : ["MANAGE_LISTINGS", "VIEW_ORDERS"],
                 joinedDate: '2025-01-01',
                 beansBalance: 150,
-                providerProfileId: domainRole === 'PROVIDER' ? 'pp1' : undefined
+                // Match the ID in SEED_EAGLESON_WASH.sql
+                providerProfileId: domainRole === 'PROVIDER' ? '0588656d-2305-4f40-9669-026815ec5521' : undefined
             });
             setLoading(false);
-            navigate(domainRole === 'PROVIDER' ? '/profile' : '/');
+            navigate(domainRole === 'PROVIDER'
+                ? '/provider/0588656d-2305-4f40-9669-026815ec5521?tab=inventory' // Direct to Inventory for convenience
+                : '/'
+            );
         }, 500);
     };
 

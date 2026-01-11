@@ -45,7 +45,9 @@
 ### 7.1 Flow 1: User Authentication & Profile Creation <!-- id: 200 -->
 - [x] **ENV Configuration**: Verify .env.local has correct Supabase credentials <!-- id: 201 -->
 - [x] **Schema Deployment**: Execute supabase_schema.sql on Supabase instance <!-- id: 202 -->
-- [ ] **Seed Data**: Import seed_data.sql (ref_codes, community nodes) <!-- id: 203 -->
+- [/] **Seed Data**: Import seed_data.sql (ref_codes, community nodes) <!-- id: 203 -->
+  - [x] Create Eagleson Coin Wash Seed Script (1 Master + 3 Items)
+  - [x] Fix Demo Login to use seeded UUIDs
 - [ ] **Auth Flow Implementation**: <!-- id: 204 -->
   - [x] Email/Password registration
   - [ ] Magic Link login
@@ -101,3 +103,10 @@
 - [ ] **Image Upload**: Supabase Storage integration <!-- id: 273 -->
 - [ ] **Pricing Configuration**: Support 6 transaction models <!-- id: 274 -->
 - [ ] **Walkthrough Documentation**: Record posting flow <!-- id: 275 -->
+
+### 7.9 Flow 9: Provider Experience Upgrade (Pro Command Center) <!-- id: 700 -->
+- [x] **Dashboard Layout Refactor**: Grid system and Heads-Up Header (Scan/Status) <!-- id: 701 -->
+- [ ] **Action Stream Widgets**: Pending Orders and Urgent Messages <!-- id: 702 -->
+- [ ] **Quick Inventory Widget**: Top 5 Items with Toggle <!-- id: 703 -->
+- [ ] **Business Metrics Widget**: Live daily revenue & views <!-- id: 704 -->
+- [ ] **Walkthrough Documentation**: Record new Pro Workbench flow <!-- id: 705 -->

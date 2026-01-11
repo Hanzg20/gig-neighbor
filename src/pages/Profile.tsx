@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     User, Settings, Heart, MapPin, Package, Store, Shield,
@@ -19,10 +19,13 @@ const Profile = () => {
     const { language } = useConfigStore();
     const [activeTab, setActiveTab] = useState<'buyer' | 'provider'>('buyer');
 
-    if (!currentUser) {
-        navigate('/login');
-        return null;
-    }
+    useEffect(() => {
+        if (!currentUser) {
+            navigate('/login');
+        }
+    }, [currentUser, navigate]);
+
+    if (!currentUser) return null;
 
     const isProvider = currentUser.roles?.includes('PROVIDER');
 

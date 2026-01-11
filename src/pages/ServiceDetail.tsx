@@ -139,9 +139,11 @@ const ServiceDetail = () => {
     return <GoodsDetailView
       master={master}
       item={selectedItem}
+      items={items}
       provider={provider}
       onBuy={() => setIsInstantPayOpen(true)}
       onChat={() => navigate('/chat')}
+      onSelect={setSelectedItem}
     />;
   }
 

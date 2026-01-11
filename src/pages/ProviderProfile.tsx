@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { repositoryFactory } from '@/services/repositories/factory';
 import { ProviderProfile as ProviderProfileType, ListingMaster, Review } from '@/types/domain';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,7 +16,8 @@ import {
     Clock,
     TrendingUp,
     CheckCircle2,
-    Sparkles
+    Sparkles,
+    Box
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -24,12 +25,15 @@ import { ListingCard } from '@/components/ListingCard';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useConfigStore } from '@/stores/configStore';
+import { useAuthStore } from '@/stores/authStore';
 import { getTranslation } from '@/stores/listingStore';
+import { ProviderInventoryDashboard } from '@/components/inventory/ProviderInventoryDashboard';
 
 export default function ProviderProfile() {
     const { providerId } = useParams<{ providerId: string }>();
     const navigate = useNavigate();
     const { language } = useConfigStore();
+    const { currentUser } = useAuthStore();
 
     const [provider, setProvider] = useState<ProviderProfileType | null>(null);
     const [providerAvatar, setProviderAvatar] = useState<string | undefined>(undefined);
@@ -37,6 +41,16 @@ export default function ProviderProfile() {
     const [reviews, setReviews] = useState<Review[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const [searchParams] = useSearchParams();
+    const initialTab = searchParams.get('tab') || 'services';
+    const [activeTab, setActiveTab] = useState(initialTab);
+
+    // Update tab if URL changes
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab) setActiveTab(tab);
+    }, [searchParams]);
 
     useEffect(() => {
         if (providerId) {
@@ -110,6 +124,7 @@ export default function ProviderProfile() {
         tabServices: language === 'zh' ? '服务' : 'Services',
         tabReviews: language === 'zh' ? '评价' : 'Reviews',
         tabAbout: language === 'zh' ? '关于' : 'About',
+        tabInventory: language === 'zh' ? '库存管理' : 'Inventory',
         noServices: language === 'zh' ? '暂无可用服务' : 'No services available yet',
         noReviews: language === 'zh' ? '暂无评价' : 'No reviews yet',
         aboutTitle: language === 'zh' ? '关于此提供商' : 'About This Provider',
@@ -122,7 +137,8 @@ export default function ProviderProfile() {
         providerNotFound: language === 'zh' ? '提供商未找到' : 'Provider Not Found',
         backToHome: language === 'zh' ? '返回首页' : 'Back to Home',
         providerNotFoundDesc: language === 'zh' ? '您查找的提供商不存在。' : 'The provider you are looking for does not exist.',
-        defaultBio: language === 'zh' ? '专业服务提供商' : 'Professional service provider'
+        defaultBio: language === 'zh' ? '专业服务提供商' : 'Professional service provider',
+        inventoryRestricted: language === 'zh' ? '此区域仅限商家本人访问' : 'This area is restricted to the provider owner',
     };
 
     // Get display content based on language
@@ -138,6 +154,9 @@ export default function ProviderProfile() {
     const avgRating = reviews.length > 0
         ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
         : 0;
+
+    // Check ownership
+    const isOwner = currentUser && provider && currentUser.id === provider.userId;
 
     const handleContactProvider = () => {
         navigate('/chat', { state: { providerId } });
@@ -288,15 +307,23 @@ export default function ProviderProfile() {
                                         <Share2 className="w-4 h-4" />
                                         {t.share}
                                     </Button>
+
+                                    {/* Edit Button for Owner */}
+                                    {isOwner && (
+                                        <Button variant="secondary" onClick={() => navigate('/profile')} className="gap-2">
+                                            Settings
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     </Card>
                 </motion.div>
 
+
                 {/* Tabs Section */}
-                <Tabs defaultValue="services" className="space-y-6">
-                    <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+                    <TabsList className={`grid w-full ${isOwner ? 'grid-cols-4' : 'grid-cols-3'} max-w-md mx-auto`}>
                         <TabsTrigger value="services">
                             {t.tabServices} ({listings.length})
                         </TabsTrigger>
@@ -306,6 +333,12 @@ export default function ProviderProfile() {
                         <TabsTrigger value="about">
                             {t.tabAbout}
                         </TabsTrigger>
+                        {isOwner && (
+                            <TabsTrigger value="inventory" className="gap-2">
+                                <Box className="w-4 h-4" />
+                                {t.tabInventory}
+                            </TabsTrigger>
+                        )}
                     </TabsList>
 
                     {/* Services Tab */}
@@ -469,6 +502,12 @@ export default function ProviderProfile() {
                             </div>
                         </Card>
                     </TabsContent>
+
+                    {isOwner && (
+                        <TabsContent value="inventory">
+                            <ProviderInventoryDashboard providerId={providerId!} />
+                        </TabsContent>
+                    )}
                 </Tabs>
             </div>
 
