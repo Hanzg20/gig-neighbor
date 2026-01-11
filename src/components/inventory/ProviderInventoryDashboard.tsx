@@ -13,12 +13,14 @@ import { format } from 'date-fns';
 import { AddInventoryDialog } from './AddInventoryDialog';
 import { useReactToPrint } from 'react-to-print';
 import { PrintableQrTemplate, PrintableQrData } from './PrintableQrTemplate';
+import { supabase } from '@/lib/supabase';
 
 interface ProviderInventoryDashboardProps {
     providerId: string;
 }
 
 export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDashboardProps) {
+    console.log('[🎯 InventoryDashboard] Component rendered with providerId:', providerId);
     const { language } = useConfigStore();
     const [loading, setLoading] = useState(true);
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -52,16 +54,27 @@ export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDash
     };
 
     const loadData = async () => {
+        console.log('[📦 InventoryDashboard] Starting to load data for provider:', providerId);
         setLoading(true);
         try {
+            // 检查用户认证状态
+            const { data: { user } } = await supabase.auth.getUser();
+            console.log('[🔐 InventoryDashboard] Current user:', user?.id);
+            console.log('[🔐 InventoryDashboard] User authenticated:', !!user);
+
             const inventoryRepo = repositoryFactory.getInventoryRepository();
             const listingRepo = repositoryFactory.getListingRepository();
             const itemRepo = repositoryFactory.getListingItemRepository();
 
+            console.log('[📦 InventoryDashboard] Fetching inventory and listings...');
             const [invData, lstData] = await Promise.all([
                 inventoryRepo.getByProvider(providerId),
                 listingRepo.getByProvider(providerId)
             ]);
+
+            console.log('[📦 InventoryDashboard] Inventory data received:', invData.length, 'items');
+            console.log('[📦 InventoryDashboard] Listings data received:', lstData.length, 'listings');
+            console.log('[📦 InventoryDashboard] First inventory item:', invData[0]);
 
             setInventory(invData);
             setListings(lstData);
@@ -73,11 +86,14 @@ export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDash
                 allItems.push(...variants);
             }
             setItems(allItems);
+            console.log('[📦 InventoryDashboard] Total items loaded:', allItems.length);
 
         } catch (error) {
-            console.error("Failed to load inventory:", error);
+            console.error("[❌ InventoryDashboard] Failed to load inventory:", error);
+            console.error("[❌ InventoryDashboard] Error details:", JSON.stringify(error, null, 2));
         } finally {
             setLoading(false);
+            console.log('[📦 InventoryDashboard] Loading complete');
         }
     };
 

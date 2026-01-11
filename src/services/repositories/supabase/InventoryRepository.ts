@@ -25,14 +25,24 @@ export class SupabaseInventoryRepository implements IInventoryRepository {
     }
 
     async getByProvider(providerId: string): Promise<InventoryItem[]> {
+        console.log('[🗄️ InventoryRepository] Fetching inventory for provider:', providerId);
         const { data, error } = await supabase
             .from('listing_inventory')
             .select('*')
             .eq('provider_id', providerId)
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        return data.map(this.mapToDomain);
+        if (error) {
+            console.error('[❌ InventoryRepository] Error fetching inventory:', error);
+            throw error;
+        }
+
+        console.log('[🗄️ InventoryRepository] Raw data received:', data?.length || 0, 'items');
+        console.log('[🗄️ InventoryRepository] First raw item:', data?.[0]);
+
+        const mapped = data ? data.map(this.mapToDomain) : [];
+        console.log('[🗄️ InventoryRepository] Mapped to domain:', mapped.length, 'items');
+        return mapped;
     }
 
     async allocateSerialNumber(listingItemId: string, orderId: string, buyerId: string): Promise<InventoryItem> {
