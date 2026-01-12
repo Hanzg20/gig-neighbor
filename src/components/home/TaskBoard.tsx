@@ -141,7 +141,7 @@ function TaskCard({ task, isVerifiedProvider, onClick, delay }: TaskCardProps) {
 
   const t = {
     urgent: language === 'zh' ? '紧急' : 'Urgent',
-    reward: language === 'zh' ? '奖励' : 'Reward',
+    reward: language === 'zh' ? '奖励' : 'REWARD',
     beans: language === 'zh' ? '豆币' : 'Beans',
     verified: language === 'zh' ? '认证邻居' : 'Verified Neighbor',
     newUser: language === 'zh' ? '新用户' : 'New to HangHand',
@@ -154,81 +154,80 @@ function TaskCard({ task, isVerifiedProvider, onClick, delay }: TaskCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      transition={{ delay, duration: 0.4 }}
+      whileHover={{ y: -2, boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.1)" }}
+      transition={{ delay, duration: 0.4, ease: "easeOut" }}
       onClick={onClick}
-      className="relative bg-card rounded-2xl overflow-hidden border border-border/50 hover:border-amber-500/30 hover:shadow-xl transition-all duration-300 group cursor-pointer"
+      className="relative bg-card rounded-2xl overflow-hidden border border-border/40 hover:border-primary/20 transition-all duration-300 group cursor-pointer"
     >
-      {/* Background gradient accent */}
-      <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-amber-500/5 to-orange-500/5 rounded-full -mr-20 -mt-20 group-hover:from-amber-500/10 group-hover:to-orange-500/10 transition-colors duration-500" />
-
-      {/* Urgent Glow Effect */}
-      {task.urgent && (
-        <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-transparent to-transparent" />
-      )}
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-muted/20 opacity-50" />
+      
+      {/* Hover glow effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
       {/* Content */}
-      <div className="relative z-10 p-4 sm:p-5">
-        {/* Title + Urgent Badge */}
-        <div className="flex items-start gap-2 mb-3">
-          <h3 className="font-bold text-base sm:text-lg line-clamp-2 flex-1 group-hover:text-primary transition-colors leading-tight">
+      <div className="relative z-10 p-5 sm:p-6">
+        {/* Top Row: Title + Badge */}
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <h3 className="font-bold text-base sm:text-lg text-foreground leading-snug line-clamp-2 flex-1 group-hover:text-primary transition-colors duration-300">
             {task.title}
           </h3>
-          {task.urgent && (
-            <div className="flex-shrink-0 bg-red-500/10 text-red-600 border border-red-500/20 px-2 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1 animate-pulse">
-              <AlertCircle className="w-3 h-3" />
-              {t.urgent}
+          
+          {/* Verification Badge - Always visible */}
+          {!isVerifiedProvider && (
+            <div className="flex-shrink-0 bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-semibold flex items-center gap-1 whitespace-nowrap">
+              <Zap className="w-3 h-3" />
+              <span>{t.providersOnly}</span>
             </div>
           )}
         </div>
 
-        {/* Metadata Row */}
-        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground mb-3">
-          <div className="flex items-center gap-1">
-            <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
+        {/* Meta Info Row */}
+        <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4">
+          <div className="flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-muted-foreground/70" />
             <span className="font-medium">{task.distance}</span>
           </div>
-          <span className="text-border">•</span>
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-muted-foreground/70" />
             <span className="font-medium">{task.deadline}</span>
           </div>
         </div>
 
         {/* Poster Info */}
-        <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/50">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-sm">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center text-primary-foreground text-sm font-bold shadow-md">
             {task.poster.name.charAt(0)}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">
               {task.poster.name}
             </p>
             {task.poster.verified ? (
-              <span className="text-[10px] sm:text-xs text-emerald-600 font-medium flex items-center gap-0.5">
-                ✓ {t.verified}
+              <span className="text-xs text-primary font-medium flex items-center gap-1">
+                <span className="text-primary">✓</span> {t.verified}
               </span>
             ) : (
-              <span className="text-[10px] sm:text-xs text-muted-foreground">{t.newUser}</span>
+              <span className="text-xs text-muted-foreground">{t.newUser}</span>
             )}
           </div>
         </div>
 
-        {/* Reward + CTA */}
-        <div className="flex items-center justify-between gap-3">
-          {/* Reward */}
-          <div className="flex-1">
-            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">
+        {/* Reward + CTA Row */}
+        <div className="flex items-end justify-between gap-4 pt-4 border-t border-border/50">
+          {/* Reward Section */}
+          <div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-2">
               {t.reward}
             </p>
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200/50">
-                <Coins className="w-3 h-3 sm:w-4 sm:h-4 text-amber-500" />
-                <span className="text-sm sm:text-base font-black text-foreground">{task.reward.beans}</span>
-                <span className="text-[10px] sm:text-xs text-muted-foreground font-medium hidden sm:inline">{t.beans}</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1.5 rounded-lg border border-amber-200/50 dark:border-amber-500/20">
+                <Coins className="w-4 h-4 text-amber-500" />
+                <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{task.reward.beans}</span>
+                <span className="text-xs text-amber-600/70 dark:text-amber-400/70">{t.beans}</span>
               </div>
-              <span className="text-muted-foreground font-bold">+</span>
-              <span className="text-lg sm:text-xl font-black text-primary">
+              <span className="text-muted-foreground font-bold text-lg">+</span>
+              <span className="text-xl sm:text-2xl font-black text-primary">
                 ${(task.reward.cash / 100).toFixed(0)}
               </span>
             </div>
@@ -237,35 +236,21 @@ function TaskCard({ task, isVerifiedProvider, onClick, delay }: TaskCardProps) {
           {/* CTA Button */}
           {isVerifiedProvider ? (
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex-shrink-0 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1 shadow-md hover:shadow-lg transition-shadow"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex-shrink-0 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-1.5 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
             >
-              <span className="hidden sm:inline">{t.submitQuote}</span>
-              <span className="sm:hidden">{language === 'zh' ? '报价' : 'Quote'}</span>
-              <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+              {t.submitQuote}
+              <ChevronRight className="w-4 h-4" />
             </motion.button>
           ) : (
-            <button className="flex-shrink-0 bg-muted/50 text-muted-foreground px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1 border border-border cursor-not-allowed">
-              <Lock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline">{t.verifyToAccept}</span>
-              <span className="sm:hidden">{language === 'zh' ? '认证' : 'Verify'}</span>
+            <button className="flex-shrink-0 bg-muted/80 text-muted-foreground px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-1.5 border border-border/50 hover:bg-muted transition-colors duration-200">
+              <Lock className="w-3.5 h-3.5" />
+              {t.verifyToAccept}
             </button>
           )}
         </div>
-
-        {/* Verification Required Badge (Top Right) */}
-        {!isVerifiedProvider && (
-          <div className="absolute top-3 right-3 bg-green-50 text-green-700 border border-green-200/50 px-2 py-1 rounded-lg text-[9px] sm:text-[10px] font-bold flex items-center gap-1 shadow-sm backdrop-blur-sm">
-            <Zap className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-            <span className="hidden sm:inline">{t.providersOnly}</span>
-            <span className="sm:inline md:hidden">{language === 'zh' ? '认证' : 'Verified'}</span>
-          </div>
-        )}
       </div>
-
-      {/* Bottom Accent Line */}
-      <div className="h-1 w-full bg-gradient-to-r from-amber-500 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
     </motion.div>
   );
 }
