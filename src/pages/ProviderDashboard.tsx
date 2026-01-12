@@ -130,11 +130,11 @@ const ProviderDashboard = () => {
                                                     <Package className="w-6 h-6 text-primary" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-black text-sm">{order.listingTitle}</p>
+                                                    <p className="font-black text-sm">{order.snapshot?.masterTitle || '订单'}</p>
                                                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                                                         <span className="font-bold text-foreground">${order.pricing.total.amount / 100}</span>
                                                         <span>•</span>
-                                                        <span>{order.buyerName}</span>
+                                                        <span>{order.snapshot?.providerName || '买家'}</span>
                                                         <span>•</span>
                                                         <span>刚刚</span>
                                                     </div>

@@ -86,7 +86,7 @@ export function AddInventoryDialog({ open, onOpenChange, providerId, listings, i
                     serialNumber,
                     secretCode,
                     metadata: {},
-                    validFrom: new Date(),
+                    validFrom: new Date().toISOString(),
                 }]);
 
             } else {
@@ -100,7 +100,7 @@ export function AddInventoryDialog({ open, onOpenChange, providerId, listings, i
                         serialNumber: sn,
                         secretCode: sc || undefined,
                         metadata: {},
-                        validFrom: new Date(),
+                        validFrom: new Date().toISOString(),
                     };
                 });
 
@@ -136,7 +136,7 @@ export function AddInventoryDialog({ open, onOpenChange, providerId, listings, i
     // Filter items that belong to serialized listings
     const serializedItems = items.filter(item => {
         const master = listings.find(l => l.id === item.masterId);
-        return master?.isSerialized;
+        return (master?.metadata as Record<string, unknown>)?.isSerialized;
     });
 
     return (
