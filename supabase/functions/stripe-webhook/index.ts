@@ -60,9 +60,9 @@ async function sendSMS(params: SMSParams): Promise<{ success: boolean; messageId
         const messageId = messageIdMatch ? messageIdMatch[1] : undefined;
         console.log('[✅ SMS] Sent successfully:', messageId);
         return { success: true, messageId };
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('[❌ SMS] Error sending SMS:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
 }
 // ===== End SMS Helper =====
@@ -237,8 +237,8 @@ serve(async (req) => {
             status: 200,
         })
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('[❌ Webhook] Error processing webhook:', error)
-        return new Response(JSON.stringify({ error: error.message }), { status: 400 })
+        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), { status: 400 })
     }
 })
