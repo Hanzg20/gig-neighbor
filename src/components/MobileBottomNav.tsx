@@ -27,6 +27,14 @@ const MobileBottomNav = () => {
         return location.pathname.startsWith(path);
     };
 
+    // Hide bottom nav for scan purchases and payment success page
+    const shouldHideNav = location.pathname.startsWith('/scan/') ||
+        location.pathname === '/payment-success';
+
+    if (shouldHideNav) {
+        return null;
+    }
+
     return (
         <motion.div
             initial={{ y: 100, opacity: 0 }}
@@ -44,8 +52,8 @@ const MobileBottomNav = () => {
                             onClick={() => navigate(item.path)}
                             whileTap={{ scale: 0.9 }}
                             className={`relative flex flex-col items-center justify-center gap-1 transition-colors ${active
-                                    ? 'text-primary'
-                                    : 'text-muted-foreground hover:text-foreground'
+                                ? 'text-primary'
+                                : 'text-muted-foreground hover:text-foreground'
                                 }`}
                         >
                             <motion.div

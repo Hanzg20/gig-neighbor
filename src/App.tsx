@@ -29,6 +29,7 @@ import LanguageSettings from "./pages/LanguageSettings";
 import Wallet from "./pages/Wallet";
 import Addresses from "./pages/Addresses";
 import QuickScanCheckout from "./pages/QuickScanCheckout";
+import PaymentSuccess from "./pages/PaymentSuccess";
 import NotFound from "./pages/NotFound";
 import { CommunityProvider } from "./context/CommunityContext";
 
@@ -73,6 +74,7 @@ const App = () => {
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/addresses" element={<Addresses />} />
               <Route path="/scan/:id" element={<QuickScanCheckout />} />
+              <Route path="/payment-success" element={<PaymentSuccess />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

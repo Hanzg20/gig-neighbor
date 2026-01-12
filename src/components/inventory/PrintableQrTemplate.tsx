@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { InventoryItem, ListingMaster, ListingItem } from '@/types/domain';
 
 export interface PrintableQrData {
-    serialNumber: string;
+    serialNumber: string; // Display text below QR (e.g., "Standard Card - $50.00" or "Universal QR")
     productName: string;
     url: string;
 }
@@ -34,16 +34,19 @@ export const PrintableQrTemplate = forwardRef<HTMLDivElement, PrintableQrTemplat
                                 {item.productName}
                             </h3>
 
-                            <div className="w-32 h-32 mb-2">
-                                <QrCodeGenerator value={item.url} size={128} />
+                            <div className="w-40 h-40 mb-3">
+                                <QrCodeGenerator value={item.url} size={200} />
                             </div>
 
-                            <p className="font-mono text-xs text-gray-600">
-                                {item.serialNumber}
-                            </p>
-                            <p className="text-[10px] text-gray-400 mt-1">
-                                Scan to Buy
-                            </p>
+                            {/* Bottom Label - Variant Info or Universal Label */}
+                            <div className="w-full border-t border-gray-200 pt-3 mt-2">
+                                <p className="text-sm font-bold text-gray-900 tracking-wide">
+                                    {item.serialNumber}
+                                </p>
+                                <p className="text-[11px] text-gray-500 mt-1 font-medium">
+                                    Scan to Buy
+                                </p>
+                            </div>
                         </div>
                     ))}
                 </div>

@@ -1189,3 +1189,253 @@ INSERT INTO public.listing_items (
 -- - 美业服务 (Beauty Services) - 美甲美睫 + 理发
 -- - 顺风车 (Carpool) - 渥太华-多伦多 + T&T购物
 -- - 机场接送 (Airport Transportation)
+
+
+
+
+🍁 Gigbridge development seed data1: Eagleson Coin Wash (Final Production-Ready Version)
+-- Structure: 1 Master (Recharge Card) + 3 Items ($50/$100/$200)
+-- UUIDs: Fully random V4 UUIDs to ensure uniqueness and professionalism
+-- User: Locked to ID 'e1507f9e-7343-4474-a1da-301a213943ec'
+
+DO $$
+DECLARE
+    -- 1. Targeted User ID
+    target_user_id UUID := 'e1507f9e-7343-4474-a1da-301a213943ec';
+    
+    -- 2. Professional Random UUIDs
+    provider_id UUID := '0588656d-2305-4f40-9669-026815ec5521'; 
+    master_card UUID := 'b4c91350-13f5-4309-84d7-40097f486241';
+    
+    item_50 UUID   := 'f3327699-0785-4b18-a612-452936780352';
+    item_100 UUID  := '21647754-0824-4f06-9051-177395027583';
+    item_200 UUID  := '78239015-3215-4687-9540-523689401562';
+    
+    timestamp_now TIMESTAMPTZ := now();
+BEGIN
+    -- Validation: Ensure user exists to avoid silent FK errors
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = target_user_id) THEN
+        RAISE NOTICE '⚠️ Target user % not found. Script might fail on FK constraint.', target_user_id;
+    END IF;
+
+    -- ==========================================
+    -- 1. Provider Profile
+    -- ==========================================
+    INSERT INTO "public"."provider_profiles" (
+        "id", "user_id", "business_name_zh", "business_name_en", 
+        "description_zh", "description_en", 
+        "identity", "is_verified", "badges", "stats", 
+        "location_address", "location_coords", "service_radius_km", 
+        "created_at", "updated_at", "verification_level", 
+        "insurance_summary_en", "license_info", "status"
+    ) VALUES (
+        provider_id, 
+        target_user_id, 
+        'Eagleson Coin Wash (Official)', 
+        'Eagleson Coin Wash', 
+        '24小时自助洗车。高压温水、肥皂水、打蜡。多车位免排队。', 
+        '24/7 Self-service car wash. High-pressure hot water, soap & wax. No waiting in line.', 
+        'MERCHANT', 
+        true, 
+        ARRAY['top_rated', 'verified', 'fast_response'], 
+        '{"totalOrders": 128, "averageRating": 4.9, "reviewCount": 85}', -- Realistic stats
+        '650A Eagleson Rd, Kanata, ON K2M 1H4', 
+        NULL, 
+        15, 
+        timestamp_now, 
+        timestamp_now, 
+        3, 
+        'Liability Insurance Included (Policy #998877)', 
+        'Business License #BL-2025-888', 
+        'ACTIVE'
+    )
+    ON CONFLICT ("id") DO UPDATE SET
+        "user_id" = EXCLUDED."user_id",
+        "business_name_zh" = EXCLUDED."business_name_zh",
+        "updated_at" = now();
+
+    -- ==========================================
+    -- 2. Listing Master (Single Entry)
+    -- ==========================================
+    INSERT INTO "public"."listing_masters" (
+        "id", "provider_id", "title_zh", "title_en", 
+        "description_zh", "description_en", 
+        "images", "type", "category_id", "tags", 
+        "status", "location_address", "location_coords", 
+        "rating", "review_count", "is_promoted", "metadata", 
+        "created_at", "updated_at", "embedding", "node_id", 
+        "location", "latitude", "longitude"
+    ) VALUES (
+        master_card, 
+        provider_id, 
+        '自助洗车充值卡 (多面额可选)', 
+        'Self-Service Wash Recharge Card', 
+        '官方充值卡，余额永久有效。每笔充值均有不同程度的赠送优惠。支持扫码即用。', 
+        'Official recharge card with permanent balance validity. Bonus credits included with every tier. Scan to use instantly.', 
+        ARRAY['https://images.unsplash.com/photo-1601362840469-51e4d8d58785?auto=format&fit=crop&q=80&w=600'], 
+        'GOODS', 
+        '1040400', 
+        ARRAY['car_wash', 'recharge', 'promotion', 'gift_card'], 
+        'PUBLISHED', 
+        'Kanata Lakes, Ottawa', 
+        NULL, 
+        4.9, 85, true, 
+        '{"is_serialized": true, "fulfillment_config": {"auto_notify": true}}'::jsonb, 
+        timestamp_now, timestamp_now, NULL, 'NODE_KANATA', 
+        NULL, 45.3, -75.9
+    ) ON CONFLICT ("id") DO NOTHING;
+
+    -- ==========================================
+    -- 3. Listing Items (3 Variants)
+    -- ==========================================
+    
+    -- Variant A: $50
+    INSERT INTO "public"."listing_items" (
+        "id", "master_id", "name_zh", "name_en", 
+        "description_zh", "description_en", 
+        "images", "price_amount", "price_currency", "price_unit", 
+        "deposit_amount", "pricing_model", "status", "sort_order", 
+        "attributes", "parent_item_id", "created_at", "updated_at", "pricing"
+    ) VALUES (
+        item_50, master_card, 
+        '标准卡 ($50)', 'Standard Card ($50)', 
+        '充$50，送10分钟免费时长', 'Load $50, get 10 min bonus', 
+        NULL, 5000, 'CAD', 'card', 
+        0, 'FIXED', 'AVAILABLE', 1, 
+        '{"bonus_minutes": 10, "credit_value": 50}'::jsonb, 
+        NULL, timestamp_now, timestamp_now, 
+        '{"model": "FIXED", "unit": "card", "price": {"amount": 5000, "currency": "CAD", "formatted": "$50.00"}}'
+    ) ON CONFLICT ("id") DO NOTHING;
+
+    -- Variant B: $100
+    INSERT INTO "public"."listing_items" (
+        "id", "master_id", "name_zh", "name_en", 
+        "description_zh", "description_en", 
+        "images", "price_amount", "price_currency", "price_unit", 
+        "deposit_amount", "pricing_model", "status", "sort_order", 
+        "attributes", "parent_item_id", "created_at", "updated_at", "pricing"
+    ) VALUES (
+        item_100, master_card, 
+        '金卡 ($100)', 'Gold Card ($100)', 
+        '充$100，送25分钟免费时长', 'Load $100, get 25 min bonus', 
+        NULL, 10000, 'CAD', 'card', 
+        0, 'FIXED', 'AVAILABLE', 2, 
+        '{"bonus_minutes": 25, "credit_value": 100}'::jsonb, 
+        NULL, timestamp_now, timestamp_now, 
+        '{"model": "FIXED", "unit": "card", "price": {"amount": 10000, "currency": "CAD", "formatted": "$100.00"}}'
+    ) ON CONFLICT ("id") DO NOTHING;
+
+    -- Variant C: $200
+    INSERT INTO "public"."listing_items" (
+        "id", "master_id", "name_zh", "name_en", 
+        "description_zh", "description_en", 
+        "images", "price_amount", "price_currency", "price_unit", 
+        "deposit_amount", "pricing_model", "status", "sort_order", 
+        "attributes", "parent_item_id", "created_at", "updated_at", "pricing"
+    ) VALUES (
+        item_200, master_card, 
+        '白金卡 ($200)', 'Platinum Card ($200)', 
+        '充$200，送40分钟 + 免费换胎', 'Load $200, 40 min bonus + Tire Change', 
+        NULL, 20000, 'CAD', 'card', 
+        0, 'FIXED', 'AVAILABLE', 3, 
+        '{"bonus_minutes": 40, "credit_value": 200, "includes_service": "TIRE_CHANGE"}'::jsonb, 
+        NULL, timestamp_now, timestamp_now, 
+        '{"model": "FIXED", "unit": "card", "price": {"amount": 20000, "currency": "CAD", "formatted": "$200.00"}}'
+    ) ON CONFLICT ("id") DO NOTHING;
+
+    -- ==========================================
+    -- 4. Inventory (Serialized Assets)
+    -- ==========================================
+    -- Using status 'available' (lowercase) per schema constraint
+    FOR i IN 1..5 LOOP
+        -- $50 Cards
+        INSERT INTO public.listing_inventory (provider_id, listing_item_id, serial_number, secret_code, status)
+        VALUES (provider_id, item_50, 'CW-50-' || floor(random() * 89999 + 10000)::text, 'PIN-' || floor(random()*9000 + 1000)::text, 'available')
+        ON CONFLICT DO NOTHING;
+        
+        -- $100 Cards
+        INSERT INTO public.listing_inventory (provider_id, listing_item_id, serial_number, secret_code, status)
+        VALUES (provider_id, item_100, 'CW-100-' || floor(random() * 89999 + 10000)::text, 'PIN-' || floor(random()*9000 + 1000)::text, 'available')
+        ON CONFLICT DO NOTHING;
+        
+        -- $200 Cards
+        INSERT INTO public.listing_inventory (provider_id, listing_item_id, serial_number, secret_code, status)
+        VALUES (provider_id, item_200, 'CW-200-' || floor(random() * 89999 + 10000)::text, 'PIN-' || floor(random()*9000 + 1000)::text, 'available')
+        ON CONFLICT DO NOTHING;
+    END LOOP;
+
+END $$;
+
+
+======
+--- Gigbridge development seed data2：
+----在 Supabase SQL Editor 中运行：
+
+-- 1. 创建演示订单
+INSERT INTO public.orders (
+    id, buyer_id, provider_id, status, payment_status,
+    amount_base, amount_total, currency, snapshot, actual_transaction_model
+)
+VALUES (
+    '00000000-0000-0000-0000-000000000001'::UUID,
+    '00000000-0000-0000-0000-000000000002'::UUID,  -- Demo buyer (will create below)
+    (SELECT id FROM public.provider_profiles WHERE business_name_en = 'Eagleson Coin Wash' LIMIT 1),
+    'PENDING_PAYMENT', 'UNPAID', 0, 0, 'CAD', '{}'::JSONB, 'DEMO'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 2. 创建匿名购买者用户记录（新增）
+-- Create anonymous buyer user profile for demo purchases 创建一个专门的"匿名购买者"用户记录 所有演示购买都使用这
+-- 缺点：无法区分不同的匿名买家
+
+INSERT INTO auth.users ( id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, is_anonymous ) VALUES ( '00000000-0000-0000-0000-000000000002'::uuid, 'authenticated', 'authenticated', 'anonymous@demo.gigneighbor.ca [blocked]', now(), '{}'::jsonb, '{"name":"Anonymous Buyer (Demo)"}'::jsonb, now(), now(), true ) 
+
+INSERT INTO public.user_profiles (
+    id,
+    email,
+    name,
+    phone,
+    created_at,
+    updated_at
+)
+VALUES (
+    '00000000-0000-0000-0000-000000000002'::UUID,  -- Fixed demo buyer UUID
+    'anonymous@demo.gigneighbor.ca',
+    'Anonymous Buyer (Demo)',
+    '+1-000-000-0000',
+    NOW(),
+    NOW()
+)
+ON CONFLICT (id) DO NOTHING;
+
+
+
+-- ============================================================================
+-- 3. SYSTEM USERS (Guest Checkout Support)
+-- ============================================================================
+INSERT INTO public.user_profiles (id, full_name, email, role)
+VALUES ('00000000-0000-0000-0000-000000000000', 'Guest User', 'guest@hanghand.ca', 'BUYER')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================================
+-- 4. DEMO DATA: Eagleson Coin Wash (Scan-to-Buy Pilot)
+-- ============================================================================
+INSERT INTO "public"."provider_profiles" ("id", "user_id", "business_name_zh", "business_name_en", "identity", "is_verified", "status") 
+VALUES ('0588656d-2305-4f40-9669-026815ec5521', 'e1507f9e-7343-4474-a1da-301a213943ec', '壹狗剩自助洗车行', 'Eagleson Coin Wash', 'MERCHANT', true, 'ACTIVE')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO "public"."listing_masters" ("id", "provider_id", "title_zh", "title_en", "type", "category_id", "status", "node_id")
+VALUES ('b4c91350-13f5-4309-84d7-40097f486241', '0588656d-2305-4f40-9669-026815ec5521', '自助洗车充值卡', 'Self-Service Wash Card', 'GOODS', '1040400', 'PUBLISHED', 'NODE_KANATA')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO "public"."listing_items" ("id", "master_id", "name_zh", "name_en", "price_amount", "price_currency", "pricing_model", "status") 
+VALUES 
+('f3327699-0785-4b18-a612-452936780352', 'b4c91350-13f5-4309-84d7-40097f486241', '标准卡 ($50)', 'Standard Card ($50)', 5000, 'CAD', 'FIXED', 'AVAILABLE'),
+('21647754-0824-4f06-9051-177395027583', 'b4c91350-13f5-4309-84d7-40097f486241', '金卡 ($100)', 'Gold Card ($100)', 10000, 'CAD', 'FIXED', 'AVAILABLE')
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed initial inventory for item_50
+INSERT INTO public.listing_inventory (provider_id, listing_item_id, serial_number, secret_code, status)
+SELECT '0588656d-2305-4f40-9669-026815ec5521', 'f3327699-0785-4b18-a612-452936780352', 'CW-50-' || i, 'PIN', 'available'
+FROM generate_series(1, 10) s(i)
+ON CONFLICT DO NOTHING;

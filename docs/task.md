@@ -45,7 +45,7 @@
 ### 7.1 Flow 1: User Authentication & Profile Creation <!-- id: 200 -->
 - [x] **ENV Configuration**: Verify .env.local has correct Supabase credentials <!-- id: 201 -->
 - [x] **Schema Deployment**: Execute supabase_schema.sql on Supabase instance <!-- id: 202 -->
-- [/] **Seed Data**: Import seed_data.sql (ref_codes, community nodes) <!-- id: 203 -->
+- [x] **Seed Data**: Import seed_data.sql (ref_codes, community nodes) <!-- id: 203 -->
   - [x] Create Eagleson Coin Wash Seed Script (1 Master + 3 Items)
   - [x] Fix Demo Login to use seeded UUIDs
 - [ ] **Auth Flow Implementation**: <!-- id: 204 -->
@@ -71,9 +71,11 @@
 - [ ] **Walkthrough Documentation**: Record detail-to-cart flow <!-- id: 225 -->
 
 ### 7.4 Flow 4: Checkout & Order Creation <!-- id: 230 -->
-- [ ] **Order Snapshot**: Capture ListingMaster/Item state at creation <!-- id: 231 -->
-- [ ] **Transaction Model Selection**: Implement 6 transactional models <!-- id: 232 -->
-- [ ] **Payment Integration**: Stripe checkout (CAD) <!-- id: 233 -->
+- [x] **Order Snapshot**: Capture ListingMaster/Item state at creation <!-- id: 231 -->
+- [x] **Transaction Model Selection**: Implement 6 transactional models <!-- id: 232 -->
+- [x] **Payment Integration**: Stripe checkout (CAD) <!-- id: 233 -->
+  - [x] Webhook handler implementation
+  - [x] SMS notifications and Idempotency verified
 - [ ] **Order State Machine**: Implement status transitions <!-- id: 234 -->
 - [ ] **Walkthrough Documentation**: Record checkout flow <!-- id: 235 -->
 

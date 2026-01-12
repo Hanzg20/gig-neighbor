@@ -11,12 +11,26 @@ import { NotificationService } from '@/services/NotificationService';
 import { ListingMaster, ListingItem, InventoryItem } from '@/types/domain';
 import { useToast } from "@/hooks/use-toast";
 import { useConfigStore } from '@/stores/configStore';
+import { supabase } from '@/lib/supabase';
+
+// UUID v4 generator (compatible with all browsers)
+function generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
 
 const QuickScanCheckout = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { toast } = useToast();
     const { language } = useConfigStore();
+
+    // Get preselect parameter from URL query string
+    const searchParams = new URLSearchParams(window.location.search);
+    const preselectItemId = searchParams.get('preselect');
 
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
@@ -30,6 +44,7 @@ const QuickScanCheckout = () => {
     const t = {
         zh: {
             title: "扫码购卡",
+            quickBuyTitle: "快速购买",
             payBtn: "去支付",
             paying: "正在处理支付...",
             successTitle: "支付成功！",
@@ -44,9 +59,11 @@ const QuickScanCheckout = () => {
             loading: "正在加载商品信息...",
             notFound: "商品未找到",
             inventoryError: "该规格暂时缺货，请选择其他规格或联系商家。",
+            viewAllVariants: "查看所有规格",
         },
         en: {
             title: "Scan to Buy",
+            quickBuyTitle: "Quick Buy",
             payBtn: "Pay Now",
             paying: "Processing payment...",
             successTitle: "Payment Successful!",
@@ -61,6 +78,7 @@ const QuickScanCheckout = () => {
             loading: "Loading product...",
             notFound: "Product not found",
             inventoryError: "This variant is out of stock. Please select another or contact the provider.",
+            viewAllVariants: "View All Variants",
         }
     }[language === 'zh' ? 'zh' : 'en'];
 
@@ -76,7 +94,20 @@ const QuickScanCheckout = () => {
                     setListing(data);
                     const variants = await itemRepo.getByMaster(data.id);
                     setItems(variants);
-                    if (variants.length > 0) setSelectedItem(variants[0]);
+
+                    // Check if there's a preselect parameter
+                    if (preselectItemId && variants.length > 0) {
+                        const preselectedItem = variants.find(v => v.id === preselectItemId);
+                        if (preselectedItem) {
+                            setSelectedItem(preselectedItem);
+                            console.log('[📌 QuickScan] Pre-selected variant:', preselectedItem.nameEn);
+                        } else {
+                            // Fallback to first item if preselect ID not found
+                            setSelectedItem(variants[0]);
+                        }
+                    } else if (variants.length > 0) {
+                        setSelectedItem(variants[0]);
+                    }
                 }
             } catch (error) {
                 console.error("Error fetching scan data:", error);
@@ -85,7 +116,7 @@ const QuickScanCheckout = () => {
             }
         };
         fetchData();
-    }, [id]);
+    }, [id, preselectItemId]);
 
     const handlePay = async () => {
         if (!selectedItem || !phoneNumber) {
@@ -100,57 +131,46 @@ const QuickScanCheckout = () => {
         setProcessing(true);
 
         try {
-            // Simulate Payment Flow
-            // In production, this would redirect to Stripe Checkout or initiate Stripe Elements
-            await new Promise(r => setTimeout(r, 2000));
+            // Create Stripe Checkout Session
+            console.log('[🔵 Checkout] Creating Stripe checkout session...');
 
-            // 1. Create a "Shadow Order"
-            const orderRepo = repositoryFactory.getOrderRepository();
-            const inventoryRepo = repositoryFactory.getInventoryRepository();
-
-            // We simulate order creation here. Since we are in guest mode, 
-            // we'd typically have a backend endpoint that handles the anonymous order + payment.
-
-            // FOR DEMO: Let's assume the payment is done and the trigger on backend WOULD run.
-            // Here we simulate the result of the fulfillment.
-
-            const res = await inventoryRepo.allocateSerialNumber(
-                selectedItem.id,
-                "dummy-order-id", // In real flow, this is provided by the order creation
-                "anonymous-buyer" // Shadow user ID
-            );
-
-            setAllocatedItem(res);
-            setSuccess(true);
-
-            // 2. Trigger Notification (SMS/Email)
-            await NotificationService.sendFulfillmentSMS(
-                phoneNumber,
-                res.serialNumber,
-                listing?.titleZh || 'Card'
-            );
-
-            toast({
-                title: t.successTitle,
-                description: t.cardNumber + ": " + res.serialNumber,
+            const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                headers: {
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                },
+                body: {
+                    listingItemId: selectedItem.id,
+                    phoneNumber,
+                    productName: language === 'zh'
+                        ? `${listing?.titleZh} - ${selectedItem.nameZh}`
+                        : `${listing?.titleEn} - ${selectedItem.nameEn}`,
+                    price: selectedItem.pricing.price.amount, // Amount in cents
+                    currency: selectedItem.pricing.price.currency.toLowerCase(),
+                    masterId: id,
+                },
             });
 
-        } catch (error: any) {
-            console.error("Payment/Fulfillment error:", error);
-            if (error.message === 'NO_AVAILABLE_INVENTORY') {
-                toast({
-                    variant: "destructive",
-                    title: "Out of Stock",
-                    description: t.inventoryError,
-                });
-            } else {
-                toast({
-                    variant: "destructive",
-                    title: "Error",
-                    description: "Something went wrong. Please try again.",
-                });
+            if (error) {
+                console.error('[❌ Checkout] Failed to create session:', error);
+                throw new Error(error.message || 'Failed to create checkout session');
             }
-        } finally {
+
+            if (!data?.url) {
+                throw new Error('No checkout URL returned');
+            }
+
+            console.log('[✅ Checkout] Session created, redirecting to Stripe...');
+
+            // Redirect to Stripe Checkout
+            window.location.href = data.url;
+
+        } catch (error: any) {
+            console.error("[❌ Payment] Error initiating checkout:", error);
+            toast({
+                variant: "destructive",
+                title: "Payment Error",
+                description: error.message || "Failed to initiate payment. Please try again.",
+            });
             setProcessing(false);
         }
     };
@@ -175,41 +195,74 @@ const QuickScanCheckout = () => {
         </div>
     );
 
+    // Quick Buy Mode: If preselect parameter exists, show simplified UI
+    const isQuickBuyMode = !!preselectItemId;
+
     return (
         <div className="max-w-md mx-auto min-h-screen bg-background flex flex-col">
             {/* Header - Minimalist */}
             <header className="px-4 py-8 text-center bg-gradient-to-b from-primary/10 to-transparent">
-                <h1 className="text-2xl font-bold tracking-tight">{listing.titleZh}</h1>
-                <p className="text-muted-foreground mt-2">{listing.titleEn}</p>
+                {isQuickBuyMode && selectedItem ? (
+                    <>
+                        <div className="inline-block px-3 py-1 mb-3 text-xs font-bold bg-primary/20 text-primary rounded-full">
+                            {t.quickBuyTitle}
+                        </div>
+                        <h1 className="text-2xl font-bold tracking-tight">{selectedItem.nameZh}</h1>
+                        <p className="text-muted-foreground mt-2">{selectedItem.nameEn}</p>
+                        <p className="text-3xl font-black text-primary mt-4">
+                            ${(selectedItem.pricing.price.amount / 100).toFixed(2)} CAD
+                        </p>
+                    </>
+                ) : (
+                    <>
+                        <h1 className="text-2xl font-bold tracking-tight">{listing.titleZh}</h1>
+                        <p className="text-muted-foreground mt-2">{listing.titleEn}</p>
+                    </>
+                )}
             </header>
 
             <main className="px-4 flex-1 pb-24">
                 {!success ? (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* Step 1: Select SKU */}
-                        <div className="space-y-3">
-                            <Label className="text-base font-semibold">{t.chooseItem}</Label>
-                            <div className="grid grid-cols-1 gap-3">
-                                {items.map(item => (
-                                    <Card
-                                        key={item.id}
-                                        className={`cursor-pointer border-2 transition-all ${selectedItem?.id === item.id ? 'border-primary bg-primary/5 shadow-md' : 'border-transparent'}`}
-                                        onClick={() => setSelectedItem(item)}
-                                    >
-                                        <CardContent className="p-4 flex items-center justify-between">
-                                            <div>
-                                                <p className="font-bold text-lg">{item.nameZh}</p>
-                                                <p className="text-sm text-muted-foreground">{item.nameEn}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-xl font-black text-primary">${(item.pricing.price.amount / 100).toFixed(2)}</p>
-                                                <Badge variant="outline" className="mt-1">CAD</Badge>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
+                        {/* Step 1: Select SKU (Hidden in Quick Buy Mode) */}
+                        {!isQuickBuyMode && (
+                            <div className="space-y-3">
+                                <Label className="text-base font-semibold">{t.chooseItem}</Label>
+                                <div className="grid grid-cols-1 gap-3">
+                                    {items.map(item => (
+                                        <Card
+                                            key={item.id}
+                                            className={`cursor-pointer border-2 transition-all ${selectedItem?.id === item.id ? 'border-primary bg-primary/5 shadow-md' : 'border-transparent'}`}
+                                            onClick={() => setSelectedItem(item)}
+                                        >
+                                            <CardContent className="p-4 flex items-center justify-between">
+                                                <div>
+                                                    <p className="font-bold text-lg">{item.nameZh}</p>
+                                                    <p className="text-sm text-muted-foreground">{item.nameEn}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xl font-black text-primary">${(item.pricing.price.amount / 100).toFixed(2)}</p>
+                                                    <Badge variant="outline" className="mt-1">CAD</Badge>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* Quick Buy Mode: Link to view all variants */}
+                        {isQuickBuyMode && (
+                            <div className="text-center">
+                                <Button
+                                    variant="link"
+                                    className="text-sm text-muted-foreground"
+                                    onClick={() => navigate(`/scan/${id}`)}
+                                >
+                                    {t.viewAllVariants} →
+                                </Button>
+                            </div>
+                        )}
 
                         {/* Step 2: Phone Number */}
                         <div className="space-y-3">

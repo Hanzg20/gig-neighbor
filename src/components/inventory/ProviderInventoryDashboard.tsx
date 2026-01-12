@@ -136,18 +136,44 @@ export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDash
 
     // Print logic
     const handlePrint = useReactToPrint({
-        // contentRef: printRef, // Upgraded react-to-print syntax
-        content: () => printRef.current,
+        contentRef: printRef,
     });
 
+    const getMasterId = (listingItemId: string): string | null => {
+        const item = items.find(i => i.id === listingItemId);
+        return item?.masterId || null;
+    };
+
     const handlePrintAll = () => {
-        // Generate QR data for visible items
-        const printData = filteredInventory.map(item => ({
-            serialNumber: item.serialNumber,
-            productName: getProductName(item.listingItemId),
-            // URL format: /scan/:listingItemId?serial=:serialNumber
-            url: `${window.location.origin}/scan/${item.listingItemId}?serial=${item.serialNumber}`
+        // For batch printing, generate ONE universal QR code per Master
+        // Group inventory by Master ID
+        const masterIds = new Set<string>();
+        const masterToProduct = new Map<string, string>();
+
+        filteredInventory.forEach(item => {
+            const masterId = getMasterId(item.listingItemId);
+            if (masterId) {
+                masterIds.add(masterId);
+                if (!masterToProduct.has(masterId)) {
+                    // Get master name from first item
+                    const listingItem = items.find(i => i.id === item.listingItemId);
+                    const master = listings.find(l => l.id === listingItem?.masterId);
+                    const productName = master
+                        ? (language === 'zh' ? master.titleZh : master.titleEn)
+                        : getProductName(item.listingItemId);
+                    masterToProduct.set(masterId, productName);
+                }
+            }
+        });
+
+        // Generate one QR code per unique Master
+        const printData = Array.from(masterIds).map(masterId => ({
+            serialNumber: language === 'zh' ? '通用二维码' : 'Universal QR',
+            productName: masterToProduct.get(masterId) || 'Product',
+            // URL format: /scan/:masterId (Universal QR - shows all variants)
+            url: `${window.location.origin}/scan/${masterId}`
         }));
+
         setItemsToPrint(printData);
 
         // Timeout to allow state to update and render before printing
@@ -157,10 +183,19 @@ export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDash
     };
 
     const handlePrintSingle = (item: InventoryItem) => {
+        const masterId = getMasterId(item.listingItemId);
+        const listingItem = items.find(i => i.id === item.listingItemId);
+        const variantLabel = listingItem
+            ? `${language === 'zh' ? listingItem.nameZh : listingItem.nameEn} - $${(listingItem.pricing.price.amount / 100).toFixed(2)}`
+            : (language === 'zh' ? '扫码购买' : 'Scan to Buy');
+
         setItemsToPrint([{
-            serialNumber: item.serialNumber,
+            serialNumber: variantLabel, // Display variant info instead of serial number
             productName: getProductName(item.listingItemId),
-            url: `${window.location.origin}/scan/${item.listingItemId}?serial=${item.serialNumber}`
+            // URL format: /scan/:masterId?preselect=:itemId (Pre-select specific variant)
+            url: masterId
+                ? `${window.location.origin}/scan/${masterId}?preselect=${item.listingItemId}`
+                : `${window.location.origin}/scan/${item.listingItemId}` // Fallback
         }]);
         setTimeout(() => {
             handlePrint();

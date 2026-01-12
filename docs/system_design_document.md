@@ -1,8 +1,8 @@
 # 📐 HangHand - Comprehensive System Design Document
 ## 🍁 Canadian Community Services Platform
 
-**Version**: 2.0 (Canadian Market)  
-**Last Updated**: 2026-01-04  
+**Version**: 0.0.3 (Scan-to-Buy Edition)  
+**Last Updated**: 2026-01-12  
 **Target Market**: Canada (GTA/Ontario primary)
 
 ---
@@ -1995,3 +1995,27 @@ For implementation details, see:
 - `docs/supabase_schema.sql` - Database DDL
 - `docs/seed_data.sql` - Initial data (Canadian categories)
 - `src/services/repositories/` - Repository implementations
+
+---
+
+## 26. Scan-to-Buy Implementation (v0.0.3)
+
+The **Scan-to-Buy** flow is a high-speed, direct-to-payment feature designed for self-service nodes (like Eagleson Coin Wash). It bypasses the traditional cart flow to provide instant access.
+
+### 26.1 Technical Architecture
+- **Trigger**: QR Code scan linking directly to a Stripe Checkout session.
+- **Webhook Protocol**:
+    - **Endpoint**: `/functions/v1/stripe-webhook`
+    - **Idempotency**: Atomic check of `payment_intent_id` in the `orders` table to handle Stripe retry storms.
+    - **Inventory Allocation**: Two-step optimistic locking (Select `available` -> Update to `sold` where `id` and `status='available'`).
+    - **Guest Mode**: Support for `buyer_id = NULL` (Guest User) enabled by schema relaxation.
+
+### 26.2 Messaging Reliability (SMS)
+- **Infrastructure**: AWS SNS (Publish Action).
+- **Region Aligned**: `ca-central-1` (Canada Central) to match sandbox verification.
+- **Signing Method**: AWS Signature V4 via `aws4fetch` using native `URL` string construction for 100% canonical consistency.
+- **Failover Handling**: SMS is triggered only after successful database order creation.
+
+### 26.3 Concurrency & Retries
+- Webhook handles Stripe retries gracefully by checking for existing orders before inventory allocation.
+- "Ghost" errors during concurrent races are silenced with a pre-check verification, returning `200 OK` to Stripe to prevent unnecessary retries.

@@ -254,7 +254,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   master_id UUID REFERENCES public.listing_masters(id) ON DELETE SET NULL,
   item_id UUID REFERENCES public.listing_items(id) ON DELETE SET NULL,
-  buyer_id UUID REFERENCES public.user_profiles(id),
+  buyer_id UUID REFERENCES public.user_profiles(id) NULL, -- Nullable to support Guest Checkout (Scan-to-Buy)
   provider_id UUID REFERENCES public.provider_profiles(id),
   node_id TEXT,
   status order_status DEFAULT 'PENDING_PAYMENT',
