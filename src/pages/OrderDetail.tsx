@@ -7,19 +7,19 @@ import { Button } from "@/components/ui/button";
 import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMessageStore } from "@/stores/messageStore";
-import { OrderStatus } from "@/types/orders";
+import { OrderStatus, Order } from "@/types/orders";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 const OrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { currentUser } = useAuthStore();
-    const { orders, updateOrderStatus } = useOrderStore();
+    const { orders, updateOrderStatus, updateOrder } = useOrderStore();
     const { createConversation } = useMessageStore();
     const [isLoading, setIsLoading] = useState(false);
 
     // Find order in store (assuming loaded)
-    // TODO: Ideally fetch single if not found
     const order = orders.find(o => o.id === id);
 
     if (!currentUser) {
@@ -43,6 +43,86 @@ const OrderDetail = () => {
 
     const isBuyer = order.buyerId === currentUser.id;
     const isProvider = order.providerId === currentUser.id;
+
+    const handleSubmitQuote = async () => {
+        const amountStr = prompt("Enter the total service amount in CAD (excluding fees/tax):");
+        if (!amountStr) return;
+        const amount = parseFloat(amountStr);
+        if (isNaN(amount) || amount < 0) {
+            toast.error("Invalid amount");
+            return;
+        }
+
+        setIsLoading(true);
+        const cents = Math.round(amount * 100);
+        const platformFee = Math.round(cents * 0.05);
+        const tax = Math.round((cents + platformFee) * 0.13);
+        const total = cents + platformFee + tax;
+
+        const formatCAD = (val: number) => `$${(val / 100).toFixed(2)}`;
+
+        try {
+            await updateOrder(order.id, {
+                status: 'WAITING_FOR_PRICE_APPROVAL',
+                pricing: {
+                    baseAmount: { amount: cents, currency: 'CAD', formatted: formatCAD(cents) },
+                    platformFee: { amount: platformFee, currency: 'CAD', formatted: formatCAD(platformFee) },
+                    taxAmount: { amount: tax, currency: 'CAD', formatted: formatCAD(tax) },
+                    total: { amount: total, currency: 'CAD', formatted: formatCAD(total) }
+                }
+            });
+            toast.success("Quote submitted successfully");
+        } catch (error) {
+            toast.error("Failed to submit quote");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleApproveQuote = async () => {
+        setIsLoading(true);
+        try {
+            await updateOrder(order.id, {
+                status: 'PENDING_PAYMENT'
+            });
+            toast.success("Quote approved. Please proceed to payment.");
+        } catch (error) {
+            toast.error("Failed to approve quote");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handlePay = async () => {
+        setIsLoading(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                body: {
+                    orderType: 'WEB_ORDER',
+                    orderId: order.id,
+                    listingItemId: order.itemId,
+                    masterId: order.masterId,
+                    buyerId: currentUser.id,
+                    productName: order.snapshot.itemName,
+                    price: order.pricing.total.amount,
+                    metadata: {
+                        rentalStart: order.rentalStartDate,
+                        rentalEnd: order.rentalEndDate,
+                        depositAmount: order.depositAmount,
+                        serviceCallFee: order.serviceCallFee
+                    }
+                }
+            });
+
+            if (error || !data?.url) throw error || new Error("Failed to create session");
+            window.location.href = data.url;
+        } catch (error) {
+            console.error('Payment failed:', error);
+            toast.error('Failed to initiate payment');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleMessage = async () => {
         setIsLoading(true);
@@ -94,8 +174,8 @@ const OrderDetail = () => {
             'COMPLETED': { color: 'text-green-500', bg: 'bg-green-50', label: 'Completed' },
             'CANCELLED': { color: 'text-gray-500', bg: 'bg-gray-50', label: 'Cancelled' },
             'PENDING_DEPOSIT': { color: 'text-orange-500', bg: 'bg-orange-50', label: 'Waiting for Deposit' },
-            'PENDING_QUOTE': { color: 'text-blue-500', bg: 'bg-blue-50', label: 'Requesting Quote' },
-            'WAITING_FOR_PRICE_APPROVAL': { color: 'text-blue-500', bg: 'bg-blue-50', label: 'Review Quote' },
+            'PENDING_QUOTE': { color: 'text-amber-500', bg: 'bg-amber-50', label: 'Awaiting Quote' },
+            'WAITING_FOR_PRICE_APPROVAL': { color: 'text-orange-600', bg: 'bg-orange-50', label: 'Reviewing Quote' },
         }[status] || { color: 'text-gray-500', bg: 'bg-gray-50', label: status };
 
         return (
@@ -176,8 +256,14 @@ const OrderDetail = () => {
                                     <span>{order.pricing.platformFee.formatted}</span>
                                 </div>
                             )}
+                            {order.depositAmount && order.depositAmount > 0 && (
+                                <div className="flex justify-between text-sm text-orange-600 font-bold">
+                                    <span className="text-muted-foreground font-normal italic">Security Deposit (Refundable)</span>
+                                    <span>${(order.depositAmount / 100).toFixed(2)}</span>
+                                </div>
+                            )}
                             <div className="flex justify-between font-bold text-lg pt-2 border-t border-border">
-                                <span>Total</span>
+                                <span>Total Paid</span>
                                 <span className="text-primary">{order.pricing.total.formatted}</span>
                             </div>
                         </div>
@@ -196,8 +282,18 @@ const OrderDetail = () => {
 
                             {/* Buyer Actions */}
                             {isBuyer && order.status === 'PENDING_PAYMENT' && (
-                                <Button className="flex-1 btn-action" onClick={() => updateOrderStatus(order.id, 'PENDING_CONFIRMATION')}>
+                                <Button className="flex-1 btn-action" onClick={handlePay} disabled={isLoading}>
                                     Pay Now
+                                </Button>
+                            )}
+                            {isBuyer && order.status === 'PENDING_DEPOSIT' && (
+                                <Button className="flex-1 btn-action bg-orange-600 hover:bg-orange-700 text-white" onClick={handlePay} disabled={isLoading}>
+                                    Pay Deposit
+                                </Button>
+                            )}
+                            {isBuyer && order.status === 'WAITING_FOR_PRICE_APPROVAL' && (
+                                <Button className="flex-1 btn-action" onClick={handleApproveQuote} disabled={isLoading}>
+                                    Approve Price
                                 </Button>
                             )}
                             {isBuyer && order.status === 'IN_PROGRESS' && (
@@ -216,6 +312,11 @@ const OrderDetail = () => {
                             {isProvider && order.status === 'PENDING_CONFIRMATION' && (
                                 <Button className="flex-1 btn-action" onClick={() => updateOrderStatus(order.id, 'IN_PROGRESS')}>
                                     Accept Order
+                                </Button>
+                            )}
+                            {isProvider && order.status === 'PENDING_QUOTE' && (
+                                <Button className="flex-1 btn-action" onClick={handleSubmitQuote} disabled={isLoading}>
+                                    Submit Quote
                                 </Button>
                             )}
                         </div>

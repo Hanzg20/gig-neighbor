@@ -141,7 +141,7 @@ const ServiceDetail = () => {
       item={selectedItem}
       items={items}
       provider={provider}
-      onBuy={() => setIsInstantPayOpen(true)}
+      onBuy={() => navigate(`/checkout?item_id=${selectedItem.id}`)}
       onChat={() => navigate('/chat')}
       onSelect={setSelectedItem}
     />;
@@ -153,7 +153,7 @@ const ServiceDetail = () => {
       master={master}
       item={selectedItem}
       author={provider}
-      onQuote={() => setIsQuoteOpen(true)}
+      onQuote={() => navigate(`/checkout?item_id=${selectedItem.id}`)}
       onChat={() => navigate('/chat')}
     />;
   }
@@ -510,14 +510,21 @@ const ServiceDetail = () => {
             {renderPricingCard()}
             {selectedItem?.pricing.model === 'QUOTE' || selectedItem?.pricing.model === 'VISIT_FEE' ? (
               <Button
-                onClick={() => setIsQuoteOpen(true)}
+                onClick={() => navigate(`/checkout?item_id=${selectedItem.id}`)}
                 className="btn-action h-14 flex-1 max-w-[200px] text-sm font-black uppercase tracking-widest shadow-elevated rounded-2xl bg-blue-600 hover:bg-blue-700"
               >
                 {selectedItem.pricing.model === 'VISIT_FEE' ? t.bookVisit : t.requestQuote}
               </Button>
             ) : (
               <Button
-                onClick={() => setIsInstantPayOpen(true)}
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  params.append('item_id', selectedItem?.id || '');
+                  if (dateRange?.from) params.append('start', dateRange.from.toISOString());
+                  if (dateRange?.to) params.append('end', dateRange.to.toISOString());
+                  if (consultHours) params.append('hours', consultHours.toString());
+                  navigate(`/checkout?${params.toString()}`);
+                }}
                 className="btn-action h-14 flex-1 max-w-[200px] text-sm font-black uppercase tracking-widest shadow-elevated rounded-2xl"
               >
                 {getActionButtonText()}

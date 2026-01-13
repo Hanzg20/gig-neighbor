@@ -24,16 +24,19 @@ serve(async (req) => {
 
         // Parse request body
         const {
+            orderType = 'SCAN_TO_BUY', // 'SCAN_TO_BUY' or 'WEB_ORDER'
             listingItemId,
+            masterId,
+            buyerId,
             phoneNumber,
             productName,
-            price,
+            price, // in cents
             currency = 'cad',
-            masterId
+            metadata = {}
         } = await req.json()
 
         // Validate required fields
-        if (!listingItemId || !phoneNumber || !productName || !price) {
+        if ((!listingItemId && orderType === 'SCAN_TO_BUY') || !productName || !price) {
             return new Response(
                 JSON.stringify({ error: 'Missing required fields' }),
                 {
@@ -46,7 +49,17 @@ serve(async (req) => {
         // Get the origin for success/cancel URLs
         const origin = req.headers.get('origin') || 'http://localhost:8080'
 
-        console.log('[🔵 Checkout] Creating session for:', { listingItemId, phoneNumber, price, currency })
+        console.log(`[🔵 Checkout] Creating ${orderType} session for:`, { listingItemId, price, orderType })
+
+        // Consolidate metadata
+        const stripeMetadata = {
+            orderType,
+            listingItemId,
+            masterId,
+            buyerId,
+            phoneNumber,
+            ...metadata // Spread additional fields like rentalStart, rentalEnd
+        }
 
         // Create Stripe Checkout Session
         const session = await stripe.checkout.sessions.create({
@@ -57,12 +70,7 @@ serve(async (req) => {
                         currency: currency.toLowerCase(),
                         product_data: {
                             name: productName,
-                            description: `Phone: ${phoneNumber}`,
-                            metadata: {
-                                listingItemId,
-                                phoneNumber,
-                                masterId,
-                            },
+                            description: orderType === 'SCAN_TO_BUY' ? `Phone: ${phoneNumber}` : `Order type: ${orderType}`,
                         },
                         unit_amount: price, // Amount in cents
                     },
@@ -70,17 +78,13 @@ serve(async (req) => {
                 },
             ],
             mode: 'payment',
-            success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}&item_id=${listingItemId}&from=scan`,
-            cancel_url: `${origin}/scan/${masterId}?preselect=${listingItemId}&payment=cancelled`,
-            metadata: {
-                listingItemId,
-                phoneNumber,
-                masterId,
-            },
-            phone_number_collection: {
-                enabled: false, // We already collected it
-            },
-            customer_email: undefined, // Optional: collect email if needed
+            success_url: orderType === 'SCAN_TO_BUY'
+                ? `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}&item_id=${listingItemId}&from=scan`
+                : `${origin}/orders?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: orderType === 'SCAN_TO_BUY'
+                ? `${origin}/scan/${masterId}?preselect=${listingItemId}&payment=cancelled`
+                : `${origin}/checkout?payment=cancelled`,
+            metadata: stripeMetadata,
         })
 
         console.log('[✅ Stripe] Checkout session created:', session.id)

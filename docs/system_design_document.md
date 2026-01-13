@@ -1,8 +1,8 @@
 # 📐 HangHand - Comprehensive System Design Document
 ## 🍁 Canadian Community Services Platform
 
-**Version**: 0.0.3 (Scan-to-Buy Edition)  
-**Last Updated**: 2026-01-12  
+**Version**: 0.0.5 (Discovery Plus Edition)  
+**Last Updated**: 2026-01-13  
 **Target Market**: Canada (GTA/Ontario primary)
 
 ---
@@ -33,6 +33,9 @@
 23. [AI Assistance Layer](#23-ai-assistance-layer)
 24. [Messaging & Real-time Communication](#24-messaging--real-time-communication)
 25. [User Hub & Profile Design](#25-user-hub--profile-design)
+26. [Community Pulse Feeds](#26-community-pulse-feeds)
+27. [GigBridge: Scan-to-Buy Fulfillment](#27-gigbridge-scan-to-buy-fulfillment)
+28. [Map Discovery Architecture](#28-map-discovery-architecture)
 
 ---
 
@@ -228,11 +231,20 @@ HangHand Platform
 
 ---
 
+| Snow Removal (commercial) | $2M + vehicle | ✅ Mandatory |
+
 ---
 
 ## 5. Technical Architecture
 
-### 4.1 Master-Detail Listing Model
+### 5.1 Geospatial & AI Infrastructure
+
+The platform leverages advanced PostgreSQL extensions to provide high-performance discovery features:
+
+- **PostGIS**: Used for geographic distance calculations and radius-based searches. Listings are indexed using a GIST index on a `geography(POINT)` column.
+- **pgvector**: Powers semantic search. Descriptions are converted into 384-dimensional embeddings (OpenAI `text-embedding-3-small`) and queried using cosine similarity.
+
+### 5.2 Master-Detail Listing Model
 
 **Purpose**: Support complex service offerings with multiple tiers
 
@@ -788,16 +800,45 @@ Before order submission, the following checks are mandatory:
 
 ---
 
+## 23. AI Assistance Layer
+
+### 23.1 Semantic Search Logic
+The system uses a custom RPC `match_listings` that calculates the cosine distance between a user's query embedding and the stored listing vector. 
+- **Threshold**: 0.7 (Default)
+- **Engine**: Supabase Vector + OpenAI Embeddings.
+
 ---
 
-## 11. Order Management Standards
+## 24. Messaging & Real-time Communication
 
-### 10.1 Order Creation Standard
-- **Snapshot Requirement**: Every order must contain a `snapshot` JSON field capturing the exact state of the `ListingMaster` and `ListingItem` at the moment of creation (Price, Title, Description).
-- **Primary vs. Add-on**: An order can have one "Primary Service" and multiple "Add-ons" (e.g., Cleaning + Window Polish).
-- **Unique Order ID**: Human-readable short ID for customer support (e.g., `HH-260104-XXXX`).
+### 24.1 Unified Real-time Engine
+Communication is built on Supabase Realtime (Websockets).
+- **Metadata Support**: Messages contain a `metadata` JSONB field for structured data (e.g., product snapshots, quote amounts).
+- **Message Types**: Supports `TEXT`, `IMAGE`, `QUOTE`, and `SYSTEM` events.
 
-### 10.2 Display Standards (Role-Based View)
+---
+
+## 26. Community Pulse Feeds
+A social layer that aggregates neighbor interactions to build trust and increase engagement.
+- **Neighbor Stories**: Real user reviews promoted to the homepage feed based on the `is_neighbor_story` flag.
+- **Dynamic Sourcing**: Pulls from `public.reviews` and `public.listing_masters` with cross-node filtering.
+
+---
+
+## 27. GigBridge: Scan-to-Buy Fulfillment
+A specialized loop for unattended or physical store purchases via QR codes.
+- **Inventory Pool**: Serialized items (serial numbers + secret codes) stored in `listing_inventory`.
+- **Atomic Allocation**: Uses `FOR UPDATE SKIP LOCKED` inside a PostgreSQL RPC to prevent race conditions during concurrent scans.
+- **Fulfillment**: Automated fulfillment trigger on `payment_status = 'PAID'`.
+
+---
+
+## 28. Map Discovery Architecture
+Visual discovery for hyper-local services.
+- **Provider Proximity**: Calculates meters between `auth.uid()` (or custom center) and `listing_masters.location_coords`.
+- **UI Interaction**: Leaflet-based clustering and "Search in this area" viewpoint updates.
+
+---
 
 | Component | Buyer (Neighbor) Sees | Provider (Helper) Sees |
 | :--- | :--- | :--- |

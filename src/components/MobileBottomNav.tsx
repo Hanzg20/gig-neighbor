@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Compass, MessageCircle, ShoppingCart, User } from "lucide-react";
+import { Home, Compass, MessageCircle, ShoppingCart, User, MapPin } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useCartStore } from "@/stores/cartStore";
 import { useConfigStore } from "@/stores/configStore";
@@ -15,11 +15,11 @@ const MobileBottomNav = () => {
     const cartItemCount = currentUser ? getTotalItems() : 0;
 
     const navItems = [
-        { icon: Home, label: 'Home', path: '/', badge: null },
-        { icon: Compass, label: 'Discover', path: '/community', badge: null },
-        { icon: ShoppingCart, label: 'Cart', path: '/cart', badge: cartItemCount > 0 ? cartItemCount : null },
-        { icon: MessageCircle, label: 'Messages', path: '/chat', badge: 3 },
-        { icon: User, label: 'Me', path: '/profile', badge: null },
+        { icon: Home, label: language === 'zh' ? '首页' : 'Home', path: '/', badge: null },
+        { icon: MapPin, label: language === 'zh' ? '地图' : 'Map', path: '/discover', badge: null },
+        { icon: Compass, label: language === 'zh' ? '社区' : 'Social', path: '/community', badge: null },
+        { icon: MessageCircle, label: language === 'zh' ? '消息' : 'Chat', path: '/chat', badge: 0 },
+        { icon: User, label: language === 'zh' ? '我' : 'Me', path: '/profile', badge: null },
     ];
 
     const isActive = (path: string) => {

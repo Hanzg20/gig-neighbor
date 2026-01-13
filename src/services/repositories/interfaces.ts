@@ -1,5 +1,5 @@
 import {
-    ListingMaster, ListingItem, User, ProviderProfile, RefCode, BeanTransaction,
+    ListingMaster, ListingItem, ListingType, User, ProviderProfile, RefCode, BeanTransaction,
     Review, ReviewReaction, ReviewReply, UserAddress,
     InventoryItem, InventoryUsageLog
 } from '@/types/domain';
@@ -35,6 +35,16 @@ export interface IListingRepository {
     getByCategory(categoryId: string): Promise<ListingMaster[]>;
     getByNode(nodeId: string): Promise<ListingMaster[]>; // New: Filter by pilot node
     getByProvider(providerId: string): Promise<ListingMaster[]>;
+    search(options: {
+        query?: string,
+        nodeId?: string,
+        categoryId?: string,
+        type?: ListingType,
+        isSemantic?: boolean,
+        lat?: number,
+        lng?: number,
+        radius?: number
+    }): Promise<ListingMaster[]>;
     create(listing: Omit<ListingMaster, 'id' | 'createdAt' | 'updatedAt'>): Promise<ListingMaster>;
     update(id: string, data: Partial<ListingMaster>): Promise<ListingMaster>;
     delete(id: string): Promise<void>;
@@ -55,8 +65,8 @@ export interface IOrderRepository {
     getByProvider(providerId: string): Promise<Order[]>;
     create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order>;
     updateStatus(id: string, status: Order['status']): Promise<Order>;
-    // New method for partial updates, including metadata and payment status
-    update(id: string, updates: Partial<Pick<Order, 'status' | 'metadata' | 'paymentStatus'>>): Promise<Order>;
+    // New method for partial updates, including metadata, payment status, and web ordering extensions
+    update(id: string, updates: Partial<Order>): Promise<Order>;
 }
 
 export interface ICartRepository {
@@ -94,6 +104,7 @@ export interface Conversation {
     orderId?: string;
     lastMessageAt: string;
     createdAt: string;
+    metadata?: Record<string, any>;
 }
 
 export interface Message {
@@ -102,16 +113,19 @@ export interface Message {
     senderId: string;
     content: string;
     isRead: boolean;
+    messageType?: string; // 'TEXT', 'QUOTE', 'SYSTEM'
+    metadata?: Record<string, any>;
     createdAt: string;
 }
 
 export interface IMessageRepository {
     getConversations(userId: string): Promise<Conversation[]>;
     getMessages(conversationId: string): Promise<Message[]>;
-    sendMessage(conversationId: string, senderId: string, content: string): Promise<Message>;
+    sendMessage(conversationId: string, senderId: string, content: string, messageType?: string, metadata?: Record<string, any>): Promise<Message>;
     createConversation(participantA: string, participantB: string, orderId?: string): Promise<Conversation>;
     markAsRead(conversationId: string, userId: string): Promise<void>;
     subscribeToMessages(conversationId: string, callback: (message: Message) => void): () => void;
+    subscribeToUserEvents(userId: string, callback: (event: { type: 'CONVERSATION_UPDATE' | 'NEW_MESSAGE', data: any }) => void): () => void;
     getUnreadCount(userId: string): Promise<number>;
     getConversationUnreadCounts(userId: string): Promise<Map<string, number>>;
 }
@@ -129,6 +143,7 @@ export interface IReviewRepository {
     addReaction(reviewId: string, userId: string, type: ReviewReaction['type']): Promise<ReviewReaction>;
     removeReaction(reviewId: string, userId: string, type: ReviewReaction['type']): Promise<void>;
     submitReply(reviewId: string, providerId: string, content: string): Promise<ReviewReply>;
+    getNeighborStories(limit?: number): Promise<Review[]>;
 }
 
 export interface ICommunityStatsRepository {
@@ -144,4 +159,3 @@ export interface IInventoryRepository {
     getUsageLogs(inventoryId: string): Promise<InventoryUsageLog[]>;
     importInventory(items: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'orderId' | 'buyerId'>[]): Promise<void>;
 }
-

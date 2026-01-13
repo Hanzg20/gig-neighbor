@@ -56,9 +56,7 @@ const Cart = () => {
     };
 
     const handleCheckout = () => {
-        // In production, this would create multiple orders or a batch order
-        alert('批量下单功能即将上线！当前请单独下单。');
-        navigate('/orders');
+        navigate('/checkout');
     };
 
     return (

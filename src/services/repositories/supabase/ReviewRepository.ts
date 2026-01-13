@@ -128,4 +128,21 @@ export class SupabaseReviewRepository implements IReviewRepository {
             updatedAt: data.updated_at
         };
     }
+
+    async getNeighborStories(limit: number = 10): Promise<Review[]> {
+        const { data, error } = await supabase
+            .from('reviews')
+            .select(`
+                *,
+                user_profiles!buyer_id (name, avatar),
+                review_replies (*),
+                review_reactions (*)
+            `)
+            .eq('is_neighbor_story', true)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) throw error;
+        return (data || []).map(this.mapFromDb);
+    }
 }

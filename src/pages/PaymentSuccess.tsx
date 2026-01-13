@@ -8,6 +8,7 @@ import { useConfigStore } from '@/stores/configStore';
 import { useAuthStore } from '@/stores/authStore';
 import { motion } from 'framer-motion';
 import { repositoryFactory } from '@/services/repositories/factory';
+import { supabase } from '@/lib/supabase';
 
 interface OrderDetails {
     productName: string;
@@ -89,37 +90,62 @@ const PaymentSuccess = () => {
 
     useEffect(() => {
         const fetchOrderDetails = async () => {
-            try {
-                // TODO: Replace with actual API call to get order details
-                // const response = await fetch(`/api/orders/session/${sessionId}`);
-                // const data = await response.json();
+            if (!sessionId) {
+                setLoading(false);
+                return;
+            }
 
-                // Mock: Simulate fetching order details
-                setTimeout(() => {
-                    // Determine product type based on itemId or session metadata
-                    const mockOrder: OrderDetails = {
-                        productName: '自助洗车充值卡 ($50)', // This would come from the API
-                        productType: 'SERIALIZED_ITEM', // Could be GOODS, SERVICE, or SERIALIZED_ITEM
-                        serialNumber: `WC-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-                        orderNumber: `ORD-${Date.now()}`,
-                        amount: 5000,
-                        currency: 'CAD',
+            try {
+                const orderRepo = repositoryFactory.getOrderRepository();
+                const inventoryRepo = repositoryFactory.getInventoryRepository();
+                const listingRepo = repositoryFactory.getListingRepository();
+
+                // 1. Fetch order by session ID (stored in snapshot)
+                // Note: We need a way to find order by session_id. 
+                // Since our current repository might not have getBySessionId, we use direct supabase query for now or extend repo.
+                const { data: orderData, error: orderError } = await supabase
+                    .from('orders')
+                    .select('*, listing_masters(*), listing_items(*)')
+                    .filter('snapshot->>session_id', 'eq', sessionId)
+                    .maybeSingle();
+
+                if (orderError) throw orderError;
+
+                if (orderData) {
+                    // 2. Fetch inventory if it's a serialized item
+                    let serialNumber = undefined;
+                    const isSerialized = orderData.actual_transaction_model === 'SCAN_TO_BUY';
+
+                    if (isSerialized) {
+                        const invItem = await inventoryRepo.getByOrder(sessionId);
+                        if (invItem) {
+                            serialNumber = invItem.serialNumber;
+                        }
+                    }
+
+                    const details: OrderDetails = {
+                        productName: orderData.listing_items?.[0]?.nameEn || orderData.listing_masters?.[0]?.titleEn || 'HangHand Order',
+                        productType: isSerialized ? 'SERIALIZED_ITEM' : 'GOODS', // Simplification
+                        serialNumber,
+                        orderNumber: orderData.id.split('-')[0].toUpperCase(),
+                        amount: orderData.amount_total,
+                        currency: orderData.currency,
+                        deliveryInfo: orderData.snapshot?.delivery_info
                     };
 
-                    setOrderDetails(mockOrder);
-                    setLoading(false);
-                }, 1500);
+                    setOrderDetails(details);
+                } else {
+                    // Fallback for cases where order might still be processing
+                    console.warn('Order not found yet, might still be processing via webhook');
+                }
             } catch (error) {
                 console.error('Error fetching order details:', error);
+            } finally {
                 setLoading(false);
             }
         };
 
-        if (sessionId) {
-            fetchOrderDetails();
-        } else {
-            setLoading(false);
-        }
+        fetchOrderDetails();
     }, [sessionId]);
 
     const handleCopy = (text: string) => {

@@ -75,7 +75,12 @@ export class SupabaseOrderRepository implements IOrderRepository {
             snapshot: order.snapshot,
             payment_status: order.paymentStatus,
             actual_transaction_model: order.snapshot.itemPricing.model, // Based on snapshot
-            metadata: order.metadata || {}
+            metadata: order.metadata || {},
+            rental_start_date: (order as any).rentalStartDate,
+            rental_end_date: (order as any).rentalEndDate,
+            deposit_amount: (order as any).depositAmount || 0,
+            deposit_status: (order as any).depositStatus || 'NONE',
+            service_call_fee: (order as any).serviceCallFee || 0
         };
 
         const { data, error } = await supabase
@@ -88,11 +93,24 @@ export class SupabaseOrderRepository implements IOrderRepository {
         return this.mapToDomain(data);
     }
 
-    async update(id: string, updates: Partial<Pick<Order, 'status' | 'metadata' | 'paymentStatus'>>): Promise<Order> {
+    async update(id: string, updates: Partial<Order>): Promise<Order> {
         const dbUpdates: any = { updated_at: new Date().toISOString() };
         if (updates.status) dbUpdates.status = updates.status;
         if (updates.paymentStatus) dbUpdates.payment_status = updates.paymentStatus;
         if (updates.metadata) dbUpdates.metadata = updates.metadata;
+        if (updates.rentalStartDate) dbUpdates.rental_start_date = updates.rentalStartDate;
+        if (updates.rentalEndDate) dbUpdates.rental_end_date = updates.rentalEndDate;
+        if (updates.depositAmount !== undefined) dbUpdates.deposit_amount = updates.depositAmount;
+        if (updates.depositStatus) dbUpdates.deposit_status = updates.depositStatus;
+        if (updates.serviceCallFee !== undefined) dbUpdates.service_call_fee = updates.serviceCallFee;
+
+        if (updates.pricing) {
+            dbUpdates.amount_base = updates.pricing.baseAmount.amount;
+            dbUpdates.amount_total = updates.pricing.total.amount;
+            if (updates.pricing.taxAmount) dbUpdates.amount_tax = updates.pricing.taxAmount.amount;
+            if (updates.pricing.platformFee) dbUpdates.amount_fee_platform = updates.pricing.platformFee.amount;
+            if (updates.pricing.serviceFee) dbUpdates.amount_fee_service = updates.pricing.serviceFee.amount;
+        }
 
         const { data, error } = await supabase
             .from('orders')
@@ -156,6 +174,11 @@ export class SupabaseOrderRepository implements IOrderRepository {
             snapshot: dbOrder.snapshot,
             paymentIntentId: dbOrder.payment_intent_id,
             metadata: dbOrder.metadata,
+            rentalStartDate: dbOrder.rental_start_date,
+            rentalEndDate: dbOrder.rental_end_date,
+            depositAmount: dbOrder.deposit_amount,
+            depositStatus: dbOrder.deposit_status,
+            serviceCallFee: dbOrder.service_call_fee,
             createdAt: dbOrder.created_at,
             updatedAt: dbOrder.updated_at
         };

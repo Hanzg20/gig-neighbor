@@ -43,8 +43,9 @@ serve(async (req) => {
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        model: "text-embedding-3-small", // 384 dimensions
+                        model: "text-embedding-3-small",
                         input: text,
+                        dimensions: 384, // Optimized for performance/cost, matches our SQL schema
                     }),
                 }
             );

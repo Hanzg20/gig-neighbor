@@ -42,12 +42,18 @@ const Orders = () => {
                 return { icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50', label: '待支付' };
             case 'PENDING_CONFIRMATION':
                 return { icon: AlertCircle, color: 'text-blue-500', bg: 'bg-blue-50', label: '待确认' };
+            case 'PENDING_QUOTE':
+                return { icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50', label: '待报价' };
+            case 'WAITING_FOR_PRICE_APPROVAL':
+                return { icon: AlertCircle, color: 'text-orange-600', bg: 'bg-orange-50', label: '待确认价格' };
             case 'IN_PROGRESS':
                 return { icon: Package, color: 'text-purple-500', bg: 'bg-purple-50', label: '进行中' };
             case 'COMPLETED':
                 return { icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50', label: '已完成' };
             case 'CANCELLED':
                 return { icon: XCircle, color: 'text-gray-500', bg: 'bg-gray-50', label: '已取消' };
+            case 'PENDING_DEPOSIT':
+                return { icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50', label: '待付押金' };
             default:
                 return { icon: Package, color: 'text-gray-500', bg: 'bg-gray-50', label: status };
         }

@@ -28,8 +28,10 @@ import PersonalProfile from "./pages/PersonalProfile";
 import LanguageSettings from "./pages/LanguageSettings";
 import Wallet from "./pages/Wallet";
 import Addresses from "./pages/Addresses";
+import Checkout from "./pages/Checkout";
 import QuickScanCheckout from "./pages/QuickScanCheckout";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import MapDiscovery from "./pages/MapDiscovery";
 import NotFound from "./pages/NotFound";
 import { CommunityProvider } from "./context/CommunityContext";
 
@@ -60,6 +62,7 @@ const App = () => {
               <Route path="/chat" element={<Chat />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/orders/:id" element={<OrderDetail />} />
+              <Route path="/checkout" element={<Checkout />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/community" element={<Community />} />
               <Route path="/my-listings" element={<MyListings />} />
@@ -75,6 +78,7 @@ const App = () => {
               <Route path="/addresses" element={<Addresses />} />
               <Route path="/scan/:id" element={<QuickScanCheckout />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
+              <Route path="/discover" element={<MapDiscovery />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

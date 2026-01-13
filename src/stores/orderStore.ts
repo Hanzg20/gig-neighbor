@@ -9,6 +9,7 @@ interface OrderState {
     setOrders: (orders: Order[]) => void;
     loadUserOrders: (userId: string) => Promise<void>;
     updateOrderStatus: (orderId: string, status: any, metadata?: any) => Promise<void>;
+    updateOrder: (orderId: string, updates: Partial<Order>) => Promise<void>;
     createOrder: (order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Order | null>;
 }
 
@@ -23,6 +24,20 @@ export const useOrderStore = create<OrderState>((set) => ({
             const repo = repositoryFactory.getOrderRepository();
             // @ts-ignore - The interface in repo might need update but we know it exists now
             const updatedOrder = await repo.update(orderId, { status, metadata });
+            set((state) => ({
+                orders: state.orders.map(o => o.id === orderId ? updatedOrder : o),
+                isLoading: false
+            }));
+        } catch (error: any) {
+            console.error('Failed to update order status:', error);
+            set({ error: error.message, isLoading: false });
+        }
+    },
+    updateOrder: async (orderId, updates) => {
+        set({ isLoading: true, error: null });
+        try {
+            const repo = repositoryFactory.getOrderRepository();
+            const updatedOrder = await repo.update(orderId, updates);
             set((state) => ({
                 orders: state.orders.map(o => o.id === orderId ? updatedOrder : o),
                 isLoading: false

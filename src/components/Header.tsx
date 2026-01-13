@@ -27,6 +27,7 @@ const Header = () => {
   // Localized text dictionary
   const t = {
     discover: language === 'zh' ? '发现' : 'Discover',
+    map: language === 'zh' ? '地图' : 'Map',
     community: language === 'zh' ? '社区' : 'Community',
     orders: language === 'zh' ? '订单' : 'Orders',
     myPosts: language === 'zh' ? '我的发布' : 'My Posts',
@@ -58,6 +59,9 @@ const Header = () => {
         <nav className="hidden lg:flex items-center gap-8">
           <Link to="/" className="text-sm font-bold text-foreground hover:text-primary transition-colors">
             {t.discover}
+          </Link>
+          <Link to="/discover" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
+            {t.map}
           </Link>
           <Link to="/community" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
             {t.community}
@@ -135,6 +139,9 @@ const Header = () => {
           <nav className="container py-4 flex flex-col gap-2">
             <Link to="/" className="px-5 py-3 rounded-2xl text-sm font-bold text-foreground bg-primary/10 text-primary">
               {t.discover}
+            </Link>
+            <Link to="/discover" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
+              {t.map}
             </Link>
             <Link to="/community" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
               {t.community}

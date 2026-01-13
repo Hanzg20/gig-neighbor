@@ -36,10 +36,12 @@ interface MessageState {
     loadConversations: (userId: string) => Promise<void>;
     loadMessages: (conversationId: string) => Promise<void>;
     loadUnreadCount: (userId: string) => Promise<void>;
-    sendMessage: (senderId: string, content: string) => Promise<void>;
+    sendMessage: (senderId: string, content: string, type?: string, metadata?: Record<string, any>) => Promise<void>;
+    sendQuote: (senderId: string, orderId: string, amount: number, description?: string) => Promise<void>;
     createConversation: (userA: string, userB: string, orderId?: string) => Promise<Conversation>;
     setActiveConversation: (conversationId: string) => void;
     subscribeToActiveConversation: () => void;
+    subscribeToGlobalEvents: (userId: string) => void;
     cleanup: () => void;
 }
 
@@ -58,6 +60,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
             const repo = repositoryFactory.getMessageRepository();
             const conversations = await repo.getConversations(userId);
             set({ conversations, isLoading: false });
+            // Start global subscription for other conversations
+            get().subscribeToGlobalEvents(userId);
         } catch (error: any) {
             console.error('Failed to load conversations:', error);
             set({ error: error.message, isLoading: false });
@@ -86,22 +90,29 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         }
     },
 
-    sendMessage: async (senderId: string, content: string) => {
+    sendMessage: async (senderId: string, content: string, type: string = 'TEXT', metadata: Record<string, any> = {}) => {
         const { activeConversationId } = get();
         if (!activeConversationId || !content.trim()) return;
 
         try {
             const repo = repositoryFactory.getMessageRepository();
-            const newMessage = await repo.sendMessage(activeConversationId, senderId, content);
+            const newMessage = await repo.sendMessage(activeConversationId, senderId, content, type, metadata);
 
-            // Optimistic update - message will also come via subscription
-            set(state => ({
-                messages: [...state.messages, newMessage]
-            }));
+            // Optimistic update
+            set(state => {
+                if (state.messages.find(m => m.id === newMessage.id)) return state;
+                return { messages: [...state.messages, newMessage] };
+            });
         } catch (error: any) {
             console.error('Failed to send message:', error);
             set({ error: error.message });
         }
+    },
+
+    sendQuote: async (senderId: string, orderId: string, amount: number, description: string = '') => {
+        const content = `[QUOTE] Custom Price: $${(amount / 100).toFixed(2)}`;
+        const metadata = { orderId, amount, description };
+        await get().sendMessage(senderId, content, 'QUOTE', metadata);
     },
 
     createConversation: async (userA: string, userB: string, orderId?: string) => {
@@ -153,6 +164,26 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         });
 
         set({ unsubscribe });
+    },
+
+    subscribeToGlobalEvents: (userId: string) => {
+        const repo = repositoryFactory.getMessageRepository();
+        repo.subscribeToUserEvents(userId, (event) => {
+            if (event.type === 'CONVERSATION_UPDATE') {
+                const updatedConv = event.data;
+                set(state => {
+                    const existing = state.conversations.find(c => c.id === updatedConv.id);
+                    if (existing) {
+                        // Update existing and move to top
+                        const otherConvs = state.conversations.filter(c => c.id !== updatedConv.id);
+                        return { conversations: [{ ...existing, ...updatedConv }, ...otherConvs] };
+                    } else {
+                        // New conversation from someone else
+                        return { conversations: [updatedConv, ...state.conversations] };
+                    }
+                });
+            }
+        });
     },
 
     cleanup: () => {

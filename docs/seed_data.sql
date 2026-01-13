@@ -1,7 +1,7 @@
 -- 🍁 Seed Data for HangHand Platform - CANADA VERSION
--- Version: 4.1
--- Date: 2026-01-05
--- Reason: Consolidate maintenance scripts, fix node types, and add profile recovery logic.
+-- Version: 5.0 (Discovery Plus)
+-- Date: 2026-01-13
+-- Reason: Consolidate maintenance scripts, add GigBridge stations, and PostGIS test markers.
 -- Execute this after supabase_schema.sql
 
 -- ============================================================================
@@ -1436,6 +1436,29 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Seed initial inventory for item_50
 INSERT INTO public.listing_inventory (provider_id, listing_item_id, serial_number, secret_code, status)
-SELECT '0588656d-2305-4f40-9669-026815ec5521', 'f3327699-0785-4b18-a612-452936780352', 'CW-50-' || i, 'PIN', 'available'
+SELECT '0588656d-2305-4f40-9669-026815ec5521', 'f3327699-0785-4b18-a612-452936780352', 'CW-50-' || i, 'PIN-' || i, 'available'
 FROM generate_series(1, 10) s(i)
 ON CONFLICT DO NOTHING;
+
+-- ============================================================================
+-- 5. GEOSPATIAL TEST MARKERS (For Phase 10 Validation)
+-- ============================================================================
+-- Ottawa Center Marker
+UPDATE public.listing_masters
+SET latitude = 45.4215, longitude = -75.6972
+WHERE title_en LIKE '%Airport%' OR title_en LIKE '%Downtown%';
+
+-- Kanata Lakes Cluster
+UPDATE public.listing_masters
+SET latitude = 45.3334, longitude = -75.9050
+WHERE node_id = 'NODE_KANATA';
+
+-- Lees Ave Cluster
+UPDATE public.listing_masters
+SET latitude = 45.4215, longitude = -75.6819
+WHERE node_id = 'NODE_LEES';
+
+-- Final Sync
+UPDATE public.listing_masters
+SET location_coords = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography
+WHERE latitude IS NOT NULL AND longitude IS NOT NULL;

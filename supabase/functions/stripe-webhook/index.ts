@@ -106,117 +106,136 @@ serve(async (req) => {
                 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
                 const supabase = createClient(supabaseUrl, supabaseKey)
 
-                const { listingItemId: rawItemId, phoneNumber, masterId } = session.metadata || {}
+                const {
+                    orderType = 'SCAN_TO_BUY',
+                    listingItemId: rawItemId,
+                    phoneNumber,
+                    masterId,
+                    buyerId,
+                    orderId, // Optional: if we created a pending order first
+                    rentalStart,
+                    rentalEnd,
+                    depositAmount,
+                    serviceCallFee
+                } = session.metadata || {}
                 const listingItemId = rawItemId?.trim();
 
-                if (!listingItemId) {
+                if (!listingItemId && orderType === 'SCAN_TO_BUY') {
                     console.error('[❌ Webhook] Missing listingItemId in metadata')
                     break
                 }
 
-                // 0. Idempotency Check: Prevent double processing
-                const { data: existingOrder } = await supabase
-                    .from('orders')
-                    .select('id')
-                    .eq('payment_intent_id', session.payment_intent as string)
-                    .maybeSingle();
-
-                if (existingOrder) {
-                    console.log(`[⚠️ Webhook] Order already exists for payment_intent: ${session.payment_intent}. Skipping.`);
-                    break;
-                }
-
-                console.log(`[🔍 Inventory] Searching for item_id: '${listingItemId}' with status: 'available'`)
-
-                // 1. Allocate inventory item
-                // First, find ONE candidate item to avoid updating all matching rows
-                const { data: candidateItem, error: findError } = await supabase
-                    .from('listing_inventory')
-                    .select('id')
-                    .eq('listing_item_id', listingItemId)
-                    .eq('status', 'available')
-                    .limit(1)
-                    .maybeSingle()
-
-                if (findError || !candidateItem) {
-                    console.error('[❌ Inventory] No available inventory found:', findError)
-                    break
-                }
-
-                // Then update that specific item (Optimistic Locking)
-                const { data: inventoryItem, error: allocError } = await supabase
-                    .from('listing_inventory')
-                    .update({ status: 'sold' })
-                    .eq('id', candidateItem.id)
-                    .eq('status', 'available') // Safety check
-                    .select()
-                    .maybeSingle() // Use maybeSingle to avoid PGRST116 if concurrent update happens
-
-                if (allocError) {
-                    console.error('[❌ Inventory] Database error during allocation:', allocError)
-                    break
-                }
-
-                if (!inventoryItem) {
-                    // Check if a parallel process already finished the job
-                    const { data: alreadyDone } = await supabase
+                // --- SCAN_TO_BUY Logic ---
+                if (orderType === 'SCAN_TO_BUY') {
+                    // 0. Idempotency Check: Prevent double processing
+                    const { data: existingOrder } = await supabase
                         .from('orders')
                         .select('id')
                         .eq('payment_intent_id', session.payment_intent as string)
                         .maybeSingle();
 
-                    if (alreadyDone) {
-                        console.log(`[ℹ️ Inventory] Item was already allocated by a parallel thread. Returning success.`);
-                        return new Response(JSON.stringify({ received: true }), { status: 200 });
+                    if (existingOrder) {
+                        console.log(`[⚠️ Webhook] Order already exists for payment_intent: ${session.payment_intent}. Skipping.`);
+                        break;
                     }
 
-                    console.error('[❌ Inventory] Failed to allocate inventory: No rows updated and no existing order found.')
-                    break
-                }
+                    console.log(`[🔍 Inventory] Allocating item for listingItemId: '${listingItemId}'`)
 
-                console.log('[✅ Inventory] Allocated item:', inventoryItem.serial_number)
-
-                // 2. Create order record
-                const { error: orderError } = await supabase
-                    .from('orders')
-                    .insert({
-                        item_id: listingItemId,
-                        status: 'COMPLETED',
-                        payment_status: 'PAID',
-                        payment_intent_id: session.payment_intent as string,
-                        provider_id: inventoryItem.provider_id,
-                        amount_base: session.amount_total || 0,
-                        amount_tax: 0,
-                        amount_fee_platform: 0,
-                        amount_total: session.amount_total || 0,
-                        currency: (session.currency || 'cad').toUpperCase(),
-                        actual_transaction_model: 'SCAN_TO_BUY',
-                        snapshot: {
-                            session_id: session.id,
-                            phone_number: phoneNumber,
-                            inventory_id: inventoryItem.id,
-                            serial_number: inventoryItem.serial_number,
-                        },
+                    // 1. Allocate inventory item atomically via RPC
+                    const { data: inventoryItem, error: rpcError } = await supabase.rpc('allocate_inventory_item', {
+                        p_listing_item_id: listingItemId,
+                        p_order_id: session.id, // Use session ID as temporary order reference
+                        p_buyer_id: buyerId || phoneNumber // Store phone or buyer ID
                     })
 
-                if (orderError) {
-                    console.error('[❌ Order] Failed to create order:', orderError)
-                } else {
-                    console.log('[✅ Order] Order created successfully')
+                    if (rpcError || !inventoryItem) {
+                        console.error('[❌ Inventory] Allocation failed:', rpcError)
+                        // In production, you might want to trigger a refund or alert admin here
+                        break
+                    }
+
+                    console.log('[✅ Inventory] Atomic allocation success:', inventoryItem.serial_number)
+
+                    // 2. Create order record
+                    const { error: orderError } = await supabase
+                        .from('orders')
+                        .insert({
+                            item_id: listingItemId,
+                            status: 'COMPLETED',
+                            payment_status: 'PAID',
+                            payment_intent_id: session.payment_intent as string,
+                            provider_id: inventoryItem.provider_id,
+                            amount_base: session.amount_total || 0,
+                            amount_tax: 0,
+                            amount_fee_platform: 0,
+                            amount_total: session.amount_total || 0,
+                            currency: (session.currency || 'cad').toUpperCase(),
+                            actual_transaction_model: 'SCAN_TO_BUY',
+                            snapshot: {
+                                session_id: session.id,
+                                phone_number: phoneNumber,
+                                inventory_id: inventoryItem.id,
+                                serial_number: inventoryItem.serial_number,
+                            },
+                        })
+
+                    if (orderError) console.error('[❌ Order] Failed:', orderError)
+
+                    // 3. Send SMS
+                    if (phoneNumber && inventoryItem.serial_number) {
+                        await sendSMS({
+                            phoneNumber,
+                            message: `Your HangHand purchase is complete! Card Number: ${inventoryItem.serial_number}.`
+                        });
+                    }
                 }
 
-                // 3. Send SMS notification
-                if (phoneNumber && inventoryItem.serial_number) {
-                    const smsMessage = `Your HangHand purchase is complete! Card Number: ${inventoryItem.serial_number}. Thank you for your purchase!`;
-                    const smsResult = await sendSMS({ phoneNumber, message: smsMessage, region: 'ca-central-1' });
+                // --- WEB_ORDER Logic ---
+                else if (orderType === 'WEB_ORDER') {
+                    console.log('[🌐 Web Order] Processing web order payment...');
 
-                    if (smsResult.success) {
-                        console.log(`[✅ SMS] Sent to ${phoneNumber}, MessageId: ${smsResult.messageId}`);
+                    const updateData: any = {
+                        payment_status: 'PAID',
+                        payment_intent_id: session.payment_intent as string,
+                        status: 'PENDING_CONFIRMATION', // Paid, waiting for provider
+                        actual_transaction_model: 'WEB_ORDER'
+                    };
+
+                    // If it's a rental or has metadata, ensure it's captured (if not already in DB)
+                    if (rentalStart) updateData.rental_start_date = rentalStart;
+                    if (rentalEnd) updateData.rental_end_date = rentalEnd;
+                    if (depositAmount) updateData.deposit_amount = parseInt(depositAmount);
+                    if (serviceCallFee) updateData.service_call_fee = parseInt(serviceCallFee);
+
+                    if (orderId) {
+                        // Update existing pending order
+                        const { error: updateError } = await supabase
+                            .from('orders')
+                            .update(updateData)
+                            .eq('id', orderId);
+
+                        if (updateError) console.error('[❌ Web Order] Update failed:', updateError);
+                        else console.log('[✅ Web Order] Order updated:', orderId);
                     } else {
-                        console.error(`[❌ SMS] Failed to send to ${phoneNumber}:`, smsResult.error);
+                        // Create new order (e.g. for guest checkout without pre-creation)
+                        const { error: insertError } = await supabase
+                            .from('orders')
+                            .insert({
+                                ...updateData,
+                                buyer_id: buyerId,
+                                item_id: listingItemId,
+                                master_id: masterId,
+                                amount_total: session.amount_total || 0,
+                                currency: (session.currency || 'cad').toUpperCase(),
+                                snapshot: {
+                                    session_id: session.id,
+                                    product_name: session.line_items?.data[0]?.description
+                                }
+                            });
+
+                        if (insertError) console.error('[❌ Web Order] Insert failed:', insertError);
+                        else console.log('[✅ Web Order] New order created');
                     }
-                } else {
-                    console.log('[⚠️ SMS] Skipped - missing phone number or serial number');
                 }
 
                 break

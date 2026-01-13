@@ -19,6 +19,10 @@ export class SupabaseListingRepository implements IListingRepository {
             status: row.status as any,
             location: {
                 fullAddress: row.location_address,
+                coordinates: row.latitude && row.longitude ? {
+                    lat: row.latitude,
+                    lng: row.longitude
+                } : undefined
             },
             rating: Number(row.rating),
             reviewCount: row.review_count,
@@ -42,6 +46,8 @@ export class SupabaseListingRepository implements IListingRepository {
             tags: listing.tags,
             status: listing.status,
             location_address: listing.location?.fullAddress,
+            latitude: listing.location?.coordinates?.lat,
+            longitude: listing.location?.coordinates?.lng,
             rating: listing.rating,
             review_count: listing.reviewCount,
             is_promoted: listing.isPromoted,
@@ -105,10 +111,92 @@ export class SupabaseListingRepository implements IListingRepository {
         return (data || []).map(this.mapFromDb);
     }
 
+    async search(options: {
+        query?: string,
+        nodeId?: string,
+        categoryId?: string,
+        type?: ListingType,
+        isSemantic?: boolean,
+        lat?: number,
+        lng?: number,
+        radius?: number
+    }): Promise<ListingMaster[]> {
+        if (options.isSemantic && options.query) {
+            // 1. Generate embedding using Edge Function
+            const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
+                body: { text: options.query }
+            });
+
+            if (embeddingError) {
+                console.error('Embedding generation failed, falling back to keyword search:', embeddingError);
+                return this.search({ ...options, isSemantic: false });
+            }
+
+            // 2. Similarity search using pgvector RPC
+            const { data, error } = await supabase.rpc('match_listings', {
+                query_embedding: embeddingData.embedding,
+                match_threshold: 0.3, // Lower threshold for pilot to see more results
+                match_count: 20,
+                filter_node_id: options.nodeId,
+                filter_category_id: options.categoryId
+            });
+
+            if (error) throw error;
+            return (data || []).map(this.mapFromDb);
+        } else if (options.lat !== undefined && options.lng !== undefined && options.radius !== undefined) {
+            // Geographic radius search using PostGIS RPC
+            const { data, error } = await supabase.rpc('match_listings_by_radius', {
+                p_lat: options.lat,
+                p_lng: options.lng,
+                p_radius_meters: options.radius,
+                p_type: options.type,
+                p_category_id: options.categoryId,
+                p_match_count: 100
+            });
+
+            if (error) throw error;
+            return (data || []).map(this.mapFromDb);
+        } else {
+            // Traditional keyword search
+            let qb = supabase.from('listing_masters').select('*').eq('status', 'PUBLISHED');
+
+            if (options.query) {
+                // ILIKE search across title and description
+                qb = qb.or(`title_zh.ilike.%${options.query}%,title_en.ilike.%${options.query}%,description_zh.ilike.%${options.query}%,description_en.ilike.%${options.query}%`);
+            }
+
+            if (options.nodeId) qb = qb.eq('node_id', options.nodeId);
+            if (options.categoryId) qb = qb.eq('category_id', options.categoryId);
+            if (options.type) qb = qb.eq('type', options.type);
+
+            const { data, error } = await qb.order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return (data || []).map(this.mapFromDb);
+        }
+    }
+
     async create(listing: Omit<ListingMaster, 'id' | 'createdAt' | 'updatedAt'>): Promise<ListingMaster> {
+        // 1. Generate embedding for the listing
+        const embeddingText = `${listing.titleZh} ${listing.titleEn || ''} ${listing.descriptionZh || ''} ${listing.descriptionEn || ''}`;
+        let embedding: number[] | undefined;
+
+        try {
+            const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
+                body: { text: embeddingText }
+            });
+            if (!embeddingError) embedding = embeddingData.embedding;
+        } catch (e) {
+            console.error('Failed to generate embedding for new listing:', e);
+        }
+
+        // 2. Insert with embedding
+        const dbRow = this.mapToDb(listing);
+        if (embedding) dbRow.embedding = embedding;
+
         const { data, error } = await supabase
             .from('listing_masters')
-            .insert(this.mapToDb(listing))
+            .insert(dbRow)
             .select()
             .single();
 
@@ -117,9 +205,36 @@ export class SupabaseListingRepository implements IListingRepository {
     }
 
     async update(id: string, data: Partial<ListingMaster>): Promise<ListingMaster> {
+        // 1. If title or description changed, regenerate embedding
+        let embedding: number[] | undefined;
+        if (data.titleZh || data.titleEn || data.descriptionZh || data.descriptionEn) {
+            // We need full text, but Partial might only have changed fields.
+            // For simplicity in pilot, we'll just use what's available or fetch first.
+            const current = await this.getById(id);
+            if (current) {
+                const updatedTitleZh = data.titleZh || current.titleZh;
+                const updatedTitleEn = data.titleEn || current.titleEn;
+                const updatedDescZh = data.descriptionZh || current.descriptionZh;
+                const updatedDescEn = data.descriptionEn || current.descriptionEn;
+
+                const embeddingText = `${updatedTitleZh} ${updatedTitleEn || ''} ${updatedDescZh || ''} ${updatedDescEn || ''}`;
+                try {
+                    const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
+                        body: { text: embeddingText }
+                    });
+                    if (!embeddingError) embedding = embeddingData.embedding;
+                } catch (e) {
+                    console.error('Failed to update embedding:', e);
+                }
+            }
+        }
+
+        const dbRow = this.mapToDb(data);
+        if (embedding) dbRow.embedding = embedding;
+
         const { data: updatedData, error } = await supabase
             .from('listing_masters')
-            .update(this.mapToDb(data))
+            .update(dbRow)
             .eq('id', id)
             .select()
             .single();

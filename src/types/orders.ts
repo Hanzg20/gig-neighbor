@@ -93,6 +93,13 @@ export interface Order extends BaseEntity {
     acceptedAt?: string;
     completedAt?: string;
     cancelledAt?: string;
+
+    // Web Ordering Extensions (v0.0.3)
+    rentalStartDate?: string;
+    rentalEndDate?: string;
+    depositAmount?: number;
+    depositStatus?: 'NONE' | 'HELD' | 'RELEASED' | 'FORFEITED';
+    serviceCallFee?: number;
 }
 
 /**
@@ -109,6 +116,10 @@ export interface CartItem {
     // Denormalized for display
     master?: ListingMaster;
     item?: ListingItem;
+    // Optional metadata for booking/rentals
+    rentalStart?: string;
+    rentalEnd?: string;
+    consultHours?: number;
 }
 
 /**

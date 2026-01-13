@@ -53,8 +53,9 @@
   - [ ] Magic Link login
   - [ ] User profile auto-creation (trigger verification)
   - [ ] Initial beans balance (100 beans)
-- [ ] **Walkthrough Documentation**: Record auth flow with screenshots <!-- id: 205 -->
-- [ ] **Update system_design_document.md**: Document implementation notes <!-- id: 206 -->
+- [x] **Walkthrough Documentation**: Scan-to-Buy flow verified with SMS <!-- id: 205 -->
+- [x] **Update system_design_document.md**: v0.0.3 implemented with technical architecture details <!-- id: 206 -->
+- [x] **Project Cleanup**: Deleted temporary scripts and unified seed data <!-- id: 207 -->
 
 ### 7.2 Flow 2: Browse & Search Listings <!-- id: 210 -->
 - [ ] **Repository Integration**: Connect ListingRepository to Supabase <!-- id: 211 -->

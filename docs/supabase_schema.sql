@@ -26,6 +26,7 @@
 -- ==========================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "postgis";
+CREATE EXTENSION IF NOT EXISTS "vector";
 
 -- ==========================================
 -- STEP 1: CUSTOM TYPES
@@ -214,6 +215,8 @@ CREATE TABLE IF NOT EXISTS public.listing_masters (
   is_promoted BOOLEAN DEFAULT FALSE,
   preferred_transaction_model TEXT DEFAULT 'INSTANT_PAY',
   metadata JSONB DEFAULT '{}'::jsonb,
+  embedding vector(384),
+  location_coords geography(POINT),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -520,8 +523,12 @@ CREATE TABLE IF NOT EXISTS public.messages (
     content TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
     message_type TEXT DEFAULT 'TEXT',
+    metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- 2.1 Conversations Metadata
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
 
 -- 3. Indexes
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON public.messages(conversation_id);
@@ -875,3 +882,144 @@ CREATE TRIGGER on_first_purchase_reward
     AFTER UPDATE ON public.orders
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_first_purchase_reward();
+
+-- ==========================================
+-- STEP 15: AI & GEOSPATIAL SEARCH RPCs
+-- ==========================================
+
+-- 15.1 Semantic Search
+CREATE OR REPLACE FUNCTION public.match_listings (
+  query_embedding vector(384),
+  match_threshold float,
+  match_count int,
+  filter_node_id text DEFAULT NULL,
+  filter_category_id text DEFAULT NULL
+)
+RETURNS TABLE (
+  id UUID,
+  provider_id UUID,
+  title_zh TEXT,
+  title_en TEXT,
+  description_zh TEXT,
+  description_en TEXT,
+  images TEXT[],
+  type public.listing_type,
+  category_id TEXT,
+  node_id TEXT,
+  tags TEXT[],
+  status TEXT,
+  location_address TEXT,
+  rating DECIMAL,
+  review_count INTEGER,
+  similarity FLOAT
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    m.id,
+    m.provider_id,
+    m.title_zh,
+    m.title_en,
+    m.description_zh,
+    m.description_en,
+    m.images,
+    m.type,
+    m.category_id,
+    m.node_id,
+    m.tags,
+    m.status,
+    m.location_address,
+    m.rating,
+    m.review_count,
+    1 - (m.embedding <=> query_embedding) AS similarity
+  FROM public.listing_masters m
+  WHERE m.status = 'PUBLISHED'
+    AND (filter_node_id IS NULL OR m.node_id = filter_node_id)
+    AND (filter_category_id IS NULL OR m.category_id = filter_category_id)
+    AND (1 - (m.embedding <=> query_embedding) > match_threshold)
+  ORDER BY m.embedding <=> query_embedding
+  LIMIT match_count;
+END;
+$$;
+
+-- 15.2 Radius Search
+CREATE OR REPLACE FUNCTION public.match_listings_by_radius(
+    p_lat DOUBLE PRECISION,
+    p_lng DOUBLE PRECISION,
+    p_radius_meters DOUBLE PRECISION,
+    p_type TEXT DEFAULT NULL,
+    p_category_id TEXT DEFAULT NULL,
+    p_match_count INTEGER DEFAULT 100
+)
+RETURNS TABLE (
+    id UUID,
+    title_zh TEXT,
+    title_en TEXT,
+    description_zh TEXT,
+    description_en TEXT,
+    images TEXT[],
+    type listing_type,
+    category_id TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    rating NUMERIC,
+    review_count INTEGER,
+    status TEXT,
+    distance_meters DOUBLE PRECISION
+) 
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        lm.id,
+        lm.title_zh,
+        lm.title_en,
+        lm.description_zh,
+        lm.description_en,
+        lm.images,
+        lm.type,
+        lm.category_id,
+        lm.latitude,
+        lm.longitude,
+        lm.rating,
+        lm.review_count,
+        lm.status,
+        ST_Distance(lm.location_coords, ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography) AS distance_meters
+    FROM public.listing_masters lm
+    WHERE 
+        lm.status = 'PUBLISHED'
+        AND ST_DWithin(lm.location_coords, ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography, p_radius_meters)
+        AND (p_type IS NULL OR lm.type::text = p_type)
+        AND (p_category_id IS NULL OR lm.category_id = p_category_id)
+    ORDER BY distance_meters ASC
+    LIMIT p_match_count;
+END;
+$$;
+
+-- 15.3 Geospatial Synchronization Logic
+CREATE OR REPLACE FUNCTION public.sync_listing_coords()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL THEN
+        NEW.location_coords = ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326)::geography;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_listing_coords ON public.listing_masters;
+CREATE TRIGGER trg_sync_listing_coords
+BEFORE INSERT OR UPDATE OF latitude, longitude
+ON public.listing_masters
+FOR EACH ROW
+EXECUTE FUNCTION public.sync_listing_coords();
+
+-- ==========================================
+-- STEP 16: OPTIMIZATION INDEXES
+-- ==========================================
+CREATE INDEX IF NOT EXISTS idx_listing_masters_location_coords ON public.listing_masters USING GIST (location_coords);
+CREATE INDEX IF NOT EXISTS idx_listing_masters_embedding ON public.listing_masters USING hnsw (embedding vector_cosine_ops);

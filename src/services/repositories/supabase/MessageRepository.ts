@@ -11,7 +11,8 @@ export class SupabaseMessageRepository implements IMessageRepository {
                 participant_b,
                 order_id,
                 last_message_at,
-                created_at
+                created_at,
+                metadata
             `)
             .or(`participant_a.eq.${userId},participant_b.eq.${userId}`)
             .order('last_message_at', { ascending: false });
@@ -31,13 +32,15 @@ export class SupabaseMessageRepository implements IMessageRepository {
         return (data || []).map(this.mapMessage);
     }
 
-    async sendMessage(conversationId: string, senderId: string, content: string): Promise<Message> {
+    async sendMessage(conversationId: string, senderId: string, content: string, messageType: string = 'TEXT', metadata: Record<string, any> = {}): Promise<Message> {
         const { data, error } = await supabase
             .from('messages')
             .insert({
                 conversation_id: conversationId,
                 sender_id: senderId,
-                content
+                content,
+                message_type: messageType,
+                metadata
             })
             .select()
             .single();
@@ -104,6 +107,36 @@ export class SupabaseMessageRepository implements IMessageRepository {
         };
     }
 
+    subscribeToUserEvents(userId: string, callback: (event: { type: 'CONVERSATION_UPDATE' | 'NEW_MESSAGE', data: any }) => void): () => void {
+        const channel = supabase
+            .channel(`user-events:${userId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'conversations',
+                    filter: `participant_a=eq.${userId}`
+                },
+                (payload) => callback({ type: 'CONVERSATION_UPDATE', data: this.mapConversation(payload.new) })
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'conversations',
+                    filter: `participant_b=eq.${userId}`
+                },
+                (payload) => callback({ type: 'CONVERSATION_UPDATE', data: this.mapConversation(payload.new) })
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }
+
     async getUnreadCount(userId: string): Promise<number> {
         // First get user's conversation IDs
         const { data: convData } = await supabase
@@ -157,7 +190,8 @@ export class SupabaseMessageRepository implements IMessageRepository {
             participantB: data.participant_b,
             orderId: data.order_id,
             lastMessageAt: data.last_message_at,
-            createdAt: data.created_at
+            createdAt: data.created_at,
+            metadata: data.metadata || {}
         };
     }
 
@@ -168,6 +202,8 @@ export class SupabaseMessageRepository implements IMessageRepository {
             senderId: data.sender_id,
             content: data.content,
             isRead: data.is_read,
+            messageType: data.message_type || 'TEXT',
+            metadata: data.metadata || {},
             createdAt: data.created_at
         };
     }
