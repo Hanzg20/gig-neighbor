@@ -100,9 +100,9 @@ export async function sendSMS(params: SMSParams): Promise<{ success: boolean; me
         console.log('[✅ SMS] Sent successfully:', messageId);
         return { success: true, messageId };
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('[❌ SMS] Error sending SMS:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
 }
 
@@ -118,12 +118,12 @@ async function sha256(message: string): Promise<string> {
 
 async function hmacSha256(key: Uint8Array | string, message: string): Promise<string> {
     const encoder = new TextEncoder();
-    const keyData = typeof key === 'string' ? encoder.encode(key) : key;
+    const keyData = typeof key === 'string' ? encoder.encode(key) : new Uint8Array(key.buffer as ArrayBuffer, key.byteOffset, key.byteLength);
     const messageData = encoder.encode(message);
 
     const cryptoKey = await crypto.subtle.importKey(
         'raw',
-        keyData,
+        keyData.buffer as ArrayBuffer,
         { name: 'HMAC', hash: 'SHA-256' },
         false,
         ['sign']
@@ -150,7 +150,7 @@ async function hmacSha256Raw(key: Uint8Array, message: string): Promise<Uint8Arr
 
     const cryptoKey = await crypto.subtle.importKey(
         'raw',
-        key,
+        key.buffer as ArrayBuffer,
         { name: 'HMAC', hash: 'SHA-256' },
         false,
         ['sign']
