@@ -1,0 +1,33 @@
+# Cloudflare Pages Configuration for JUSTWEDO
+name = "justwedo"
+compatibility_date = "2024-01-01"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+
+# Build Configuration
+[build]
+command = "npm run build"
+
+# Environment Variables (if needed)
+[env.production]
+vars = { }
+
+# Routes Configuration
+[[routes]]
+include = ["/*"]
+exclude = []
+
+# Headers Configuration
+[[headers]]
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-Content-Type-Options = "nosniff"
+X-XSS-Protection = "1; mode=block"
+
+[[headers]]
+for = "/assets/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
