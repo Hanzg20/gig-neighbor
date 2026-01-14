@@ -1,18 +1,12 @@
 # Cloudflare Pages Configuration for JUSTWEDO
 name = "justwedo"
-compatibility_date = "2024-01-01"
-
+compatibility_date = "2026-01-14"
 [assets]
 directory = "./dist"
-binding = "ASSETS"
 
 # Build Configuration
 [build]
 command = "npm run build"
-
-# Environment Variables (if needed)
-[env.production]
-vars = { }
 
 # Routes Configuration
 routes = ["/*"]
