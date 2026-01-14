@@ -144,7 +144,7 @@ function TaskCard({ task, isVerifiedProvider, onClick, delay }: TaskCardProps) {
     reward: language === 'zh' ? '奖励' : 'REWARD',
     beans: language === 'zh' ? '豆币' : 'Beans',
     verified: language === 'zh' ? '认证邻居' : 'Verified Neighbor',
-    newUser: language === 'zh' ? '新用户' : 'New to HangHand',
+    newUser: language === 'zh' ? '新用户' : 'New to JUSTWEDO',
     submitQuote: language === 'zh' ? '提交报价' : 'Submit Quote',
     verifyToAccept: language === 'zh' ? '认证后接单' : 'Verify to Accept',
     providersOnly: language === 'zh' ? '仅限认证服务商' : 'Verified Providers Only',

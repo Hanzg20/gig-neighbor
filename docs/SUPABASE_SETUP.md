@@ -27,7 +27,7 @@ VITE_SHOW_DEV_TOOLS=true  # Show development UI helpers
 1. **Create Project**:
    - Go to https://supabase.com/dashboard
    - Click "New Project"
-   - Name: `hanghand-production` (or `hanghand-dev` for testing)
+   - Name: `justwedo-production` (or `justwedo-dev` for testing)
    - Database Password: Generate strong password and save in password manager
    - Region: `us-east-1` (closest to Ottawa)
 

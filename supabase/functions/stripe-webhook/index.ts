@@ -185,7 +185,7 @@ serve(async (req) => {
                     if (phoneNumber && inventoryItem.serial_number) {
                         await sendSMS({
                             phoneNumber,
-                            message: `Your HangHand purchase is complete! Card Number: ${inventoryItem.serial_number}.`
+                            message: `Your JUSTWEDO purchase is complete! Card Number: ${inventoryItem.serial_number}.`
                         });
                     }
                 }

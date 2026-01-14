@@ -1,4 +1,4 @@
-# 📄 HangHand (恒帮) - Comprehensive System Design Document
+# 📄 JUSTWEDO (恒帮) - Comprehensive System Design Document
 
 📐 **Canadian Community Services & Gig Economy Platform**
 **Version:** 2.1 (Enhanced Market & Tech Architecture)
@@ -10,10 +10,10 @@
 ## 1. Product Overview & Design Philosophy
 
 ### 1.1 Vision
-**HangHand (恒帮/邻里邻居)** is a trusted "Neighborhood Help + Gig Economy" ecosystem. It bridges the gap between professional service platforms (Fiverr), local food delivery (Meituan), and high-trust community boards (Nextdoor/Yelp).
+**JUSTWEDO (恒帮/邻里邻居)** is a trusted "Neighborhood Help + Gig Economy" ecosystem. It bridges the gap between professional service platforms (Fiverr), local food delivery (Meituan), and high-trust community boards (Nextdoor/Yelp).
 
 ### 1.2 Core Philosophy: Modernity & Warmth
-To differentiate from dated classifieds (Kijiji) or cold marketplaces, HangHand follows:
+To differentiate from dated classifieds (Kijiji) or cold marketplaces, JUSTWEDO follows:
 
 *   **Neighborly Narrative**: Listings are "community stories." We use terms like **Neighbor**, **Helper**, and **Giver** instead of "Vendor" or "Seller."
 *   **Tactile & Premium UI**: A "Glassmorphism" aesthetic with large corner radii (`2xl`+), soft glow shadows (`shadow-glow`), and smooth micro-animations to convey a premium, safe feeling.

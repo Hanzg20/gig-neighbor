@@ -1,6 +1,6 @@
 # Supabase Edge Functions
 
-This directory contains Supabase Edge Functions for the HangHand platform.
+This directory contains Supabase Edge Functions for the JUSTWEDO platform.
 
 ## Functions
 

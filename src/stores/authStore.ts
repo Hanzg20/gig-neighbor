@@ -110,7 +110,7 @@ export const useAuthStore = create<AuthState>()(
             },
         }),
         {
-            name: 'hanghand-auth-storage',
+            name: 'justwedo-auth-storage',
             partialize: (state) => ({ currentUser: state.currentUser }), // Only persist user, not loading state
         }
     )

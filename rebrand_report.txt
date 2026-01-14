@@ -1,0 +1,39 @@
+============================================
+渥帮 JUSTWEDO 品牌更名报告
+生成时间: 2026-01-13 22:36:49
+============================================
+
+统计信息:
+- 扫描文件数: 217
+- 修改文件数: 32
+- 总替换次数: 32
+- 备份位置: /d/My Project/ts/hangs/gig-neighbor/backup_hanghand_20260113_223534
+
+替换规则:
+- HangHand → JUSTWEDO (品牌名称)
+- hanghand → justwedo (小写品牌名)
+- Hang Hand → JUST WE DO (分开拼写)
+- hanghand.com → justwedo.com (域名)
+- gigneighbor.com → justwedo.com (旧域名)
+- GigNeighbor → JUSTWEDO (旧品牌名)
+- [HangHand] → [JWD] (日志标记)
+- vite_react_shadcn_ts → justwedo (项目名)
+
+需要手动检查的文件:
+- package.json: 项目名称、描述
+- public/index.html: 页面标题
+- README.md: 项目说明
+- .env.example: 注释说明
+- src/pages/About.tsx: 关于页面内容
+- supabase/functions/stripe-webhook/index.ts: SMS消息内容
+
+下一步操作:
+1. 使用 Git 查看变更: git diff
+2. 手动检查上述列出的关键文件
+3. 运行测试: npm run build
+4. 提交变更: git add . && git commit -m "rebrand: HangHand → JUSTWEDO"
+
+如需回滚:
+使用备份目录恢复: /d/My Project/ts/hangs/gig-neighbor/backup_hanghand_20260113_223534
+
+============================================

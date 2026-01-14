@@ -1,4 +1,4 @@
-# 🎬 HangHand - Feature Walkthrough & Verification Log
+# 🎬 JUSTWEDO - Feature Walkthrough & Verification Log
 
 **Purpose**: Document verification results for each completed feature, including screenshots, recordings, and test outcomes.
 

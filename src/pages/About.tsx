@@ -10,31 +10,31 @@ const About = () => {
     const content = {
         zh: {
             title: "关于渥帮",
-            subtitle: "(HangHand 旗下本地化服务平台)",
-            intro: "渥帮是 HangHand 旗下的本地生活服务平台，专为渥太华邻里量身打造。我们连接邻里互助、区域内有资质的专业人士，以及本地商家，通过技术与人工智能赋能，构建一种更高效、更可信的新型社区关系。",
+            subtitle: "(JUSTWEDO 旗下本地化服务平台)",
+            intro: "渥帮是 JUSTWEDO 旗下的本地生活服务平台，专为渥太华邻里量身打造。我们连接邻里互助、区域内有资质的专业人士，以及本地商家，通过技术与人工智能赋能，构建一种更高效、更可信的新型社区关系。",
             missionTitle: "我们的使命",
             missionText: "在渥太华的城市生活中，您既需要邻居之间的相互帮忙，也需要专业可靠的服务支持。渥帮不仅让邻里互助更容易发生，也为具备合法资质的专业人士（如维修、技术、教育、出行等）以及本地商家，提供一个直接服务社区的数字化工具箱。",
             visionTitle: "渥太华邻里互助工具箱",
             visionText: "我们相信，社区不只是居住空间，更是一个可以彼此支持、共享资源的网络。通过渥帮，渥太华居民可以在一个平台内完成需求发布、服务匹配与沟通协作，让‘有事找邻里，办事找专业’变得更简单、更透明。",
             aiTitle: "AI 赋能社区",
-            aiText: "渥帮引入 HangHand 核心人工智能技术，用于优化需求匹配、提升沟通效率，并帮助社区更好地理解和响应真实的生活需求。技术不是取代人与人之间的关系，而是让这些关系变得更顺畅、更有温度。",
+            aiText: "渥帮引入 JUSTWEDO 核心人工智能技术，用于优化需求匹配、提升沟通效率，并帮助社区更好地理解和响应真实的生活需求。技术不是取代人与人之间的关系，而是让这些关系变得更顺畅、更有温度。",
             pilotTitle: "渥太华试点",
-            pilotText: "作为 HangHand 全球化版图的首个试点，渥帮正在渥太华（Ottawa）进行深度运营，联合居民、专业服务者与本地商家，共同探索一种更可持续、更贴近生活的社区服务模式。",
+            pilotText: "作为 JUSTWEDO 全球化版图的首个试点，渥帮正在渥太华（Ottawa）进行深度运营，联合居民、专业服务者与本地商家，共同探索一种更可持续、更贴近生活的社区服务模式。",
             tagline: "渥帮 —— 渥太华有事，找渥帮"
         },
         en: {
-            title: "About HangHand",
+            title: "About JUSTWEDO",
             subtitle: "(Community × Professionals × Local Commerce × AI)",
-            intro: "HangHand is our dedicated local service node for the Ottawa community. We connect neighbors, licensed local professionals, and trusted businesses — all in one place.",
+            intro: "JUSTWEDO is our dedicated local service node for the Ottawa community. We connect neighbors, licensed local professionals, and trusted businesses — all in one place.",
             missionTitle: "Our Mission",
-            missionText: "Everyday community life in Ottawa relies on more than just neighborly help. People also need reliable professional services and convenient access to local businesses they can trust. HangHand brings these elements together, creating a practical, technology-enabled 'community toolbox' for modern living.",
+            missionText: "Everyday community life in Ottawa relies on more than just neighborly help. People also need reliable professional services and convenient access to local businesses they can trust. JUSTWEDO brings these elements together, creating a practical, technology-enabled 'community toolbox' for modern living.",
             visionTitle: "Ottawa's Community Toolbox",
-            visionText: "By combining peer support with professional expertise, HangHand helps Ottawa residents find the right kind of help — quickly and transparently. We believe that technology should strengthen human connections, making them smoother and more meaningful.",
+            visionText: "By combining peer support with professional expertise, JUSTWEDO helps Ottawa residents find the right kind of help — quickly and transparently. We believe that technology should strengthen human connections, making them smoother and more meaningful.",
             aiTitle: "AI Powered Community",
-            aiText: "At the core of HangHand is a belief that technology should empower human connections. We use AI-powered tools to improve service matching, streamline communication, and better understand real community needs.",
+            aiText: "At the core of JUSTWEDO is a belief that technology should empower human connections. We use AI-powered tools to improve service matching, streamline communication, and better understand real community needs.",
             pilotTitle: "Ottawa Pilot",
-            pilotText: "HangHand is currently our primary pilot site in Ottawa, working closely with residents and local professionals to build a smarter, more connected community service platform for Canada and beyond.",
-            tagline: "HangHand — Ottawa's trusted neighborhood helper."
+            pilotText: "JUSTWEDO is currently our primary pilot site in Ottawa, working closely with residents and local professionals to build a smarter, more connected community service platform for Canada and beyond.",
+            tagline: "JUSTWEDO — Ottawa's trusted neighborhood helper."
         }
     };
 

@@ -1,0 +1,202 @@
+import { useNavigate } from "react-router-dom";
+import {
+    TrendingUp, Package, Star, DollarSign, Clock,
+    Eye, Edit, Trash2, Plus, MoreVertical, MessageSquare, Tag, Layout
+} from "lucide-react";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { useListingStore } from "@/stores/listingStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useOrderStore } from "@/stores/orderStore";
+import { useProviderStore } from "@/stores/providerStore";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+
+const MyListings = () => {
+    const navigate = useNavigate();
+    const { currentUser } = useAuthStore();
+    const { listings, listingItems } = useListingStore();
+    const { orders } = useOrderStore();
+    const { providers } = useProviderStore();
+
+    if (!currentUser) {
+        navigate('/login');
+        return null;
+    }
+
+    // A user might have multiple provider profiles (one per identity/role), 
+    // but usually, their 'listings' are tied to their primary provider id.
+    // For regular users (Buyers) posting tasks, their user_id is often the provider_id in our simplified mock/pilot.
+    // In production, we find the profile associated with the user.
+    const userProfile = providers.find(p => p.userId === currentUser.id);
+    const profileId = userProfile?.id || currentUser.id;
+
+    // Filter listings where this user is the "Provider/Poster"
+    const myListings = listings.filter(l => l.providerId === profileId);
+
+    const getListingStats = (listingId: string) => {
+        const items = listingItems.filter(i => i.masterId === listingId);
+        const listingOrders = orders.filter(o => o.masterId === listingId);
+        const totalRevenue = listingOrders.reduce((sum, o) => sum + o.pricing.total.amount, 0);
+
+        return {
+            itemCount: items.length,
+            orderCount: listingOrders.length,
+            revenue: totalRevenue,
+            views: Math.floor(Math.random() * 200) + 20 // Mock data
+        };
+    };
+
+    const getTypeBadge = (type: string) => {
+        switch (type) {
+            case 'TASK': return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none font-black text-[10px] uppercase tracking-tighter">Demand</Badge>;
+            case 'GOODS': return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none font-black text-[10px] uppercase tracking-tighter">Good</Badge>;
+            case 'RENTAL': return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-none font-black text-[10px] uppercase tracking-tighter">Rental</Badge>;
+            default: return <Badge className="bg-primary/10 text-primary hover:bg-primary/10 border-none font-black text-[10px] uppercase tracking-tighter">Service</Badge>;
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-background pb-20">
+            <Header />
+
+            <div className="container max-w-5xl py-8 px-4">
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                    <div>
+                        <h1 className="text-3xl font-black text-foreground tracking-tight mb-2">My Posts <span className="text-primary">.</span></h1>
+                        <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
+                            Manage your {myListings.length} active listings & demands
+                        </p>
+                    </div>
+                    <Button
+                        onClick={() => navigate('/post-gig')}
+                        className="btn-action gap-2 h-12 px-6 rounded-2xl shadow-warm"
+                    >
+                        <Plus className="w-5 h-5" />
+                        Create New
+                    </Button>
+                </div>
+
+                {/* Grid Overlay */}
+                <div className="grid gap-6">
+                    {myListings.length === 0 ? (
+                        <div className="text-center py-24 card-warm border-dashed border-2 border-muted bg-transparent">
+                            <Layout className="w-16 h-16 text-muted-foreground/20 mx-auto mb-4" />
+                            <p className="text-lg font-black text-muted-foreground mb-6">No posts found yet</p>
+                            <Button onClick={() => navigate('/post-gig')} variant="outline" className="rounded-xl font-bold">
+                                Post your first task or item
+                            </Button>
+                        </div>
+                    ) : (
+                        myListings.map((listing) => {
+                            const stats = getListingStats(listing.id);
+                            const items = listingItems.filter(i => i.masterId === listing.id);
+                            const firstItem = items[0];
+
+                            return (
+                                <div key={listing.id} className="card-warm overflow-hidden hover:shadow-xl transition-all duration-300 border-none group">
+                                    <div className="flex flex-col md:flex-row gap-6">
+                                        {/* Image Gallery Mockup */}
+                                        <div className="relative w-full md:w-48 h-48 flex-shrink-0">
+                                            <img
+                                                src={listing.images[0]}
+                                                alt={listing.titleZh}
+                                                className="w-full h-full object-cover rounded-2xl group-hover:scale-105 transition-transform duration-500"
+                                            />
+                                            <div className="absolute top-3 left-3">
+                                                {getTypeBadge(listing.type)}
+                                            </div>
+                                        </div>
+
+                                        {/* Content Area */}
+                                        <div className="flex-1 min-w-0 pr-4 py-2">
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                                                            <Clock className="w-3 h-3" /> Just now
+                                                        </span>
+                                                        <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                                                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                                                            {listing.status}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="text-xl font-black text-foreground tracking-tight line-clamp-1 mb-1 group-hover:text-primary transition-colors">
+                                                        {listing.titleEn || listing.titleZh}
+                                                    </h3>
+                                                    <p className="text-sm font-medium text-muted-foreground/80 line-clamp-2 leading-relaxed">
+                                                        {listing.descriptionEn || listing.descriptionZh}
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="rounded-xl w-10 h-10 border-muted"
+                                                        onClick={() => navigate(`/service/${listing.id}`)}
+                                                    >
+                                                        <Eye className="w-4 h-4 text-muted-foreground" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="rounded-xl w-10 h-10 border-muted"
+                                                        onClick={() => alert('Edit feature coming soon')}
+                                                    >
+                                                        <Edit className="w-4 h-4 text-muted-foreground" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Attributes / Price */}
+                                            <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-muted/50">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[11px] font-black text-muted-foreground uppercase tracking-tighter">Price / Budget:</span>
+                                                    <span className="text-lg font-black text-primary">
+                                                        ${firstItem ? firstItem.pricing.price.amount / 100 : '0'}
+                                                    </span>
+                                                    <span className="text-[9px] font-black text-muted-foreground uppercase opacity-50">/{firstItem?.pricing.unit || 'job'}</span>
+                                                </div>
+
+                                                <div className="h-4 w-px bg-muted mx-2 hidden md:block" />
+
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex items-center gap-1">
+                                                        <MessageSquare className="w-4 h-4 text-muted-foreground/50" />
+                                                        <span className="text-sm font-black text-foreground">{stats.orderCount}</span>
+                                                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Offers</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <Eye className="w-4 h-4 text-muted-foreground/50" />
+                                                        <span className="text-sm font-black text-foreground">{stats.views}</span>
+                                                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Views</span>
+                                                    </div>
+                                                </div>
+
+                                                {listing.type === 'TASK' && stats.orderCount > 0 && (
+                                                    <Button
+                                                        size="sm"
+                                                        className="ml-auto bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl px-4"
+                                                        onClick={() => navigate(`/orders?masterId=${listing.id}`)}
+                                                    >
+                                                        Review Offers
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+
+            <Footer />
+        </div>
+    );
+};
+
+export default MyListings;

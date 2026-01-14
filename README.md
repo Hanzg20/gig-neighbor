@@ -1,53 +1,104 @@
-# Welcome to your Lovable project
+# 渥帮 JUSTWEDO
 
-## Project info
+## 📋 项目简介
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+**JUSTWEDO (JWD)** - 渥太华华人互助平台
 
-## How can I edit this code?
+*Get Things Done Together* - 一个连接本地服务提供者和消费者的社区互助平台。
 
-There are several ways of editing your application.
+**核心功能：**
+- 🏪 服务提供商入驻和管理
+- 📦 库存管理和智能分配
+- 📱 扫码快速购买 (GigBridge)
+- 💳 Stripe 支付集成
+- 📲 SMS 通知系统
+- 🏷️ QR码打印和品牌化
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## 🚀 快速开始
 
-Changes made via Lovable will be committed automatically to this repo.
+### 环境要求
 
-**Use your preferred IDE**
+- Node.js 18+ & npm
+- Supabase 账号
+- Stripe 账号（用于支付）
+- AWS SNS（用于短信通知）
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 本地开发
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+```bash
+# 1. 克隆仓库
 git clone <YOUR_GIT_URL>
+cd gig-neighbor
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# 2. 安装依赖
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
+# 3. 配置环境变量
+cp .env.example .env.local
+# 编辑 .env.local 填入 Supabase URL 和 Key
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 4. 启动开发服务器
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+访问 http://localhost:8080
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## 📚 技术栈
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
+- **前端**: React 18 + TypeScript + Vite
+- **UI**: Tailwind CSS + shadcn/ui + Radix UI
+- **状态管理**: Zustand + TanStack Query
+- **后端**: Supabase (PostgreSQL + Edge Functions)
+- **支付**: Stripe Checkout + Webhooks
+- **通知**: AWS SNS (SMS)
+- **QR码**: qrcode.react + 品牌Logo支持
+
+---
+
+## 📖 文档
+
+- [GigBridge 部署指南](GIGBRIDGE_DEPLOYMENT.md)
+- [QR码Logo使用指南](docs/QR_CODE_LOGO_GUIDE.md)
+- [品牌更名检查清单](REBRAND_CHECKLIST.md)
+- [快速开始指南](docs/QUICK_START.md)
+
+---
+
+## 🏗️ 项目结构
+
+```
+gig-neighbor/
+├── src/
+│   ├── components/       # React 组件
+│   ├── pages/           # 页面组件
+│   ├── stores/          # Zustand 状态管理
+│   ├── lib/             # 工具函数
+│   └── integrations/    # Supabase 集成
+├── supabase/
+│   └── functions/       # Edge Functions
+├── docs/                # 项目文档
+└── public/              # 静态资源
+```
+
+---
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+**JUSTWEDO Team** - *Get Things Done Together*
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?

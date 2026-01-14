@@ -40,7 +40,7 @@ const Header = () => {
     join: language === 'zh' ? '登录' : 'Join',
     neighborly: language === 'zh' ? '让生活更轻松' : 'Make Life Easier',
     becomeProvider: language === 'zh' ? '成为达人' : 'Become Provider',
-    brandName: language === 'zh' ? '渥帮' : 'HangHand',
+    brandName: language === 'zh' ? '渥帮' : 'JUSTWEDO',
   };
 
   return (
@@ -48,7 +48,7 @@ const Header = () => {
       <div className="container flex items-center justify-between h-16">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <img src="/logo.png" alt="HangHand" className="w-10 h-10 rounded-2xl object-cover shadow-warm" />
+          <img src="/logo.png" alt="JUSTWEDO" className="w-10 h-10 rounded-2xl object-cover shadow-warm" />
           <div className="hidden sm:block">
             <h1 className="text-xl font-black tracking-tighter text-gradient">{t.brandName}</h1>
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest -mt-1 text-center sm:text-left">{t.neighborly}</p>

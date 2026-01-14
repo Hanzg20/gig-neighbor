@@ -41,7 +41,7 @@ interface AppState {
 export const useStore = create<AppState>((set, get) => ({
     currentUser: {
         id: 'u1',
-        email: 'demo@hanghand.com',
+        email: 'demo@justwedo.com',
         name: '张三 (Demo User)',
         avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop',
         roles: ['BUYER'],

@@ -1,6 +1,6 @@
 # 🚀 Quick Start Guide - Supabase Deployment
 
-This is the **fastest path** to get HangHand running with Supabase. Follow these steps in order.
+This is the **fastest path** to get JUSTWEDO running with Supabase. Follow these steps in order.
 
 ---
 
@@ -11,7 +11,7 @@ This is the **fastest path** to get HangHand running with Supabase. Follow these
 1. Go to https://supabase.com/dashboard
 2. Click "New Project"
 3. Fill in:
-   - Name: `hanghand-dev`
+   - Name: `justwedo-dev`
    - Password: (generate and save)
    - Region: `us-east-1`
 4. Wait for provisioning (~2 min)

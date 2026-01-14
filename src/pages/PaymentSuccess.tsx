@@ -124,7 +124,7 @@ const PaymentSuccess = () => {
                     }
 
                     const details: OrderDetails = {
-                        productName: orderData.listing_items?.[0]?.nameEn || orderData.listing_masters?.[0]?.titleEn || 'HangHand Order',
+                        productName: orderData.listing_items?.[0]?.nameEn || orderData.listing_masters?.[0]?.titleEn || 'JUSTWEDO Order',
                         productType: isSerialized ? 'SERIALIZED_ITEM' : 'GOODS', // Simplification
                         serialNumber,
                         orderNumber: orderData.id.split('-')[0].toUpperCase(),
@@ -307,7 +307,7 @@ const PaymentSuccess = () => {
                                             onClick={() => navigate('/about')}
                                             className="text-amber-800 hover:text-amber-900 font-bold underline decoration-2"
                                         >
-                                            HangHand
+                                            JUSTWEDO
                                         </button>
                                         {' '}{t.rewardDescAfter}
                                     </p>

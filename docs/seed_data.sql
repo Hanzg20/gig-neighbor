@@ -1,4 +1,4 @@
--- 🍁 Seed Data for HangHand Platform - CANADA VERSION
+-- 🍁 Seed Data for JUSTWEDO Platform - CANADA VERSION
 -- Version: 5.0 (Discovery Plus)
 -- Date: 2026-01-13
 -- Reason: Consolidate maintenance scripts, add GigBridge stations, and PostGIS test markers.
@@ -1388,7 +1388,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Create anonymous buyer user profile for demo purchases 创建一个专门的"匿名购买者"用户记录 所有演示购买都使用这
 -- 缺点：无法区分不同的匿名买家
 
-INSERT INTO auth.users ( id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, is_anonymous ) VALUES ( '00000000-0000-0000-0000-000000000002'::uuid, 'authenticated', 'authenticated', 'anonymous@demo.gigneighbor.ca [blocked]', now(), '{}'::jsonb, '{"name":"Anonymous Buyer (Demo)"}'::jsonb, now(), now(), true ) 
+INSERT INTO auth.users ( id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, is_anonymous ) VALUES ( '00000000-0000-0000-0000-000000000002'::uuid, 'authenticated', 'authenticated', 'anonymous@demo.justwedo.com [blocked]', now(), '{}'::jsonb, '{"name":"Anonymous Buyer (Demo)"}'::jsonb, now(), now(), true ) 
 
 INSERT INTO public.user_profiles (
     id,
@@ -1400,7 +1400,7 @@ INSERT INTO public.user_profiles (
 )
 VALUES (
     '00000000-0000-0000-0000-000000000002'::UUID,  -- Fixed demo buyer UUID
-    'anonymous@demo.gigneighbor.ca',
+    'anonymous@demo.justwedo.com',
     'Anonymous Buyer (Demo)',
     '+1-000-000-0000',
     NOW(),
@@ -1414,7 +1414,7 @@ ON CONFLICT (id) DO NOTHING;
 -- 3. SYSTEM USERS (Guest Checkout Support)
 -- ============================================================================
 INSERT INTO public.user_profiles (id, full_name, email, role)
-VALUES ('00000000-0000-0000-0000-000000000000', 'Guest User', 'guest@hanghand.ca', 'BUYER')
+VALUES ('00000000-0000-0000-0000-000000000000', 'Guest User', 'guest@justwedo.com', 'BUYER')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================================

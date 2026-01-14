@@ -1,8 +1,8 @@
-# 📄 HangHand - Product Requirements Document (PRD)
+# 📄 JUSTWEDO - Product Requirements Document (PRD)
 ## 🍁 Canadian Community Services Platform
 
 ## 1. Product Definition
-**HangHand** is a **community-based gig economy platform** designed for the Canadian market, combining trusted neighbor-to-neighbor connections with professional service marketplace features. It competes with TaskRabbit and Thumbtack while addressing uniquely Canadian needs: seasonal services, provincial licensing compliance, and multicultural accessibility.
+**JUSTWEDO** is a **community-based gig economy platform** designed for the Canadian market, combining trusted neighbor-to-neighbor connections with professional service marketplace features. It competes with TaskRabbit and Thumbtack while addressing uniquely Canadian needs: seasonal services, provincial licensing compliance, and multicultural accessibility.
 
 ### Core Values
 - **Trust & Safety**: Background checks, license verification, insurance validation
@@ -125,10 +125,10 @@ Platform categories driven by `ref_codes` table:
 
 
 
-# 📄 HangHand (恒帮) - 详细产品需求说明书 (PRD)
+# 📄 JUSTWEDO (恒帮) - 详细产品需求说明书 (PRD)
 
 ## 1. 产品定义 (Product Definition)
-**HangHand (恒帮)** 是一个定位为“邻里互助 + 零工经济”的社区综合服务平台。它结合了 **Fiverr** 的专业服务颗粒度、**美团** 的本地生活便利性以及 **Yelp** 的高度信任评价体系。
+**JUSTWEDO (恒帮)** 是一个定位为“邻里互助 + 零工经济”的社区综合服务平台。它结合了 **Fiverr** 的专业服务颗粒度、**美团** 的本地生活便利性以及 **Yelp** 的高度信任评价体系。
 
 ### 核心价值 (Core Values)
 - **信任 (Trust)**: 通过实名认证、邻里评价构建信任背书。

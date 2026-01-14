@@ -1,6 +1,6 @@
 # 🏆 Project Milestones Summary (Phases 5-10)
 
-This document provides a comprehensive overview of the major features implemented for the HangHand platform, including their technical dependencies and verification steps.
+This document provides a comprehensive overview of the major features implemented for the JUSTWEDO platform, including their technical dependencies and verification steps.
 
 ---
 

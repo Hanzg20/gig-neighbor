@@ -23,7 +23,7 @@ const Footer = () => {
     slogan: language === 'zh' ? '一个连接渥太华邻居、专业人士和商家的本地便民服务平台，让生活和办事更轻松，更放心' : 'A local platform connecting Ottawa neighbors, professionals, and businesses for easy, trusted services.',
     madeIn: language === 'zh' ? '加拿大制作' : 'Made with',
     inCanada: language === 'zh' ? '' : 'in Canada', // "Made with <love> in Canada" structure handling
-    brandName: language === 'zh' ? '渥帮' : 'HangHand',
+    brandName: language === 'zh' ? '渥帮' : 'JUSTWEDO',
   };
 
   return (
@@ -33,10 +33,10 @@ const Footer = () => {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <img src="/logo.png" alt="HangHand" className="w-10 h-10 rounded-2xl object-cover shadow-warm" />
+              <img src="/logo.png" alt="JUSTWEDO" className="w-10 h-10 rounded-2xl object-cover shadow-warm" />
               <div>
                 <h3 className="text-xl font-extrabold text-gradient">{t.brandName}</h3>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Powered by HangHand</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Powered by JUSTWEDO</p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">

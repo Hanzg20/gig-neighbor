@@ -1,4 +1,4 @@
-# 📐 HangHand - Comprehensive System Design Document
+# 📐 JUSTWEDO - Comprehensive System Design Document
 ## 🍁 Canadian Community Services Platform
 
 **Version**: 0.0.5 (Discovery Plus Edition)  
@@ -77,7 +77,7 @@ To ensure the backend environment is reproducible and consistent, the following 
 ## 2. Product Overview
 
 ### 1.1 Product Definition
-**HangHand** is a community-based gig economy platform for the Canadian market, combining trusted neighbor-to-neighbor connections with professional service marketplace features. It competes with TaskRabbit and Thumbtack while addressing uniquely Canadian needs.
+**JUSTWEDO** is a community-based gig economy platform for the Canadian market, combining trusted neighbor-to-neighbor connections with professional service marketplace features. It competes with TaskRabbit and Thumbtack while addressing uniquely Canadian needs.
 
 ### 1.2 Core Values
 - **Trust & Safety**: Background checks, license verification, insurance validation
@@ -114,7 +114,7 @@ To ensure the backend environment is reproducible and consistent, the following 
 
 ### 2.2 Competitive Landscape
 
-| Feature | HangHand | TaskRabbit | Thumbtack | Rover |
+| Feature | JUSTWEDO | TaskRabbit | Thumbtack | Rover |
 |---------|----------|------------|-----------|-------|
 | Seasonal Services | ✅ | ❌ | Limited | ❌ |
 | License Auto-Verify | ✅ | Manual | Self-report | N/A |
@@ -166,7 +166,7 @@ Yes, for several reasons:
 ### 3.1 Domain Hierarchy
 
 ```
-HangHand Platform
+JUSTWEDO Platform
 ├── Home Services (Non-Licensed)
 │   ├── House Cleaning
 │   ├── Lawn Mowing
@@ -756,7 +756,7 @@ To build immediate trust, the following UI/UX elements are mandatory:
 
 #### Mandatory Disclaimer Placements
 - **Home-Cooked Food**: A non-dismissible disclaimer on the product page: *"This item is prepared in a private home kitchen. Consume at your own risk."*
-- **High-Risk Services**: A "Platform Intermediary" footer on all Professional and Skilled Trade profiles: *"HangHand is a matching platform. All liability for professional advice resides with the provider."*
+- **High-Risk Services**: A "Platform Intermediary" footer on all Professional and Skilled Trade profiles: *"JUSTWEDO is a matching platform. All liability for professional advice resides with the provider."*
 
 ---
 
@@ -898,7 +898,7 @@ To build a high-trust community without creating friction, the platform uses a t
 3. **Trust Badge**: Providers with 5+ endorsements from verified neighbors receive a "Community Trusted" badge.
 
 ### 11.3 Warmth & Storytelling (The "Neighbor Story")
-To differentiate from transactional apps like TaskRabbit, HangHand emphasizes the human connection through:
+To differentiate from transactional apps like TaskRabbit, JUSTWEDO emphasizes the human connection through:
 
 1. **Neighbor-to-Neighbor Stories**:
    - Beyond a star rating, users are encouraged to share a short **"Story of Help"**.
@@ -1369,16 +1369,16 @@ To ensure a seamless experience, the platform uses a **low-friction** authentica
 
 ## 18. Legal Disclaimer & Intermediary Policy
 
-As a community marketplace, HangHand operates under an **Intermediary Pure-Play** model to manage risk and liability.
+As a community marketplace, JUSTWEDO operates under an **Intermediary Pure-Play** model to manage risk and liability.
 
 ### 17.1 Intermediary Status
-- **Non-Employment**: Helpers and professionals are independent contractors. HangHand is not an employer (strictly matching service).
+- **Non-Employment**: Helpers and professionals are independent contractors. JUSTWEDO is not an employer (strictly matching service).
 - **Pure-Matching for Professionals**: For Legal and Real Estate services, the platform acts only as a **Verified Directory**. All advice and transactions happen off-platform at the user's risk.
 
 ### 17.2 Disclaimers (CRA & Legal)
 - **Tax Disclaimer**: Users are responsible for reporting their own income. The platform provides yearly "Income Summaries" but does not issue T4/T4A slips.
 - **Safety Disclaimer**: While background checks are provided, users must exercise due diligence during in-person meetings.
-- **Intermediary Disclaimer**: HangHand does not guarantee the quality or outcome of work performed by third-party helpers.
+- **Intermediary Disclaimer**: JUSTWEDO does not guarantee the quality or outcome of work performed by third-party helpers.
 
 ### 17.3 Dispute Resolution
 - **On-Platform**: Escrowed funds are held until a 48h dispute window passes. Platform acts as a neutral mediator based on Chat logs and Order Snapshots.
@@ -1390,7 +1390,7 @@ As a community marketplace, HangHand operates under an **Intermediary Pure-Play*
 
 ## 19. UI/UX Design Philosophy: "Neighborly Warmth"
 
-To avoid the sterile, "digital spreadsheet" feel of Kijiji or Facebook Marketplace, HangHand adopts a design language that feels modern, premium, and human-centric.
+To avoid the sterile, "digital spreadsheet" feel of Kijiji or Facebook Marketplace, JUSTWEDO adopts a design language that feels modern, premium, and human-centric.
 
 ### 18.1 Aesthetic Principles: Beyond the Table
 - **Soft Geometry**: Use rounded corners (12px - 24px) for all cards and buttons to create a "friendly" tactile feel.
@@ -1605,7 +1605,7 @@ The homepage serves as the primary entry point and discovery engine for the plat
 4. **Completion Stats**: "Completed 42 tasks this month"
 
 **Anti-Fraud Indicators**:
-- New providers show "New to HangHand" badge (neutral, not negative)
+- New providers show "New to JUSTWEDO" badge (neutral, not negative)
 - Providers with < 5 reviews cannot charge premium prices
 - Task posters with < 3 endorsements show "Build your profile" reminder
 
@@ -1734,7 +1734,7 @@ To balance rapid deployment with a uniquely "warm" user experience, the platform
 
 ## 21. Portability & Anti-Lock-in Strategy
 
-To mitigate vendor lock-in with Supabase and ensure long-term flexibility, HangHand employs a **Multi-Layer Abstraction** architecture.
+To mitigate vendor lock-in with Supabase and ensure long-term flexibility, JUSTWEDO employs a **Multi-Layer Abstraction** architecture.
 
 ### 20.1 Repository Pattern (API Layer Abstraction)
 - **Interface-First Development**: UI components interact ONLY with TypeScript `interfaces` (e.g., `IOrderRepository`).
@@ -1760,7 +1760,7 @@ To mitigate vendor lock-in with Supabase and ensure long-term flexibility, HangH
 
 ## 22. Cross-Platform Expansion Strategy (App & Mini-Program)
 
-To reach neighbors wherever they are, HangHand follows a **Logic-First, Platform-Second** approach for cross-platform expansion.
+To reach neighbors wherever they are, JUSTWEDO follows a **Logic-First, Platform-Second** approach for cross-platform expansion.
 
 ### 21.1 Core Architecture: Logic Sharing (共享逻辑层)
 - **Monorepo Structure**: Consolidate business logic into a shared package (e.g., `packages/core` or `src/services`).
@@ -1898,7 +1898,7 @@ For "Quote & Call" services, providers can submit quotes directly in the convers
 
 ## 24. Development Standards: Internationalization & Bilingual Support
 
-To ensure a seamless and professional user experience, HangHand enforces strict development standards regarding internationalization availability.
+To ensure a seamless and professional user experience, JUSTWEDO enforces strict development standards regarding internationalization availability.
 
 ### 24.1 "Single-Language Immersion" Policy
 - **Goal**: The UI must display content *only* in the user's preferred language (English or Chinese). Use of concatenated strings (e.g., "Verified / 已认证") is **strictly prohibited**.
@@ -1916,7 +1916,7 @@ To ensure a seamless and professional user experience, HangHand enforces strict 
 
 ## 25. User Hub & Profile Design
 
-The Profile page is the "Mission Control" for every HangHand user, serving as the central hub for managing both personal community activities and business operations.
+The Profile page is the "Mission Control" for every JUSTWEDO user, serving as the central hub for managing both personal community activities and business operations.
 
 ### 25.1 Design Philosophy: The Command Center
 - **Persona Duality**: Seamless transition between **Buyer (Neighbor)** and **Provider (Helper)** roles within a single interface.

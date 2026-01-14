@@ -25,7 +25,7 @@ serve(async (req) => {
 
         console.log(`[🧪 Test] Sending test SMS to ${phoneNumber}`)
 
-        const testMessage = `Your HangHand purchase is complete! Card Number: WC-TEST12345. Thank you for your purchase!`
+        const testMessage = `Your JUSTWEDO purchase is complete! Card Number: WC-TEST12345. Thank you for your purchase!`
 
         const result = await sendSMS({
             phoneNumber,

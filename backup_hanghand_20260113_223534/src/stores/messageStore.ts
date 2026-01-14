@@ -1,0 +1,196 @@
+import { create } from 'zustand';
+import { repositoryFactory } from '@/services/repositories/factory';
+
+export interface Conversation {
+    id: string;
+    participantA: string;
+    participantB: string;
+    orderId?: string;
+    lastMessageAt: string;
+    createdAt: string;
+    // UI enrichment
+    otherUserName?: string;
+    otherUserAvatar?: string;
+    lastMessagePreview?: string;
+    unreadCount?: number;
+}
+
+export interface Message {
+    id: string;
+    conversationId: string;
+    senderId: string;
+    content: string;
+    isRead: boolean;
+    createdAt: string;
+}
+
+interface MessageState {
+    conversations: Conversation[];
+    messages: Message[];
+    activeConversationId: string | null;
+    totalUnreadCount: number;
+    isLoading: boolean;
+    error: string | null;
+    unsubscribe: (() => void) | null;
+
+    loadConversations: (userId: string) => Promise<void>;
+    loadMessages: (conversationId: string) => Promise<void>;
+    loadUnreadCount: (userId: string) => Promise<void>;
+    sendMessage: (senderId: string, content: string, type?: string, metadata?: Record<string, any>) => Promise<void>;
+    sendQuote: (senderId: string, orderId: string, amount: number, description?: string) => Promise<void>;
+    createConversation: (userA: string, userB: string, orderId?: string) => Promise<Conversation>;
+    setActiveConversation: (conversationId: string) => void;
+    subscribeToActiveConversation: () => void;
+    subscribeToGlobalEvents: (userId: string) => void;
+    cleanup: () => void;
+}
+
+export const useMessageStore = create<MessageState>((set, get) => ({
+    conversations: [],
+    messages: [],
+    activeConversationId: null,
+    totalUnreadCount: 0,
+    isLoading: false,
+    error: null,
+    unsubscribe: null,
+
+    loadConversations: async (userId: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const repo = repositoryFactory.getMessageRepository();
+            const conversations = await repo.getConversations(userId);
+            set({ conversations, isLoading: false });
+            // Start global subscription for other conversations
+            get().subscribeToGlobalEvents(userId);
+        } catch (error: any) {
+            console.error('Failed to load conversations:', error);
+            set({ error: error.message, isLoading: false });
+        }
+    },
+
+    loadMessages: async (conversationId: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const repo = repositoryFactory.getMessageRepository();
+            const messages = await repo.getMessages(conversationId);
+            set({ messages, isLoading: false });
+        } catch (error: any) {
+            console.error('Failed to load messages:', error);
+            set({ error: error.message, isLoading: false });
+        }
+    },
+
+    loadUnreadCount: async (userId: string) => {
+        try {
+            const repo = repositoryFactory.getMessageRepository();
+            const count = await repo.getUnreadCount(userId);
+            set({ totalUnreadCount: count });
+        } catch (error: any) {
+            console.error('Failed to load unread count:', error);
+        }
+    },
+
+    sendMessage: async (senderId: string, content: string, type: string = 'TEXT', metadata: Record<string, any> = {}) => {
+        const { activeConversationId } = get();
+        if (!activeConversationId || !content.trim()) return;
+
+        try {
+            const repo = repositoryFactory.getMessageRepository();
+            const newMessage = await repo.sendMessage(activeConversationId, senderId, content, type, metadata);
+
+            // Optimistic update
+            set(state => {
+                if (state.messages.find(m => m.id === newMessage.id)) return state;
+                return { messages: [...state.messages, newMessage] };
+            });
+        } catch (error: any) {
+            console.error('Failed to send message:', error);
+            set({ error: error.message });
+        }
+    },
+
+    sendQuote: async (senderId: string, orderId: string, amount: number, description: string = '') => {
+        const content = `[QUOTE] Custom Price: $${(amount / 100).toFixed(2)}`;
+        const metadata = { orderId, amount, description };
+        await get().sendMessage(senderId, content, 'QUOTE', metadata);
+    },
+
+    createConversation: async (userA: string, userB: string, orderId?: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const repo = repositoryFactory.getMessageRepository();
+            const conversation = await repo.createConversation(userA, userB, orderId);
+
+            set(state => ({
+                conversations: [conversation, ...state.conversations],
+                activeConversationId: conversation.id,
+                isLoading: false
+            }));
+
+            // Also load messages for this new conversation
+            get().loadMessages(conversation.id);
+            get().subscribeToActiveConversation();
+
+            return conversation;
+        } catch (error: any) {
+            console.error('Failed to create conversation:', error);
+            set({ error: error.message, isLoading: false });
+            throw error;
+        }
+    },
+
+    setActiveConversation: (conversationId: string) => {
+        const { cleanup } = get();
+        cleanup(); // Unsubscribe from previous conversation
+
+        set({ activeConversationId: conversationId, messages: [] });
+        get().loadMessages(conversationId);
+        get().subscribeToActiveConversation();
+    },
+
+    subscribeToActiveConversation: () => {
+        const { activeConversationId } = get();
+        if (!activeConversationId) return;
+
+        const repo = repositoryFactory.getMessageRepository();
+        const unsubscribe = repo.subscribeToMessages(activeConversationId, (newMessage) => {
+            set(state => {
+                // Avoid duplicates
+                if (state.messages.find(m => m.id === newMessage.id)) {
+                    return state;
+                }
+                return { messages: [...state.messages, newMessage] };
+            });
+        });
+
+        set({ unsubscribe });
+    },
+
+    subscribeToGlobalEvents: (userId: string) => {
+        const repo = repositoryFactory.getMessageRepository();
+        repo.subscribeToUserEvents(userId, (event) => {
+            if (event.type === 'CONVERSATION_UPDATE') {
+                const updatedConv = event.data;
+                set(state => {
+                    const existing = state.conversations.find(c => c.id === updatedConv.id);
+                    if (existing) {
+                        // Update existing and move to top
+                        const otherConvs = state.conversations.filter(c => c.id !== updatedConv.id);
+                        return { conversations: [{ ...existing, ...updatedConv }, ...otherConvs] };
+                    } else {
+                        // New conversation from someone else
+                        return { conversations: [updatedConv, ...state.conversations] };
+                    }
+                });
+            }
+        });
+    },
+
+    cleanup: () => {
+        const { unsubscribe } = get();
+        if (unsubscribe) {
+            unsubscribe();
+            set({ unsubscribe: null });
+        }
+    }
+}));

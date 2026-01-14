@@ -18,7 +18,7 @@ const demoSlides: PromoSlide[] = [
     {
         id: "1",
         imageUrl: "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800&auto=format&fit=crop",
-        titleEn: "HangHand – Ottawa Neighbor Help",
+        titleEn: "JUSTWEDO – Ottawa Neighbor Help",
         titleZh: "渥帮：渥太华有事，找渥帮",
         descEn: "Your community toolbox for neighborly help.",
         descZh: "渥太华邻里互助的便民工具箱",

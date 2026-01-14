@@ -181,7 +181,7 @@ const Login = () => {
                 id: role === 'BUYER'
                     ? '99999999-9999-9999-9999-999999999999' // Valid UUID format for Demo Buyer
                     : 'e1507f9e-7343-4474-a1da-301a213943ec', // Actual ID from Seed Script
-                email: 'demo@hanghand.com',
+                email: 'demo@justwedo.com',
                 name: role === 'BUYER' ? '张三 (Demo)' : 'Eagleson Owner (Demo)',
                 avatar: role === 'BUYER'
                     ? 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop'
@@ -209,7 +209,7 @@ const Login = () => {
                         <span className="text-3xl font-bold">H</span>
                     </div>
                     <h1 className="text-2xl font-extrabold text-white">欢迎回来</h1>
-                    <p className="opacity-80 text-sm text-white">登录 HangHand 社区</p>
+                    <p className="opacity-80 text-sm text-white">登录 JUSTWEDO 社区</p>
                 </div>
 
                 <div className="flex border-b bg-muted/20">

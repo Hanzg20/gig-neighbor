@@ -101,7 +101,7 @@ const Register = () => {
                     <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center mx-auto mb-4 shadow-glow text-foreground">
                         <span className="text-3xl font-bold">H</span>
                     </div>
-                    <h1 className="text-2xl font-extrabold text-white">加入 HangHand</h1>
+                    <h1 className="text-2xl font-extrabold text-white">加入 JUSTWEDO</h1>
                     <p className="opacity-80 text-sm text-white">邻里互助，从这里开始</p>
                 </div>
 
