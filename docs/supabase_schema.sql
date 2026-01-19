@@ -1239,6 +1239,7 @@ CREATE TABLE IF NOT EXISTS public.community_posts (
     post_type TEXT NOT NULL DEFAULT 'GENERAL', -- 'SECOND_HAND', 'WANTED', 'GIVEAWAY', 'EVENT', 'HELP', 'GENERAL'
     title TEXT,
     content TEXT NOT NULL,
+    media_url TEXT, -- Social media link (YouTube, Spotify, etc.)
     images TEXT[] DEFAULT '{}',
     
     -- Optional pricing (for second-hand / wanted)
