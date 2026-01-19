@@ -273,6 +273,59 @@ CREATE TABLE IF NOT EXISTS public.orders (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+-- ==========================================
+-- SQL Migration: Extend Orders Table for Web Ordering Models
+-- Purpose: Add columns for rental periods, deposits, and service call fees.
+-- ==========================================
+
+-- -1. Add Support for Rental Period
+-- Add rental-specific fields to orders table
+ALTER TABLE public.orders 
+ADD COLUMN IF NOT EXISTS rental_start_date TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS rental_end_date TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS deposit_amount INTEGER DEFAULT 0;
+
+-- Update OrderStatus check constraint (if exists)
+-- Note: Some environments might use a text check constraint for status
+DO $$ 
+BEGIN
+    ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_status_check;
+    ALTER TABLE public.orders ADD CONSTRAINT orders_status_check 
+    CHECK (status IN (
+        'DRAFT', 
+        'PENDING_PAYMENT', 
+        'PENDING_CONFIRMATION', 
+        'CONFIRMED', 
+        'IN_PROGRESS', 
+        'COMPLETED', 
+        'CANCELLED', 
+        'REFUNDED',
+        'PICKED_UP',
+        'RETURNED'
+    ));
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END $$;
+
+
+-- 0. Add Support for Security Deposits
+ALTER TABLE public.orders 
+ADD COLUMN IF NOT EXISTS deposit_amount INTEGER DEFAULT -2,
+ADD COLUMN IF NOT EXISTS deposit_status TEXT DEFAULT 'NONE'; -- NONE, HELD, RELEASED, FORFEITED
+
+-- 1. Add Support for Service Call Fees (Quote & Call Model)
+ALTER TABLE public.orders 
+ADD COLUMN IF NOT EXISTS service_call_fee INTEGER DEFAULT -2;
+
+-- 2. Add Index for Date Searches (Optional but recommended)
+CREATE INDEX IF NOT EXISTS idx_orders_rental_dates ON public.orders(rental_start_date, rental_end_date);
+
+-- 3. Verification Query
+-- SELECT column_name, data_type, is_nullable 
+-- FROM information_schema.columns 
+-- WHERE table_name = 'orders' AND column_name IN ('rental_start_date', 'rental_end_date', 'deposit_amount', 'deposit_status', 'service_call_fee');
+
 
 -- Add FK to bean_transactions after orders table exists
 ALTER TABLE public.bean_transactions 
@@ -293,6 +346,7 @@ BEGIN
         ON DELETE SET NULL;
     END IF;
 END $$;
+
 
 -- ==========================================
 -- STEP 7: REVIEWS & TRUST
@@ -443,6 +497,13 @@ DROP TRIGGER IF EXISTS set_timestamp_users ON public.user_profiles;
 CREATE TRIGGER set_timestamp_users 
 BEFORE UPDATE ON public.user_profiles 
 FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+
+ALTER TABLE user_profiles
+ADD COLUMN IF NOT EXISTS provider_profile_id UUID REFERENCES provider_profiles(id);
+ALTER TABLE user_profiles
+ADD COLUMN IF NOT EXISTS roles TEXT[] DEFAULT '{BUYER}';
+NOTIFY pgrst, 'reload config';
 
 /*
   ### 13.2 Review Automations
@@ -1023,3 +1084,373 @@ EXECUTE FUNCTION public.sync_listing_coords();
 -- ==========================================
 CREATE INDEX IF NOT EXISTS idx_listing_masters_location_coords ON public.listing_masters USING GIST (location_coords);
 CREATE INDEX IF NOT EXISTS idx_listing_masters_embedding ON public.listing_masters USING hnsw (embedding vector_cosine_ops);
+
+-- ==========================================
+-- Phase 10: Map Discovery Mode & PostGIS Setup
+-- ==========================================
+
+-- 1. Enable PostGIS extension (requires superuser/dashboard access usually, but trying here)
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+-- 2. Add geography column to listing_masters if it doesn't exist
+-- We use geography(POINT) for performance and distance accuracy in meters
+ALTER TABLE public.listing_masters 
+ADD COLUMN IF NOT EXISTS location_coords geography(POINT);
+
+-- 3. Create index for spatial queries
+CREATE INDEX IF NOT EXISTS idx_listing_masters_location_coords ON public.listing_masters USING GIST (location_coords);
+
+-- 4. Function to sync lat/lng to geography column
+CREATE OR REPLACE FUNCTION public.sync_listing_coords()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL THEN
+        NEW.location_coords = ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326)::geography;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 5. Trigger to automatically sync coords on insert/update
+DROP TRIGGER IF EXISTS trg_sync_listing_coords ON public.listing_masters;
+CREATE TRIGGER trg_sync_listing_coords
+BEFORE INSERT OR UPDATE OF latitude, longitude
+ON public.listing_masters
+FOR EACH ROW
+EXECUTE FUNCTION public.sync_listing_coords();
+
+-- 6. RPC for Radius Search
+CREATE OR REPLACE FUNCTION public.match_listings_by_radius(
+    p_lat DOUBLE PRECISION,
+    p_lng DOUBLE PRECISION,
+    p_radius_meters DOUBLE PRECISION,
+    p_type TEXT DEFAULT NULL,
+    p_category_id TEXT DEFAULT NULL,
+    p_match_count INTEGER DEFAULT 100
+)
+RETURNS TABLE (
+    id UUID,
+    title_zh TEXT,
+    title_en TEXT,
+    description_zh TEXT,
+    description_en TEXT,
+    images TEXT[],
+    type listing_type,
+    category_id TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    rating NUMERIC,
+    review_count INTEGER,
+    status TEXT,
+    distance_meters DOUBLE PRECISION
+) 
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        lm.id,
+        lm.title_zh,
+        lm.title_en,
+        lm.description_zh,
+        lm.description_en,
+        lm.images,
+        lm.type,
+        lm.category_id,
+        lm.latitude,
+        lm.longitude,
+        lm.rating,
+        lm.review_count,
+        lm.status,
+        ST_Distance(lm.location_coords, ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography) AS distance_meters
+    FROM public.listing_masters lm
+    WHERE 
+        lm.status = 'PUBLISHED'
+        AND ST_DWithin(lm.location_coords, ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography, p_radius_meters)
+        AND (p_type IS NULL OR lm.type::text = p_type)
+        AND (p_category_id IS NULL OR lm.category_id = p_category_id)
+    ORDER BY distance_meters ASC
+    LIMIT p_match_count;
+END;
+$$;
+
+-- 7. Populate existing coordinates (Migration for old data)
+UPDATE public.listing_masters
+SET location_coords = ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography
+WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND location_coords IS NULL;
+
+-- ==========================================
+-- CHAT POLISH MIGRATION v1.2
+-- ==========================================
+
+-- 1. Add metadata to messages for structured data (e.g., quotes, system events)
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+
+-- 2. Add metadata to conversations for future extensions
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+
+-- 3. Ensure Realtime is fully enabled for these tables
+-- (Note: Messages was enabled in previous migration, but we ensure it here)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'public' 
+        AND tablename = 'messages'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'public' 
+        AND tablename = 'conversations'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    NULL;
+END $$;
+
+-- ==========================================
+-- COMMUNITY POSTS SYSTEM v1.0
+-- ==========================================
+/*
+  ## Community Posts Architecture
+  
+  Dedicated tables for the community forum feature, separated from the
+  transactional listing_masters system.
+  
+  Features:
+  - Lightweight posts for neighbors (no provider profile required)
+  - Built-in social metrics (likes, comments, views)
+  - Support for post types: SECOND_HAND, WANTED, GIVEAWAY, EVENT, HELP, GENERAL
+  - Post-to-Service conversion tracking
+*/
+
+-- 1. Community Posts Table (主帖表)
+CREATE TABLE IF NOT EXISTS public.community_posts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    author_id UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    
+    -- Content
+    post_type TEXT NOT NULL DEFAULT 'GENERAL', -- 'SECOND_HAND', 'WANTED', 'GIVEAWAY', 'EVENT', 'HELP', 'GENERAL'
+    title TEXT,
+    content TEXT NOT NULL,
+    images TEXT[] DEFAULT '{}',
+    
+    -- Optional pricing (for second-hand / wanted)
+    price_hint INTEGER, -- in cents, nullable
+    price_negotiable BOOLEAN DEFAULT TRUE,
+    
+    -- Location
+    location_text TEXT,
+    node_id TEXT REFERENCES public.ref_codes(code_id),
+    
+    -- Tags & Categorization
+    tags TEXT[] DEFAULT '{}',
+    
+    -- Social Metrics (denormalized for performance)
+    like_count INTEGER DEFAULT 0,
+    comment_count INTEGER DEFAULT 0,
+    view_count INTEGER DEFAULT 0,
+    
+    -- Status
+    status TEXT DEFAULT 'ACTIVE', -- 'ACTIVE', 'RESOLVED', 'ARCHIVED', 'DELETED'
+    is_pinned BOOLEAN DEFAULT FALSE,
+    is_resolved BOOLEAN DEFAULT FALSE,
+    
+    -- Timestamps
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Community Comments Table (评论表)
+CREATE TABLE IF NOT EXISTS public.community_comments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    post_id UUID NOT NULL REFERENCES public.community_posts(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    parent_comment_id UUID REFERENCES public.community_comments(id) ON DELETE CASCADE,
+    like_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. Community Likes Table (点赞表 - Posts)
+CREATE TABLE IF NOT EXISTS public.community_post_likes (
+    post_id UUID NOT NULL REFERENCES public.community_posts(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (post_id, user_id)
+);
+
+-- 4. Community Likes Table (点赞表 - Comments)
+CREATE TABLE IF NOT EXISTS public.community_comment_likes (
+    comment_id UUID NOT NULL REFERENCES public.community_comments(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (comment_id, user_id)
+);
+
+-- 5. Post-to-Service Conversion Tracking
+CREATE TABLE IF NOT EXISTS public.community_post_conversions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    post_id UUID NOT NULL REFERENCES public.community_posts(id) ON DELETE CASCADE,
+    listing_id UUID NOT NULL REFERENCES public.listing_masters(id) ON DELETE CASCADE,
+    converted_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(post_id)
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_community_posts_author ON public.community_posts(author_id);
+CREATE INDEX IF NOT EXISTS idx_community_posts_node ON public.community_posts(node_id);
+CREATE INDEX IF NOT EXISTS idx_community_posts_type ON public.community_posts(post_type);
+CREATE INDEX IF NOT EXISTS idx_community_posts_status ON public.community_posts(status);
+CREATE INDEX IF NOT EXISTS idx_community_posts_created ON public.community_posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_community_comments_post ON public.community_comments(post_id);
+
+-- RLS Policies
+ALTER TABLE public.community_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.community_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.community_post_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.community_comment_likes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view active posts" ON public.community_posts 
+    FOR SELECT USING (status = 'ACTIVE' OR status = 'RESOLVED');
+
+CREATE POLICY "Authors can manage own posts" ON public.community_posts 
+    FOR ALL USING (auth.uid() = author_id);
+
+CREATE POLICY "Anyone can view comments" ON public.community_comments 
+    FOR SELECT USING (TRUE);
+
+CREATE POLICY "Users can manage own comments" ON public.community_comments 
+    FOR ALL USING (auth.uid() = author_id);
+
+CREATE POLICY "Anyone can view post likes" ON public.community_post_likes 
+    FOR SELECT USING (TRUE);
+
+CREATE POLICY "Users can manage own post likes" ON public.community_post_likes 
+    FOR ALL USING (auth.uid() = user_id);
+
+-- Triggers for auto-counting
+CREATE OR REPLACE FUNCTION update_post_like_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE public.community_posts SET like_count = like_count + 1 WHERE id = NEW.post_id;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE public.community_posts SET like_count = like_count - 1 WHERE id = OLD.post_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS on_post_like_change ON public.community_post_likes;
+CREATE TRIGGER on_post_like_change
+    AFTER INSERT OR DELETE ON public.community_post_likes
+    FOR EACH ROW EXECUTE FUNCTION update_post_like_count();
+
+CREATE OR REPLACE FUNCTION update_post_comment_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE public.community_posts SET comment_count = comment_count + 1 WHERE id = NEW.post_id;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE public.community_posts SET comment_count = comment_count - 1 WHERE id = OLD.post_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS on_comment_change ON public.community_comments;
+CREATE TRIGGER on_comment_change
+    AFTER INSERT OR DELETE ON public.community_comments
+    FOR EACH ROW EXECUTE FUNCTION update_post_comment_count();
+
+-- Enable Realtime
+DO $$ 
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.community_posts;
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.community_comments;
+EXCEPTION WHEN duplicate_object THEN
+    NULL;
+END $$;
+
+
+
+
+
+
+
+
+
+-- 🎓 Professional Directory Verification Table
+-- Supports Lawyers, Real Estate Agents, Electricians, etc.
+
+CREATE TABLE IF NOT EXISTS public.professional_credentials (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  provider_id UUID REFERENCES public.provider_profiles(id) ON DELETE CASCADE,
+  type TEXT NOT NULL, -- 'LAWYER', 'REAL_ESTATE_AGENT', 'HVAC', 'ELECTRICIAN', etc.
+  license_number TEXT NOT NULL,
+  jurisdiction TEXT DEFAULT 'ONTARIO',
+  extra_data JSONB DEFAULT '{}'::jsonb,
+  status TEXT DEFAULT 'VERIFIED', -- 'VERIFIED', 'PENDING', 'EXPIRED', 'REJECTED'
+  verified_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index for performance
+CREATE INDEX IF NOT EXISTS credentials_provider_id_idx ON public.professional_credentials(provider_id);
+
+-- Enable RLS
+ALTER TABLE public.professional_credentials ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE policyname = 'Professional credentials are viewable by everyone'
+    ) THEN
+        CREATE POLICY "Professional credentials are viewable by everyone"
+          ON public.professional_credentials FOR SELECT
+          USING (true);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE policyname = 'Providers can manage their own credentials'
+    ) THEN
+        CREATE POLICY "Providers can manage their own credentials"
+          ON public.professional_credentials FOR ALL
+          USING (
+            provider_id IN (
+              SELECT id FROM public.provider_profiles WHERE user_id = auth.uid()
+            )
+          );
+    END IF;
+END $$;
+
+-- Update trigger for updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'set_updated_at_credentials'
+    ) THEN
+        CREATE TRIGGER set_updated_at_credentials
+        BEFORE UPDATE ON public.professional_credentials
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;

@@ -96,11 +96,17 @@ export const InstantPayFlow = ({ isOpen, onClose, master, item, dateRange, consu
                     model: item.pricing.model,
                     price: item.pricing.price,
                     unit: item.pricing.unit,
-                    deposit: item.pricing.deposit
+                    deposit: item.pricing.deposit,
+                    serviceCallFee: item.pricing.serviceCallFee
                 },
-                providerName: 'Provider', // We should fetch this ideally, but snapshot is OK to be simple for now
+                providerName: 'Provider',
                 providerBadges: []
-            }
+            },
+            rentalStartDate: dateRange?.from?.toISOString(),
+            rentalEndDate: dateRange?.to?.toISOString(),
+            depositAmount: item.pricing.deposit?.amount || 0,
+            depositStatus: item.pricing.deposit ? 'NONE' : 'NONE',
+            serviceCallFee: item.pricing.model === 'VISIT_FEE' ? item.pricing.price.amount : 0
         };
 
         const result = await createOrder(orderData);

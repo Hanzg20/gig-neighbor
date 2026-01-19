@@ -11,7 +11,8 @@ import {
     ICommunityStatsRepository,
     IReviewRepository,
     IUserRepository,
-    IInventoryRepository
+    IInventoryRepository,
+    IPayoutRepository
 } from './interfaces';
 
 // Supabase implementations
@@ -28,6 +29,7 @@ import { CommunityStatsRepository } from './supabase/CommunityStatsRepository';
 import { SupabaseReviewRepository } from './supabase/ReviewRepository';
 import { SupabaseUserRepository } from './supabase/UserRepository';
 import { SupabaseInventoryRepository } from './supabase/InventoryRepository';
+import { SupabasePayoutRepository } from "./supabase/PayoutRepository";
 
 // Mock implementations
 import { MockReviewRepository } from './mock/ReviewRepository';
@@ -140,6 +142,10 @@ class RepositoryFactory {
 
     getInventoryRepository(): IInventoryRepository {
         return new SupabaseInventoryRepository();
+    }
+
+    getPayoutRepository(): IPayoutRepository {
+        return new SupabasePayoutRepository();
     }
 
     // Convenience methods for common operations

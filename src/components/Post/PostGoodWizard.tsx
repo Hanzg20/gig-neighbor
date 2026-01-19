@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { RefCode } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Upload, Check, Camera, Tag, Truck, Banknote } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useListingStore } from "@/stores/listingStore";
+import { useCommunity } from "@/context/CommunityContext";
 import { autoMatchSubcategory } from "@/utils/categoryMatcher";
 import ImageUploader from "../common/ImageUploader";
 
@@ -53,65 +55,60 @@ const PostGoodWizard = ({ category, onBack }: PostGoodWizardProps) => {
     };
 
     const { currentUser } = useAuthStore();
-    const { addListing } = useListingStore();
+    const { createListing } = useListingStore();
+    const { activeNodeId } = useCommunity();
 
     const handleSubmit = async () => {
         if (!currentUser) return;
 
-        // Auto-match subcategory based on content
-        const parentId = category?.codeId || 'GOODS_GENERAL';
-        const matchedCategoryId = autoMatchSubcategory(title, description, parentId);
+        try {
+            // Auto-match subcategory based on content
+            const parentId = category?.codeId || 'GOODS_GENERAL';
+            const matchedCategoryId = autoMatchSubcategory(title, description, parentId);
 
-        // Mock Submit - Adding to store
-        const newListingId = `listing-${Date.now()}`;
-        const newListing = {
-            id: newListingId,
-            providerId: currentUser.id, // Buyer-as-Poster logic
-            type: 'GOODS' as const,
-            categoryId: matchedCategoryId,
-            titleEn: title,
-            titleZh: title,
-            descriptionEn: description,
-            descriptionZh: description,
-            images: images.length > 0 ? images : ["https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=60"],
-            rating: 5,
-            reviewCount: 0,
-            status: 'PUBLISHED' as const,
-            nodeId: 'lees-ave', // Default for pilot
-            tags: [],
-            location: {
-                fullAddress: "Ottawa, ON",
-            },
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
+            const masterData = {
+                providerId: currentUser.id,
+                titleZh: title,
+                titleEn: title,
+                descriptionZh: description,
+                descriptionEn: description,
+                images: images.length > 0 ? images : ["https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=60"],
+                type: 'GOODS' as const,
+                categoryId: matchedCategoryId,
+                nodeId: activeNodeId, // 使用当前活动的社区节点
+                status: 'PUBLISHED' as const,
+                tags: [],
+                location: { fullAddress: "Ottawa, ON" },
+                rating: 5,
+                reviewCount: 0,
+                isPromoted: false
+            };
 
-        const newItem = {
-            id: `item-${Date.now()}`,
-            masterId: newListingId,
-            titleEn: 'Standard',
-            titleZh: '标准包',
-            nameZh: '标准包',
-            descriptionZh: description,
-            status: 'AVAILABLE' as const,
-            pricing: {
-                model: 'FIXED' as const,
-                price: { amount: parseFloat(price) * 100, currency: 'CAD', formatted: `$${parseFloat(price).toFixed(2)}` },
-                unit: 'item'
-            },
-            attributes: {
-                condition,
-                delivery
-            },
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
+            const itemData = {
+                masterId: '', // Set by store
+                nameZh: '标准包',
+                nameEn: 'Standard',
+                descriptionZh: description,
+                descriptionEn: description,
+                status: 'AVAILABLE' as const,
+                pricing: {
+                    model: 'FIXED' as const,
+                    price: { amount: parseFloat(price) * 100, currency: 'CAD', formatted: `$${parseFloat(price).toFixed(2)}` },
+                    unit: 'item'
+                },
+                images: images.slice(0, 1),
+                attributes: {
+                    condition,
+                    delivery
+                }
+            };
 
-        addListing(newListing, [newItem]);
-
-        console.log("Submitting Good:", newListing, newItem);
-        alert("Listing successfully posted!");
-        navigate('/my-listings');
+            await createListing(masterData, [itemData]);
+            toast.success("发布成功！");
+            navigate('/my-listings');
+        } catch (err: any) {
+            toast.error("发布失败: " + err.message);
+        }
     };
 
     // --- Steps ---

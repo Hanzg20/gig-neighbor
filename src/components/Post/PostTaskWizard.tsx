@@ -5,6 +5,7 @@ import { ArrowLeft, Clock, MapPin, Banknote, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useListingStore } from "@/stores/listingStore";
+import { useCommunity } from "@/context/CommunityContext";
 import { autoMatchSubcategory } from "@/utils/categoryMatcher";
 import ImageUploader from "../common/ImageUploader";
 
@@ -51,6 +52,7 @@ const PostTaskWizard = ({ category, onBack }: PostTaskWizardProps) => {
 
     const { currentUser } = useAuthStore();
     const { addListing } = useListingStore();
+    const { activeNodeId } = useCommunity();
 
     const handleSubmit = async () => {
         if (!currentUser) return;
@@ -75,7 +77,7 @@ const PostTaskWizard = ({ category, onBack }: PostTaskWizardProps) => {
             rating: 5,
             reviewCount: 0,
             status: 'PUBLISHED' as const,
-            nodeId: 'lees-ave',
+            nodeId: activeNodeId, // 使用当前活动的社区节点
             tags: [],
             location: {
                 fullAddress: address || "Ottawa, ON",

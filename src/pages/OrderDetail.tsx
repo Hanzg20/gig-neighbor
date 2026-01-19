@@ -7,24 +7,82 @@ import { Button } from "@/components/ui/button";
 import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMessageStore } from "@/stores/messageStore";
+import { useConfigStore } from "@/stores/configStore";
 import { OrderStatus, Order } from "@/types/orders";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { QuoteDialog } from "@/components/orders/QuoteDialog";
 
 const OrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { currentUser } = useAuthStore();
+    const { language } = useConfigStore();
     const { orders, updateOrderStatus, updateOrder } = useOrderStore();
     const { createConversation } = useMessageStore();
     const [isLoading, setIsLoading] = useState(false);
+    const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
+
+    const t = {
+        back: language === 'zh' ? '返回订单' : 'Back to Orders',
+        orderNo: language === 'zh' ? '订单号' : 'Order #',
+        orderNotFound: language === 'zh' ? '未找到订单' : 'Order not found',
+        quoteSuccess: language === 'zh' ? '报价提交成功' : 'Quote submitted successfully',
+        quoteError: language === 'zh' ? '报价提交失败' : 'Failed to submit quote',
+        rejectConfirm: language === 'zh' ? '确定要拒绝此订单吗？此操作无法撤销。' : 'Are you sure you want to reject this order? This cannot be undone.',
+        rejectSuccess: language === 'zh' ? '订单已拒绝' : 'Order rejected',
+        rejectError: language === 'zh' ? '拒绝失败' : 'Failed to reject order',
+        workDoneConfirm: language === 'zh' ? '确认工作已完成？' : 'Confirm work is done?',
+        completeSuccess: language === 'zh' ? '订单已标记为完成！' : 'Order marked as completed!',
+        updateError: language === 'zh' ? '更新状态失败' : 'Failed to update status',
+        quoteApproveSuccess: language === 'zh' ? '报价已批准。请继续支付。' : 'Quote approved. Please proceed to payment.',
+        quoteApproveError: language === 'zh' ? '批准报价失败' : 'Failed to approve quote',
+        payNow: language === 'zh' ? '立即支付' : 'Pay Now',
+        payDeposit: language === 'zh' ? '支付押金' : 'Pay Deposit',
+        approvePrice: language === 'zh' ? '批准价格' : 'Approve Price',
+        confirmComplete: language === 'zh' ? '确认完成' : 'Confirm Complete',
+        writeReview: language === 'zh' ? '写评价' : 'Write Review',
+        acceptOrder: language === 'zh' ? '接受订单' : 'Accept Order',
+        reject: language === 'zh' ? '拒绝' : 'Reject',
+        decline: language === 'zh' ? '拒绝' : 'Decline',
+        submitQuote: language === 'zh' ? '提交报价' : 'Submit Quote',
+        markComplete: language === 'zh' ? '标记为完成' : 'Mark as Completed',
+        confirmPickup: language === 'zh' ? '确认取件' : 'Confirm Pickup',
+        confirmReturn: language === 'zh' ? '确认归还' : 'Confirm Return',
+        settleComplete: language === 'zh' ? '结算并完成' : 'Settle & Complete',
+        contact: language === 'zh' ? '联系' : 'Contact',
+        buyer: language === 'zh' ? '买家' : 'Buyer',
+        provider: language === 'zh' ? '提供商' : 'Provider',
+        basePrice: language === 'zh' ? '基础价格' : 'Base Price',
+        tax: language === 'zh' ? '税费' : 'Tax',
+        platformFee: language === 'zh' ? '平台费' : 'Platform Fee',
+        bookingFee: language === 'zh' ? '预约费（不退还）' : 'Booking Fee (Non-refundable)',
+        totalPaid: language === 'zh' ? '实付总额' : 'Total Paid',
+        status: {
+            'PENDING_PAYMENT': language === 'zh' ? '等待支付' : 'Waiting for Payment',
+            'PENDING_CONFIRMATION': language === 'zh' ? '等待确认' : 'Pending Confirmation',
+            'IN_PROGRESS': language === 'zh' ? '进行中' : 'In Progress',
+            'COMPLETED': language === 'zh' ? '已完成' : 'Completed',
+            'CANCELLED': language === 'zh' ? '已取消' : 'Cancelled',
+            'PENDING_DEPOSIT': language === 'zh' ? '等待押金' : 'Waiting for Deposit',
+            'PENDING_QUOTE': language === 'zh' ? '等待报价' : 'Awaiting Quote',
+            'WAITING_FOR_PRICE_APPROVAL': language === 'zh' ? '待批准报价' : 'Reviewing Quote',
+            'PICKED_UP': language === 'zh' ? '已取件' : 'Item Picked Up',
+            'RETURNED': language === 'zh' ? '已归还' : 'Item Returned',
+        }
+    };
 
     // Find order in store (assuming loaded)
     const order = orders.find(o => o.id === id);
 
+    useEffect(() => {
+        if (!currentUser) {
+            navigate('/login');
+        }
+    }, [currentUser, navigate]);
+
     if (!currentUser) {
-        navigate('/login');
-        return null;
+        return null; // Don't render anything while waiting for the effect
     }
 
     if (!order) {
@@ -44,15 +102,7 @@ const OrderDetail = () => {
     const isBuyer = order.buyerId === currentUser.id;
     const isProvider = order.providerId === currentUser.id;
 
-    const handleSubmitQuote = async () => {
-        const amountStr = prompt("Enter the total service amount in CAD (excluding fees/tax):");
-        if (!amountStr) return;
-        const amount = parseFloat(amountStr);
-        if (isNaN(amount) || amount < 0) {
-            toast.error("Invalid amount");
-            return;
-        }
-
+    const handleSubmitQuote = async (amount: number) => {
         setIsLoading(true);
         const cents = Math.round(amount * 100);
         const platformFee = Math.round(cents * 0.05);
@@ -71,12 +121,34 @@ const OrderDetail = () => {
                     total: { amount: total, currency: 'CAD', formatted: formatCAD(total) }
                 }
             });
-            toast.success("Quote submitted successfully");
+            toast.success(t.quoteSuccess);
+            setIsQuoteDialogOpen(false);
         } catch (error) {
-            toast.error("Failed to submit quote");
+            toast.error(t.quoteError);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleReject = async () => {
+        if (!confirm(t.rejectConfirm)) return;
+        setIsLoading(true);
+        try {
+            await updateOrderStatus(order.id, 'CANCELLED');
+            toast.info(t.rejectSuccess);
+        } catch (error) {
+            toast.error(t.rejectError);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleProviderComplete = async () => {
+        if (!confirm(t.workDoneConfirm)) return;
+        try {
+            await updateOrderStatus(order.id, 'COMPLETED');
+            toast.success(t.completeSuccess);
+        } catch (e) { toast.error(t.updateError); }
     };
 
     const handleApproveQuote = async () => {
@@ -85,9 +157,9 @@ const OrderDetail = () => {
             await updateOrder(order.id, {
                 status: 'PENDING_PAYMENT'
             });
-            toast.success("Quote approved. Please proceed to payment.");
+            toast.success(t.quoteApproveSuccess);
         } catch (error) {
-            toast.error("Failed to approve quote");
+            toast.error(t.quoteApproveError);
         } finally {
             setIsLoading(false);
         }
@@ -97,24 +169,31 @@ const OrderDetail = () => {
         setIsLoading(true);
         try {
             const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                headers: {
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                },
                 body: {
                     orderType: 'WEB_ORDER',
                     orderId: order.id,
                     listingItemId: order.itemId,
                     masterId: order.masterId,
                     buyerId: currentUser.id,
-                    productName: order.snapshot.itemName,
+                    productName: order.snapshot.itemName || 'Service Order',
                     price: order.pricing.total.amount,
                     metadata: {
-                        rentalStart: order.rentalStartDate,
-                        rentalEnd: order.rentalEndDate,
-                        depositAmount: order.depositAmount,
-                        serviceCallFee: order.serviceCallFee
+                        rentalStart: order.rentalStartDate || '',
+                        rentalEnd: order.rentalEndDate || '',
+                        rentalDays: (order.rentalDays || '').toString(),
+                        depositAmount: order.depositAmount || 0,
+                        serviceCallFee: order.serviceCallFee || 0
                     }
                 }
             });
 
-            if (error || !data?.url) throw error || new Error("Failed to create session");
+            if (error || !data?.url) {
+                console.error('Stripe session error details:', error);
+                throw error || new Error("Failed to create session");
+            }
             window.location.href = data.url;
         } catch (error) {
             console.error('Payment failed:', error);
@@ -127,13 +206,8 @@ const OrderDetail = () => {
     const handleMessage = async () => {
         setIsLoading(true);
         try {
-            // Determine initial partnerId (try user_id from join first, else fallback)
             let partnerId = isBuyer ? order.providerUserId : order.buyerId;
-
-            // FALLBACK: If we are the buyer, and the ID looks suspicious (same as profile ID) or is missing
-            // We fetch the real User ID directly from the DB.
             if (isBuyer && (!partnerId || partnerId === order.providerId)) {
-                console.log("⚠️ Provider User ID missing/mismatched in order. Fetching manually...");
                 const { data: profile, error } = await supabase
                     .from('provider_profiles')
                     .select('user_id')
@@ -141,26 +215,22 @@ const OrderDetail = () => {
                     .single();
 
                 if (error || !profile) {
-                    throw new Error("Could not find Provider User ID linked to this order.");
+                    throw new Error("Could not find Provider User ID.");
                 }
                 partnerId = profile.user_id;
-                console.log("✅ Resolved Provider User ID:", partnerId);
             }
 
-            // Validate UUID format
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             if (!partnerId || !uuidRegex.test(partnerId)) {
-                alert(`Cannot start chat: Invalid Partner ID (${partnerId}). Data integrity issue.`);
-                console.error("Invalid Partner ID:", partnerId);
+                alert(`Cannot start chat: Invalid Partner ID (${partnerId}).`);
                 setIsLoading(false);
                 return;
             }
 
-            const conversation = await createConversation(currentUser.id, partnerId, order.id);
+            await createConversation(currentUser.id, partnerId, order.id);
             navigate('/chat');
         } catch (error: any) {
-            console.error("Chat creation failed:", error);
-            alert(`Failed to start chat: ${error.message || 'Unknown error'}`);
+            toast.error(`Failed to start chat: ${error.message}`);
         } finally {
             setIsLoading(false);
         }
@@ -168,14 +238,16 @@ const OrderDetail = () => {
 
     const StatusBadge = ({ status }: { status: OrderStatus }) => {
         const config = {
-            'PENDING_PAYMENT': { color: 'text-orange-500', bg: 'bg-orange-50', label: 'Waiting for Payment' },
-            'PENDING_CONFIRMATION': { color: 'text-blue-500', bg: 'bg-blue-50', label: 'Pending Confirmation' },
-            'IN_PROGRESS': { color: 'text-purple-500', bg: 'bg-purple-50', label: 'In Progress' },
-            'COMPLETED': { color: 'text-green-500', bg: 'bg-green-50', label: 'Completed' },
-            'CANCELLED': { color: 'text-gray-500', bg: 'bg-gray-50', label: 'Cancelled' },
-            'PENDING_DEPOSIT': { color: 'text-orange-500', bg: 'bg-orange-50', label: 'Waiting for Deposit' },
-            'PENDING_QUOTE': { color: 'text-amber-500', bg: 'bg-amber-50', label: 'Awaiting Quote' },
-            'WAITING_FOR_PRICE_APPROVAL': { color: 'text-orange-600', bg: 'bg-orange-50', label: 'Reviewing Quote' },
+            'PENDING_PAYMENT': { color: 'text-orange-500', bg: 'bg-orange-50', label: t.status.PENDING_PAYMENT },
+            'PENDING_CONFIRMATION': { color: 'text-blue-500', bg: 'bg-blue-50', label: t.status.PENDING_CONFIRMATION },
+            'IN_PROGRESS': { color: 'text-purple-500', bg: 'bg-purple-50', label: t.status.IN_PROGRESS },
+            'COMPLETED': { color: 'text-green-500', bg: 'bg-green-50', label: t.status.COMPLETED },
+            'CANCELLED': { color: 'text-gray-500', bg: 'bg-gray-50', label: t.status.CANCELLED },
+            'PENDING_DEPOSIT': { color: 'text-orange-500', bg: 'bg-orange-50', label: t.status.PENDING_DEPOSIT },
+            'PENDING_QUOTE': { color: 'text-amber-500', bg: 'bg-amber-50', label: t.status.PENDING_QUOTE },
+            'WAITING_FOR_PRICE_APPROVAL': { color: 'text-orange-600', bg: 'bg-orange-50', label: t.status.WAITING_FOR_PRICE_APPROVAL },
+            'PICKED_UP': { color: 'text-blue-600', bg: 'bg-blue-50', label: t.status.PICKED_UP },
+            'RETURNED': { color: 'text-emerald-600', bg: 'bg-emerald-50', label: t.status.RETURNED },
         }[status] || { color: 'text-gray-500', bg: 'bg-gray-50', label: status };
 
         return (
@@ -189,144 +261,184 @@ const OrderDetail = () => {
         <div className="min-h-screen bg-background">
             <Header />
 
-            <div className="container max-w-3xl py-8 px-4">
-                {/* Back Link */}
-                <button
-                    onClick={() => navigate('/orders')}
-                    className="flex items-center text-muted-foreground hover:text-foreground mb-6"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-1" /> Back to Orders
-                </button>
+            <div className="container py-20 text-center" style={{ display: !order ? 'block' : 'none' }}>
+                <p className="text-muted-foreground">{t.orderNotFound}</p>
+                <Button onClick={() => navigate('/orders')} className="mt-4" variant="outline">
+                    {t.back}
+                </Button>
+            </div>
 
-                {/* Main Card */}
-                <div className="card-warm overflow-hidden mb-6">
-                    {/* Header bg */}
-                    <div className="bg-muted/30 p-6 border-b border-border">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm text-muted-foreground mb-1">Order #{order.id.slice(0, 8)}</p>
-                                <h1 className="text-2xl font-black">{order.snapshot.masterTitle}</h1>
+            <div className="container max-w-3xl py-8 px-4" style={{ display: order ? 'block' : 'none' }}>
+                {order && (
+                    <>
+                        <button
+                            onClick={() => navigate('/orders')}
+                            className="flex items-center text-muted-foreground hover:text-foreground mb-6"
+                        >
+                            <ArrowLeft className="w-4 h-4 mr-1" /> {t.back}
+                        </button>
+
+                        <div className="card-warm overflow-hidden mb-6">
+                            <div className="bg-muted/30 p-6 border-b border-border">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="text-sm text-muted-foreground mb-1">{t.orderNo}{order.id.slice(0, 8)}</p>
+                                        <h1 className="text-2xl font-black">{order.snapshot.masterTitle}</h1>
+                                    </div>
+                                    <StatusBadge status={order.status} />
+                                </div>
                             </div>
-                            <StatusBadge status={order.status} />
-                        </div>
-                    </div>
 
-                    {/* Content */}
-                    <div className="p-6 space-y-6">
-                        {/* Item Details */}
-                        <div className="flex gap-4 items-start">
-                            <img
-                                src={order.snapshot.masterImages[0]}
-                                alt={order.snapshot.masterTitle}
-                                className="w-20 h-20 rounded-lg object-cover bg-muted"
-                            />
-                            <div>
-                                <h3 className="font-bold text-lg">{order.snapshot.itemName}</h3>
-                                <p className="text-muted-foreground">{order.snapshot.itemDescription}</p>
-                                <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                                    <span className="flex items-center">
-                                        <Calendar className="w-4 h-4 mr-1" />
-                                        {new Date(order.createdAt).toLocaleDateString()}
-                                    </span>
-                                    {order.snapshot.itemPricing.unit && (
-                                        <span className="flex items-center">
-                                            <Package className="w-4 h-4 mr-1" />
-                                            {order.snapshot.itemPricing.unit}
-                                        </span>
+                            <div className="p-6 space-y-6">
+                                <div className="flex gap-4 items-start">
+                                    <img
+                                        src={order.snapshot.masterImages[0]}
+                                        alt={order.snapshot.masterTitle}
+                                        className="w-20 h-20 rounded-lg object-cover bg-muted"
+                                        loading="lazy"
+                                    />
+                                    <div>
+                                        <h3 className="font-bold text-lg">{order.snapshot.itemName}</h3>
+                                        <p className="text-muted-foreground">{order.snapshot.itemDescription}</p>
+                                        <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                                            <span className="flex items-center">
+                                                <Calendar className="w-4 h-4 mr-1" />
+                                                {new Date(order.createdAt).toLocaleDateString()}
+                                            </span>
+                                            {order.snapshot.itemPricing.unit && (
+                                                <span className="flex items-center">
+                                                    <Package className="w-4 h-4 mr-1" />
+                                                    {order.snapshot.itemPricing.unit}
+                                                </span>
+                                            )}
+                                            {order.rentalStartDate && (
+                                                <span className="flex items-center text-blue-600 font-bold">
+                                                    <Calendar className="w-4 h-4 mr-1" />
+                                                    {new Date(order.rentalStartDate).toLocaleDateString()} - {order.rentalEndDate ? new Date(order.rentalEndDate).toLocaleDateString() : '?'}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-muted/20 p-4 rounded-xl space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">{t.basePrice}</span>
+                                        <span>{order.pricing.baseAmount.formatted}</span>
+                                    </div>
+                                    {order.pricing.taxAmount?.amount > 0 && (
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">{t.tax}</span>
+                                            <span>{order.pricing.taxAmount.formatted}</span>
+                                        </div>
+                                    )}
+                                    {order.pricing.platformFee.amount > 0 && (
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">{t.platformFee}</span>
+                                            <span>{order.pricing.platformFee.formatted}</span>
+                                        </div>
+                                    )}
+                                    {order.serviceCallFee && order.serviceCallFee > 0 && (
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">{t.bookingFee}</span>
+                                            <span>${(order.serviceCallFee / 100).toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between font-bold text-lg pt-2 border-t border-border">
+                                        <span>{t.totalPaid}</span>
+                                        <span className="text-primary">{order.pricing.total.formatted}</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 pt-2">
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1"
+                                        onClick={handleMessage}
+                                        disabled={isLoading}
+                                    >
+                                        <MessageCircle className="w-4 h-4 mr-2" />
+                                        {t.contact} {isBuyer ? t.provider : t.buyer}
+                                    </Button>
+
+                                    {isBuyer && order.status === 'PENDING_PAYMENT' && (
+                                        <Button className="flex-1 btn-action" onClick={handlePay} disabled={isLoading}>
+                                            {t.payNow}
+                                        </Button>
+                                    )}
+                                    {isBuyer && order.status === 'PENDING_DEPOSIT' && (
+                                        <Button className="flex-1 btn-action bg-orange-600 hover:bg-orange-700 text-white" onClick={handlePay} disabled={isLoading}>
+                                            {t.payDeposit}
+                                        </Button>
+                                    )}
+                                    {isBuyer && order.status === 'WAITING_FOR_PRICE_APPROVAL' && (
+                                        <Button className="flex-1 btn-action" onClick={handleApproveQuote} disabled={isLoading}>
+                                            {t.approvePrice}
+                                        </Button>
+                                    )}
+                                    {isBuyer && order.status === 'IN_PROGRESS' && (
+                                        <Button className="flex-1 btn-action" onClick={() => updateOrderStatus(order.id, 'COMPLETED')}>
+                                            {t.confirmComplete}
+                                        </Button>
+                                    )}
+
+                                    {isBuyer && order.status === 'COMPLETED' && (
+                                        <Button className="flex-1 bg-secondary hover:bg-secondary/90 text-white font-black uppercase tracking-widest rounded-xl" onClick={() => navigate(`/review/${order.id}`)}>
+                                            {t.writeReview}
+                                        </Button>
+                                    )}
+
+                                    {isProvider && order.status === 'PENDING_CONFIRMATION' && (
+                                        <>
+                                            <Button variant="outline" className="flex-1" onClick={handleReject} disabled={isLoading}>
+                                                {t.reject}
+                                            </Button>
+                                            <Button className="flex-1 btn-action" onClick={() => updateOrderStatus(order.id, 'IN_PROGRESS')}>
+                                                {t.acceptOrder}
+                                            </Button>
+                                        </>
+                                    )}
+                                    {isProvider && order.status === 'PENDING_QUOTE' && (
+                                        <>
+                                            <Button variant="outline" className="flex-1" onClick={handleReject} disabled={isLoading}>
+                                                {t.decline}
+                                            </Button>
+                                            <Button className="flex-1 btn-action" onClick={() => setIsQuoteDialogOpen(true)} disabled={isLoading}>
+                                                {t.submitQuote}
+                                            </Button>
+                                        </>
+                                    )}
+                                    {isProvider && order.status === 'IN_PROGRESS' && (
+                                        <Button className="flex-1 btn-action" onClick={() => updateOrderStatus(order.id, order.rentalStartDate ? 'PICKED_UP' : 'COMPLETED')} disabled={isLoading}>
+                                            {order.rentalStartDate ? t.confirmPickup : t.markComplete}
+                                        </Button>
+                                    )}
+                                    {isProvider && order.status === 'PICKED_UP' && (
+                                        <Button className="flex-1 btn-action bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => updateOrderStatus(order.id, 'RETURNED')} disabled={isLoading}>
+                                            {t.confirmReturn}
+                                        </Button>
+                                    )}
+                                    {isProvider && order.status === 'RETURNED' && (
+                                        <Button className="flex-1 btn-action" onClick={() => updateOrderStatus(order.id, 'COMPLETED')} disabled={isLoading}>
+                                            {t.settleComplete}
+                                        </Button>
                                     )}
                                 </div>
                             </div>
                         </div>
-
-                        {/* Price Breakdown */}
-                        <div className="bg-muted/20 p-4 rounded-xl space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Base Price</span>
-                                <span>{order.pricing.baseAmount.formatted}</span>
-                            </div>
-                            {order.pricing.taxAmount?.amount > 0 && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Tax</span>
-                                    <span>{order.pricing.taxAmount.formatted}</span>
-                                </div>
-                            )}
-                            {order.pricing.platformFee.amount > 0 && (
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Platform Fee</span>
-                                    <span>{order.pricing.platformFee.formatted}</span>
-                                </div>
-                            )}
-                            {order.depositAmount && order.depositAmount > 0 && (
-                                <div className="flex justify-between text-sm text-orange-600 font-bold">
-                                    <span className="text-muted-foreground font-normal italic">Security Deposit (Refundable)</span>
-                                    <span>${(order.depositAmount / 100).toFixed(2)}</span>
-                                </div>
-                            )}
-                            <div className="flex justify-between font-bold text-lg pt-2 border-t border-border">
-                                <span>Total Paid</span>
-                                <span className="text-primary">{order.pricing.total.formatted}</span>
-                            </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex gap-3 pt-2">
-                            <Button
-                                variant="outline"
-                                className="flex-1"
-                                onClick={handleMessage}
-                                disabled={isLoading}
-                            >
-                                <MessageCircle className="w-4 h-4 mr-2" />
-                                Contact {isBuyer ? 'Provider' : 'Buyer'}
-                            </Button>
-
-                            {/* Buyer Actions */}
-                            {isBuyer && order.status === 'PENDING_PAYMENT' && (
-                                <Button className="flex-1 btn-action" onClick={handlePay} disabled={isLoading}>
-                                    Pay Now
-                                </Button>
-                            )}
-                            {isBuyer && order.status === 'PENDING_DEPOSIT' && (
-                                <Button className="flex-1 btn-action bg-orange-600 hover:bg-orange-700 text-white" onClick={handlePay} disabled={isLoading}>
-                                    Pay Deposit
-                                </Button>
-                            )}
-                            {isBuyer && order.status === 'WAITING_FOR_PRICE_APPROVAL' && (
-                                <Button className="flex-1 btn-action" onClick={handleApproveQuote} disabled={isLoading}>
-                                    Approve Price
-                                </Button>
-                            )}
-                            {isBuyer && order.status === 'IN_PROGRESS' && (
-                                <Button className="flex-1 btn-action" onClick={() => updateOrderStatus(order.id, 'COMPLETED')}>
-                                    Confirm Complete
-                                </Button>
-                            )}
-
-                            {isBuyer && order.status === 'COMPLETED' && (
-                                <Button className="flex-1 bg-secondary hover:bg-secondary/90 text-white font-black uppercase tracking-widest rounded-xl" onClick={() => navigate(`/review/${order.id}`)}>
-                                    Write Review
-                                </Button>
-                            )}
-
-                            {/* Seller Actions */}
-                            {isProvider && order.status === 'PENDING_CONFIRMATION' && (
-                                <Button className="flex-1 btn-action" onClick={() => updateOrderStatus(order.id, 'IN_PROGRESS')}>
-                                    Accept Order
-                                </Button>
-                            )}
-                            {isProvider && order.status === 'PENDING_QUOTE' && (
-                                <Button className="flex-1 btn-action" onClick={handleSubmitQuote} disabled={isLoading}>
-                                    Submit Quote
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Timeline? (Future) */}
+                    </>
+                )}
             </div>
 
             <Footer />
+
+
+            <QuoteDialog
+                isOpen={isQuoteDialogOpen}
+                onClose={() => setIsQuoteDialogOpen(false)}
+                onSubmit={handleSubmitQuote}
+                isLoading={isLoading}
+            />
         </div>
     );
 };

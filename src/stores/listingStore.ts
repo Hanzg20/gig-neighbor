@@ -9,6 +9,9 @@ interface ListingState {
     setListings: (listings: ListingMaster[]) => void;
     setListingItems: (items: ListingItem[]) => void;
     addListing: (listing: ListingMaster, items: ListingItem[]) => void;
+    createListing: (listing: Omit<ListingMaster, 'id' | 'createdAt' | 'updatedAt'>, items: Omit<ListingItem, 'id' | 'createdAt' | 'updatedAt'>[]) => Promise<ListingMaster>;
+    updateListing: (id: string, listing: Partial<ListingMaster>, items?: Partial<ListingItem>[]) => Promise<void>;
+    deleteListing: (id: string) => Promise<void>;
     fetchListings: () => Promise<void>;
     searchListings: (options: { query?: string, isSemantic?: boolean, nodeId?: string, categoryId?: string, type?: ListingType }) => Promise<void>;
 }
@@ -26,6 +29,119 @@ export const useListingStore = create<ListingState>((set) => ({
         listings: [listing, ...state.listings],
         listingItems: [...items, ...state.listingItems]
     })),
+    createListing: async (listingData, itemsData) => {
+        set({ isLoading: true, error: null });
+        try {
+            const masterRepo = repositoryFactory.getListingRepository();
+            const itemRepo = repositoryFactory.getListingItemRepository();
+
+            // Inject Provider ID from Auth Store
+            const { useAuthStore } = await import('@/stores/authStore');
+            const currentUser = useAuthStore.getState().currentUser;
+
+            if (!currentUser || !currentUser.providerProfileId) {
+                throw new Error("Cannot publish: You must be a verified provider.");
+            }
+
+            // 1. Create Master
+            const master = await masterRepo.create({
+                ...listingData,
+                providerId: currentUser.providerProfileId
+            });
+
+            // 2. Create Items (linked to master)
+            const createdItems = await Promise.all(
+                itemsData.map(item => itemRepo.create({ ...item, masterId: master.id }))
+            );
+
+            // 3. Update local state
+            set((state) => ({
+                listings: [master, ...state.listings],
+                listingItems: [...createdItems, ...state.listingItems],
+                isLoading: false
+            }));
+            return master;
+        } catch (err: any) {
+            console.error('Failed to create listing:', err);
+            set({ error: err.message, isLoading: false });
+            throw err;
+        }
+    },
+    updateListing: async (id, listingData, itemsData) => {
+        set({ isLoading: true, error: null });
+        try {
+            const masterRepo = repositoryFactory.getListingRepository();
+            const itemRepo = repositoryFactory.getListingItemRepository();
+
+            // 1. Update Master
+            const updatedMaster = await masterRepo.update(id, listingData);
+
+            // 2. Update Items (Simplified for pilot: replace all items if itemsData is provided)
+            let updatedItems = [];
+            if (itemsData && itemsData.length > 0) {
+                // Get existing items
+                const existingItems = await itemRepo.getByMaster(id);
+                // Delete old items
+                await Promise.all(existingItems.map(item => itemRepo.delete(item.id)));
+                // Insert new items
+                updatedItems = await Promise.all(
+                    itemsData.map(item => itemRepo.create({ ...(item as any), masterId: id }))
+                );
+            }
+
+            // 3. Update local state
+            set((state) => ({
+                listings: state.listings.map(l => l.id === id ? updatedMaster : l),
+                listingItems: itemsData ? [
+                    ...state.listingItems.filter(i => i.masterId !== id),
+                    ...updatedItems
+                ] : state.listingItems,
+                isLoading: false
+            }));
+        } catch (err: any) {
+            console.error('Failed to update listing:', err);
+            set({ error: err.message, isLoading: false });
+            throw err;
+        }
+    },
+    deleteListing: async (id) => {
+        set({ isLoading: true, error: null });
+        try {
+            const masterRepo = repositoryFactory.getListingRepository();
+            const itemRepo = repositoryFactory.getListingItemRepository();
+
+            // 1. Check for active orders
+            // Note: In a real app we'd do this via API/RPC. For pilot, we check local orderStore.
+            const { useOrderStore } = await import('@/stores/orderStore');
+            const orders = useOrderStore.getState().orders;
+            const activeOrders = orders.filter(o =>
+                o.masterId === id &&
+                ['PENDING', 'ACCEPTED', 'PAID', 'IN_PROGRESS'].includes(o.status)
+            );
+
+            if (activeOrders.length > 0) {
+                throw new Error("Cannot delete: This service has active orders. Please cancel or complete them first.");
+            }
+
+            // 2. Delete Items first (if mapping doesn't have CASCADE)
+            const items = await itemRepo.getByMaster(id);
+            await Promise.all(items.map(i => itemRepo.delete(i.id)));
+
+            // 3. Delete Master
+            await masterRepo.delete(id);
+
+            // 4. Update local state
+            set((state) => ({
+                listings: state.listings.filter(l => l.id !== id),
+                listingItems: state.listingItems.filter(i => i.masterId !== id),
+                isLoading: false
+            }));
+        } catch (err: any) {
+            console.error('Failed to delete listing:', err);
+            set({ error: err.message, isLoading: false });
+            throw err;
+        }
+    },
     fetchListings: async () => {
         set({ isLoading: true, error: null });
         try {

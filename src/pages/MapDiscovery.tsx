@@ -82,7 +82,11 @@ const MapDiscovery = () => {
 
     const handleSearchArea = (map: L.Map) => {
         const center = map.getCenter();
-        fetchListings(center.lat, center.lng);
+        const bounds = map.getBounds();
+        const northEast = bounds.getNorthEast();
+        // Calculate radius in meters (distance from center to corner)
+        const radius = Math.round(center.distanceTo(northEast));
+        fetchListings(center.lat, center.lng, radius);
     };
 
     if (locLoading) return (
@@ -162,6 +166,55 @@ const MapDiscovery = () => {
                     </div>
                 )}
             </div>
+
+            {/* Nearby Listings List (Bottom Drawer Style for Mobile, Sidebar Style for Desktop) */}
+            {listings.length > 0 && (
+                <div className="absolute bottom-4 left-4 right-4 z-[1000] md:left-auto md:right-4 md:top-20 md:bottom-20 md:w-80 pointer-events-none">
+                    <div className="bg-background/90 backdrop-blur-md border shadow-2xl rounded-3xl p-4 pointer-events-auto flex flex-col h-full max-h-[40vh] md:max-h-none overflow-hidden hover:shadow-glow transition-all duration-300">
+                        <div className="flex items-center justify-between mb-4 px-2">
+                            <h3 className="text-lg font-black tracking-tight">{language === 'zh' ? '推荐服务' : 'Recommended'}</h3>
+                            <Badge className="bg-primary/10 text-primary border-none font-bold">{listings.length}</Badge>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
+                            {listings.slice(0, 10).map(listing => (
+                                <div
+                                    key={listing.id}
+                                    className="p-3 bg-muted/30 rounded-2xl hover:bg-muted/50 transition-colors cursor-pointer group flex gap-3"
+                                    onClick={() => {
+                                        if (listing.location?.coordinates) {
+                                            // Panning to marker is handled via state or ref ideally, 
+                                            // for now we'll just navigate or use a map ref if we had it but MapContainer is already set.
+                                            // The markers are already there.
+                                            navigate(`/service/${listing.id}`);
+                                        }
+                                    }}
+                                >
+                                    <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 shadow-sm">
+                                        <img src={listing.images?.[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-bold text-sm truncate mb-0.5">{language === 'zh' ? listing.titleZh : listing.titleEn}</h4>
+                                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold">
+                                            <span className="text-primary">
+                                                {listing.distanceMeters
+                                                    ? (listing.distanceMeters > 1000
+                                                        ? `${(listing.distanceMeters / 1000).toFixed(1)} km`
+                                                        : `${Math.round(listing.distanceMeters)} m`)
+                                                    : 'Nearby'}
+                                            </span>
+                                            <span>•</span>
+                                            <span className="flex items-center">
+                                                <Star className="w-2 h-2 mr-0.5 fill-amber-400 text-amber-400" />
+                                                {listing.rating}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -217,21 +270,32 @@ const ListingMarker = ({ listing, language, navigate }: { listing: ListingMaster
                         </Badge>
                     </div>
                     <CardContent className="p-3">
-                        <h4 className="font-bold text-sm line-clamp-1 mb-1">
+                        <h4 className="font-bold text-sm line-clamp-1 mb-0.5">
                             {language === 'zh' ? listing.titleZh : listing.titleEn}
                         </h4>
+                        <p className="text-[10px] text-muted-foreground line-clamp-2 mb-2 leading-relaxed italic">
+                            {language === 'zh' ? listing.descriptionZh : listing.descriptionEn}
+                        </p>
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-2">
                             <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                             <span className="font-bold text-amber-600">{listing.rating}</span>
                             <span>({listing.reviewCount})</span>
                             <span className="mx-1">•</span>
-                            <span>{listing.location.fullAddress.split(',')[0]}</span>
+                            <span>{listing.location?.fullAddress?.split(',')[0] || (language === 'zh' ? '未知地址' : 'Address unknown')}</span>
+                        </div>
+                        <div className="text-[10px] font-black text-primary mb-2 flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {listing.distanceMeters
+                                ? (listing.distanceMeters > 1000
+                                    ? `${(listing.distanceMeters / 1000).toFixed(1)} km ${language === 'zh' ? '外' : 'away'}`
+                                    : `${Math.round(listing.distanceMeters)} m ${language === 'zh' ? '外' : 'away'}`)
+                                : (language === 'zh' ? '就在附近' : 'Nearby')}
                         </div>
                         <Button
                             className="w-full h-8 text-xs font-bold"
-                            onClick={() => navigate(`/listing/${listing.id}`)}
+                            onClick={() => navigate(`/service/${listing.id}`)}
                         >
-                            {language === 'zh' ? '查看详情' : 'View Details'}
+                            {language === 'zh' ? '详情 / 订购' : 'Details & Order'}
                         </Button>
                     </CardContent>
                 </Card>

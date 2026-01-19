@@ -101,6 +101,7 @@ export const useAuthStore = create<AuthState>()(
 
                         set({ currentUser: user, isLoading: false });
                     } else {
+                        // If no session from Supabase, we are logged out
                         set({ currentUser: null, isLoading: false });
                     }
                 } catch (error) {
@@ -122,7 +123,10 @@ onAuthStateChange(async (session) => {
     // We check if the current user ID looks like a real UUID (Supabase style) or a demo ID (u1, p1)
     const store = useAuthStore.getState();
     const currentUserId = store.currentUser?.id;
-    const isDemoUser = currentUserId === 'u1' || currentUserId === 'p1';
+    const isDemoUser = currentUserId === 'u1' ||
+        currentUserId === 'p1' ||
+        currentUserId === '99999999-9999-9999-9999-999999999999' || // Demo Buyer
+        currentUserId === 'e1507f9e-7343-4474-a1da-301a213943ec';   // Demo Seller
 
     if (session?.user) {
         if (!currentUserId || !isDemoUser) {

@@ -1,0 +1,222 @@
+/* 瀑布流网格容器 */
+.masonry-grid {
+  display: flex;
+  margin-left: -16px; /* 列间距的负值 */
+  width: auto;
+}
+
+.masonry-grid-column {
+  padding-left: 16px; /* 列间距 */
+  background-clip: padding-box;
+}
+
+/* 卡片之间的垂直间距 */
+.masonry-grid-column > div {
+  margin-bottom: 16px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .masonry-grid {
+    margin-left: -12px;
+  }
+
+  .masonry-grid-column {
+    padding-left: 12px;
+  }
+
+  .masonry-grid-column > div {
+    margin-bottom: 12px;
+  }
+}
+
+/* 移动端进一步优化 */
+@media (max-width: 480px) {
+  .masonry-grid {
+    margin-left: -8px;
+  }
+
+  .masonry-grid-column {
+    padding-left: 8px;
+  }
+
+  .masonry-grid-column > div {
+    margin-bottom: 8px;
+  }
+}
+
+/* 小红书风格的卡片样式 */
+.masonry-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  break-inside: avoid;
+  position: relative;
+}
+
+.masonry-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* 图片容器 */
+.masonry-card-image {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+}
+
+.masonry-card-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+/* 内容区域 */
+.masonry-card-content {
+  padding: 12px;
+}
+
+/* 加载骨架屏动画 */
+@keyframes shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s infinite;
+  background: linear-gradient(
+    to right,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted) / 0.8) 20%,
+    hsl(var(--muted)) 40%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 800px 104px;
+}
+
+/* 点赞爆炸动画 */
+@keyframes heart-burst {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.like-explosion {
+  animation: heart-burst 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 防止瀑布流列在某些浏览器中错位 */
+.masonry-grid-column > * {
+  display: block;
+}
+
+/* 空状态样式 */
+.masonry-empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: hsl(var(--muted-foreground));
+}
+
+/* 确保图片加载平滑 */
+.masonry-card-image img {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.masonry-card-image img.loaded {
+  opacity: 1;
+}
+
+/* 多图指示器样式 */
+.multi-image-indicator {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 类型徽章样式 */
+.type-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(8px);
+}
+
+.type-badge.second-hand {
+  background: rgba(251, 146, 60, 0.9);
+  color: white;
+}
+
+.type-badge.wanted {
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+}
+
+.type-badge.giveaway {
+  background: rgba(34, 197, 94, 0.9);
+  color: white;
+}
+
+/* 价格标签样式 */
+.price-tag {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 暗色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .masonry-card {
+    background: hsl(var(--card));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .masonry-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+}

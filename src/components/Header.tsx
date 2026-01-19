@@ -8,6 +8,7 @@ import { BeanBalance } from "./beans/BeanBalance";
 import { useMessageStore } from "@/stores/messageStore";
 import { useConfigStore } from "@/stores/configStore";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./ui/dropdown-menu";
+import { LitePost } from "./Community/LitePost";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -28,20 +29,23 @@ const Header = () => {
   const t = {
     discover: language === 'zh' ? '发现' : 'Discover',
     map: language === 'zh' ? '地图' : 'Map',
-    community: language === 'zh' ? '社区' : 'Community',
+    community: language === 'zh' ? '渥说' : 'JustTalk',
     orders: language === 'zh' ? '订单' : 'Orders',
     myPosts: language === 'zh' ? '我的发布' : 'My Posts',
     chat: language === 'zh' ? '消息' : 'Chat',
-    post: language === 'zh' ? '发布' : 'Post',
+    post: language === 'zh' ? '渥说一下' : 'JustTalk',
     postSomething: language === 'zh' ? '发布需求' : 'Post Something',
     myProfile: language === 'zh' ? '我的主页' : 'My Profile',
     wait: language === 'zh' ? '稍候...' : 'Wait...',
     me: language === 'zh' ? '我' : 'Me',
     join: language === 'zh' ? '登录' : 'Join',
     neighborly: language === 'zh' ? '让生活更轻松' : 'Make Life Easier',
-    becomeProvider: language === 'zh' ? '成为达人' : 'Become Provider',
+    becomeProvider: language === 'zh' ? '能人入驻' : 'Become a Pro',
+    proHub: language === 'zh' ? '达人中心' : 'Pro Hub',
     brandName: language === 'zh' ? '渥帮' : 'JUSTWEDO',
   };
+
+  const isProvider = currentUser?.roles?.includes('PROVIDER');
 
   return (
     <header className="sticky top-0 z-50 glass-header">
@@ -69,8 +73,8 @@ const Header = () => {
           <Link to="/orders" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
             {t.orders}
           </Link>
-          <Link to="/become-provider" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
-            {t.becomeProvider}
+          <Link to={isProvider ? "/provider/dashboard" : "/become-provider"} className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
+            {isProvider ? t.proHub : t.becomeProvider}
           </Link>
         </nav>
 
@@ -93,11 +97,15 @@ const Header = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Link to="/post-gig" className="hidden sm:block">
-            <Button size="sm" className="btn-action shadow-warm px-5">
-              <PlusCircle className="w-4 h-4 mr-2" /> {t.post}
-            </Button>
-          </Link>
+          <div className="hidden sm:block">
+            <LitePost
+              trigger={
+                <Button size="sm" className="btn-action shadow-warm px-5">
+                  <PlusCircle className="w-4 h-4 mr-2" /> {t.post}
+                </Button>
+              }
+            />
+          </div>
 
           {currentUser && (
             <div className="hidden sm:block">
@@ -146,12 +154,17 @@ const Header = () => {
             <Link to="/community" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
               {t.community}
             </Link>
-            <Link to="/become-provider" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
-              {t.becomeProvider}
+            <Link to={isProvider ? "/provider/dashboard" : "/become-provider"} className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
+              {isProvider ? t.proHub : t.becomeProvider}
             </Link>
-            <Link to="/post-gig" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
-              {t.postSomething}
-            </Link>
+            <LitePost
+              trigger={
+                <button className="px-5 py-3 flex items-center gap-3 rounded-2xl text-sm font-bold text-primary bg-primary/10">
+                  <PlusCircle className="w-4 h-4" />
+                  {t.post}
+                </button>
+              }
+            />
             <Link to="/my-listings" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
               {t.myPosts}
             </Link>

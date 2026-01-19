@@ -20,17 +20,19 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
+import { repositoryFactory } from '@/services/repositories/factory';
 
 const Checkout = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { items: cartItems, clearCart } = useCartStore();
-    const { listings, listingItems } = useListingStore();
+    const { listings, listingItems, setListings, setListingItems } = useListingStore();
     const { currentUser } = useAuthStore();
     const { language } = useConfigStore();
     const { createOrder } = useOrderStore();
 
     const [processing, setProcessing] = useState(false);
+    const [loadingData, setLoadingData] = useState(false);
     const [step, setStep] = useState<'REVIEW' | 'PAYMENT' | 'SUCCESS'>('REVIEW');
 
     // NEW: Get single item from URL if direct checkout
@@ -42,8 +44,39 @@ const Checkout = () => {
     useEffect(() => {
         if (!currentUser) {
             navigate('/login?redirect=/checkout');
+            return;
         }
-    }, [currentUser, navigate]);
+
+        const loadMissingData = async () => {
+            if (directItemId) {
+                const itemInStore = listingItems.find(li => li.id === directItemId);
+                if (!itemInStore) {
+                    setLoadingData(true);
+                    try {
+                        const itemRepo = repositoryFactory.getListingItemRepository();
+                        const listingRepo = repositoryFactory.getListingRepository();
+
+                        const item = await itemRepo.getById(directItemId);
+                        if (item) {
+                            setListingItems([item, ...listingItems]);
+                            const masterInStore = listings.find(l => l.id === item.masterId);
+                            if (!masterInStore) {
+                                const master = await listingRepo.getById(item.masterId);
+                                if (master) setListings([master, ...listings]);
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Failed to load checkout data:', err);
+                        toast.error('Failed to load item details');
+                    } finally {
+                        setLoadingData(false);
+                    }
+                }
+            }
+        };
+
+        loadMissingData();
+    }, [currentUser, directItemId, navigate, listingItems, listings, setListingItems, setListings]);
 
     // Data Preparation
     const checkoutItems = directItemId
@@ -76,6 +109,15 @@ const Checkout = () => {
             consultDuration: '咨询时长',
             visitFee: '上门费 (预付)',
             quoteNote: '此订单为报价模式，当前仅收取上门/服务基础费。',
+            hours: '小时',
+            bookingFee: '预约费',
+            payMethodCard: '信用卡 / 借记卡',
+            securedBy: '由 Stripe 提供安全保障',
+            soon: '即将推出',
+            balance: '余额',
+            incVat: '含税',
+            submitRequest: '提交询价单',
+            back: '返回',
         },
         en: {
             title: 'Checkout',
@@ -96,6 +138,15 @@ const Checkout = () => {
             consultDuration: 'Duration',
             visitFee: 'Booking Fee',
             quoteNote: 'This is a quote-based service. The current charge is for the visit/booking fee only.',
+            hours: 'Hours',
+            bookingFee: 'Booking Fee',
+            payMethodCard: 'Credit / Debit Card',
+            securedBy: 'Secured by Stripe',
+            soon: 'Soon',
+            balance: 'Balance',
+            incVat: 'inc. VAT',
+            submitRequest: 'Submit Request',
+            back: 'Back',
         }
     }[language === 'zh' ? 'zh' : 'en'];
 
@@ -104,6 +155,22 @@ const Checkout = () => {
             style: 'currency',
             currency: 'CAD',
         }).format(amount / 100);
+    };
+
+    const getItemCalculatedPrice = (ci: any) => {
+        const basePrice = ci.item!.pricing.price.amount;
+        let qty = ci.quantity || 1;
+
+        if (ci.master?.type === 'RENTAL' && ci.rentalStart && ci.rentalEnd) {
+            qty = differenceInDays(new Date(ci.rentalEnd), new Date(ci.rentalStart)) || 1;
+        } else if (ci.master?.type === 'CONSULTATION' && ci.consultHours) {
+            qty = parseFloat(ci.consultHours);
+        }
+
+        if (ci.item!.pricing.model === 'VISIT_FEE') {
+            return basePrice;
+        }
+        return basePrice * qty;
     };
 
     const calculateTotals = () => {
@@ -147,42 +214,66 @@ const Checkout = () => {
         try {
             // 1. Create Order(s) in database first as PENDING_PAYMENT
             const orderPromises = enrichedItems.map(async (ci) => {
-                const itemTotal = ci.item!.pricing.price.amount;
-                const platformFee = Math.round(itemTotal * 0.05);
-                const tax = Math.round((itemTotal + platformFee) * 0.13);
+                const itemSubtotal = getItemCalculatedPrice(ci);
+                const platformFee = Math.round(itemSubtotal * 0.05);
+                const tax = Math.round((itemSubtotal + platformFee) * 0.13);
+                const itemTotal = itemSubtotal + platformFee + tax;
 
-                // Use the shared totals logic for single item orders if needed, 
-                // but here we just create the record.
+                // Determine Status based on Pricing Mode & Payment
+                let orderStatus = 'PENDING_PAYMENT';
+                if (ci.master!.attributes?.pricingMode === 'QUOTE') {
+                    // Quote Logic: If no upfront payment, it is a Request
+                    if (itemTotal === 0) {
+                        orderStatus = 'PENDING_QUOTE';
+                    } else {
+                        // If there is a total, it means there is a Visit Fee -> Pending Payment
+                        orderStatus = 'PENDING_PAYMENT';
+                    }
+                }
+
+                // Determine Service Call Fee
+                // Logic: If Item Pricing Model is explicit VISIT_FEE -> take price
+                // OR if Quote Mode and total > 0 (Visit fee assumed) -> take price as fee
+                let serviceFee = 0;
+                if (ci.item!.pricing.model === 'VISIT_FEE') {
+                    serviceFee = ci.item!.pricing.price.amount;
+                } else if (ci.master!.attributes?.pricingMode === 'QUOTE' && itemSubtotal > 0) {
+                    serviceFee = itemSubtotal; // For Quotes, any base price is the visit fee
+                }
+
                 return createOrder({
                     masterId: ci.master!.id,
                     itemId: ci.item!.id,
                     buyerId: currentUser.id,
                     providerId: ci.master!.providerId,
                     providerUserId: ci.master!.providerId,
-                    status: ci.item!.pricing.model === 'QUOTE' ? 'PENDING_QUOTE' : 'PENDING_PAYMENT',
+                    status: orderStatus as any,
                     paymentStatus: 'UNPAID',
                     currency: 'CAD',
                     pricing: {
-                        baseAmount: { amount: itemTotal, currency: 'CAD', formatted: formatMoney(itemTotal) },
+                        baseAmount: { amount: itemSubtotal, currency: 'CAD', formatted: formatMoney(itemSubtotal) },
                         platformFee: { amount: platformFee, currency: 'CAD', formatted: formatMoney(platformFee) },
                         taxAmount: { amount: tax, currency: 'CAD', formatted: formatMoney(tax) },
-                        total: { amount: itemTotal + platformFee + tax, currency: 'CAD', formatted: formatMoney(itemTotal + platformFee + tax) }
+                        total: { amount: itemTotal, currency: 'CAD', formatted: formatMoney(itemTotal) }
                     },
                     snapshot: {
-                        masterTitle: ci.master!.titleZh,
-                        masterDescription: ci.master!.descriptionZh,
+                        masterTitle: ci.master!.titleZh || ci.master!.titleEn || 'Service',
+                        masterDescription: ci.master!.descriptionZh || ci.master!.descriptionEn || '',
                         masterImages: ci.master!.images,
-                        itemName: ci.item!.nameZh,
-                        itemDescription: ci.item!.descriptionZh,
+                        itemName: ci.item!.nameZh || ci.item!.nameEn || 'Item',
+                        itemDescription: ci.item!.descriptionZh || ci.item!.descriptionEn || '',
                         itemPricing: ci.item!.pricing,
                         providerName: 'Neighbor',
                         providerBadges: []
                     },
                     rentalStartDate: ci.rentalStart,
                     rentalEndDate: ci.rentalEnd,
+                    rentalDays: (ci.master?.type === 'RENTAL' && ci.rentalStart && ci.rentalEnd)
+                        ? (differenceInDays(new Date(ci.rentalEnd), new Date(ci.rentalStart)) || 1)
+                        : undefined,
                     depositAmount: ci.item!.pricing.deposit?.amount || 0,
-                    depositStatus: ci.item!.pricing.deposit ? 'NONE' : 'NONE',
-                    serviceCallFee: ci.item!.pricing.model === 'VISIT_FEE' ? ci.item!.pricing.price.amount : 0
+                    depositStatus: ci.item!.pricing.deposit ? 'HELD' : 'NONE',
+                    serviceCallFee: serviceFee
                 });
             });
 
@@ -195,25 +286,35 @@ const Checkout = () => {
             if (totals.total > 0) {
                 const firstOrder = validOrders[0];
                 const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                    headers: {
+                        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                    },
                     body: {
                         orderType: 'WEB_ORDER',
                         orderId: firstOrder.id, // Only handles single order for now in this pilot
                         listingItemId: firstOrder.itemId,
                         masterId: firstOrder.masterId,
                         buyerId: currentUser.id,
-                        productName: language === 'zh' ? firstOrder.snapshot.itemName : firstOrder.snapshot.itemName, // Fallback
+                        productName: firstOrder.snapshot.itemName || (language === 'zh' ? '服务订单' : 'Service Order'),
                         price: totals.total,
                         metadata: {
-                            rentalStart: firstOrder.rentalStartDate,
-                            rentalEnd: firstOrder.rentalEndDate,
-                            depositAmount: firstOrder.depositAmount,
-                            serviceCallFee: firstOrder.serviceCallFee
+                            rentalStart: firstOrder.rentalStartDate || '',
+                            rentalEnd: firstOrder.rentalEndDate || '',
+                            rentalDays: (firstOrder.rentalDays || '').toString(),
+                            depositAmount: firstOrder.depositAmount || 0,
+                            serviceCallFee: firstOrder.serviceCallFee || 0
                         }
                     }
                 });
 
                 if (error || !data?.url) {
-                    console.error('Stripe session error:', error);
+                    console.error('Stripe session error details:', error);
+                    if (error instanceof Error) {
+                        try {
+                            const errBody = await (error as any).response?.json();
+                            console.error('Stripe edge function error body:', errBody);
+                        } catch (e) { }
+                    }
                     toast.error('Payment system unavailable');
                     return;
                 }
@@ -225,13 +326,22 @@ const Checkout = () => {
                 if (!directItemId) clearCart();
                 setStep('SUCCESS');
             }
-        } catch (error) {
-            console.error('Order creation failed:', error);
-            toast.error('Failed to place order');
+        } catch (error: any) {
+            console.error('Order creation failed full error:', error);
+            toast.error(error.message || 'Failed to place order');
         } finally {
             setProcessing(false);
         }
     };
+
+    if (loadingData) {
+        return (
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+                <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                <p className="text-muted-foreground font-bold italic">Loading item details...</p>
+            </div>
+        );
+    }
 
     if (step === 'SUCCESS') {
         return (
@@ -262,7 +372,7 @@ const Checkout = () => {
             <Header />
             <div className="container max-w-4xl py-6 px-4">
                 <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm font-bold text-muted-foreground mb-6 hover:text-primary transition-colors">
-                    <ChevronLeft className="w-4 h-4" /> 返回
+                    <ChevronLeft className="w-4 h-4" /> {t.back}
                 </button>
 
                 <h1 className="text-3xl font-black mb-8 tracking-tighter">{t.title}</h1>
@@ -275,7 +385,7 @@ const Checkout = () => {
                             {enrichedItems.map((ei, idx) => (
                                 <Card key={idx} className="border-none shadow-sm card-warm overflow-hidden">
                                     <div className="flex gap-4 p-4">
-                                        <img src={ei.master!.images[0]} alt="" className="w-20 h-20 rounded-xl object-cover shrink-0" />
+                                        <img src={ei.master!.images[0]} alt="" className="w-20 h-20 rounded-xl object-cover shrink-0" loading="lazy" />
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-bold text-lg leading-tight mb-1 truncate">{language === 'zh' ? ei.master!.titleZh : ei.master!.titleEn}</h3>
                                             <p className="text-sm text-muted-foreground mb-2">{language === 'zh' ? ei.item!.nameZh : ei.item!.nameEn}</p>
@@ -291,12 +401,12 @@ const Checkout = () => {
                                                 {ei.consultHours && (
                                                     <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-600 border-none">
                                                         <Clock className="w-3 h-3 mr-1" />
-                                                        {ei.consultHours} Hours
+                                                        {ei.consultHours} {t.hours}
                                                     </Badge>
                                                 )}
                                                 {ei.item!.pricing.model === 'VISIT_FEE' && (
                                                     <Badge className="text-[10px] bg-orange-50 text-orange-600 border-none">
-                                                        Booking Fee
+                                                        {t.bookingFee}
                                                     </Badge>
                                                 )}
                                             </div>
@@ -310,39 +420,41 @@ const Checkout = () => {
                             ))}
                         </div>
 
-                        {/* Payment Selection */}
-                        <Card className="border-none shadow-sm bg-muted/30 p-6 rounded-3xl">
-                            <h2 className="font-black text-sm uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <CreditCard className="w-4 h-4 text-primary" /> {t.payment}
-                            </h2>
-                            <div className="grid gap-3">
-                                <div className="flex items-center justify-between p-4 bg-white border-2 border-primary rounded-2xl shadow-sm">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center">
-                                            <CreditCard className="w-5 h-5 text-primary" />
+                        {/* Payment Selection - Hide if Total is 0 (Quote Request) */}
+                        {totals.total > 0 && (
+                            <Card className="border-none shadow-sm bg-muted/30 p-6 rounded-3xl">
+                                <h2 className="font-black text-sm uppercase tracking-widest mb-4 flex items-center gap-2">
+                                    <CreditCard className="w-4 h-4 text-primary" /> {t.payment}
+                                </h2>
+                                <div className="grid gap-3">
+                                    <div className="flex items-center justify-between p-4 bg-white border-2 border-primary rounded-2xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center">
+                                                <CreditCard className="w-5 h-5 text-primary" />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-sm">{t.payMethodCard}</p>
+                                                <p className="text-[10px] text-muted-foreground font-medium">{t.securedBy}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-bold text-sm">Credit / Debit Card</p>
-                                            <p className="text-[10px] text-muted-foreground font-medium">Secured by Stripe</p>
+                                        <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                                            <CheckCircle2 className="w-3 h-3 text-white" />
                                         </div>
                                     </div>
-                                    <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                                        <CheckCircle2 className="w-3 h-3 text-white" />
+                                    <div className="flex items-center justify-between p-4 bg-white/50 border-2 border-transparent rounded-2xl opacity-60">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+                                                <Wallet className="w-5 h-5 text-amber-500" />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-sm">JinBeans ({t.soon})</p>
+                                                <p className="text-[10px] text-muted-foreground font-medium">{t.balance}: 0 beans</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-between p-4 bg-white/50 border-2 border-transparent rounded-2xl opacity-60">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
-                                            <Wallet className="w-5 h-5 text-amber-500" />
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-sm">JinBeans (Soon)</p>
-                                            <p className="text-[10px] text-muted-foreground font-medium">Balance: 0 beans</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </Card>
+                            </Card>
+                        )}
                     </div>
 
                     {/* Right Column: Summary */}
@@ -386,12 +498,12 @@ const Checkout = () => {
                                     <span className="text-lg font-black">{t.total}</span>
                                     <div className="text-right">
                                         <span className="text-3xl font-black text-primary tracking-tighter">{formatMoney(totals.total)}</span>
-                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">CAD inc. VAT</p>
+                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">CAD {t.incVat}</p>
                                     </div>
                                 </div>
                             </div>
 
-                            {enrichedItems.some(ei => ei.item!.pricing.model === 'QUOTE' || ei.item!.pricing.model === 'VISIT_FEE') && (
+                            {enrichedItems.some(ei => ei.item!.pricing.model === 'QUOTE' || ei.item!.pricing.model === 'VISIT_FEE' || ei.master?.attributes?.pricingMode === 'QUOTE') && (
                                 <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100 mb-6">
                                     <p className="text-[10px] font-bold text-orange-700 leading-tight">
                                         <Info className="w-3 h-3 inline mr-1" /> {t.quoteNote}
@@ -408,7 +520,7 @@ const Checkout = () => {
                                     <Loader2 className="w-6 h-6 animate-spin" />
                                 ) : (
                                     <>
-                                        {t.placeOrder}
+                                        {totals.total > 0 ? t.placeOrder : t.submitRequest}
                                         <ArrowRight className="w-5 h-5 ml-2" />
                                     </>
                                 )}

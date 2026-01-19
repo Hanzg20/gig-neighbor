@@ -6,7 +6,8 @@
 -- 1. Add Support for Rental Period
 ALTER TABLE public.orders 
 ADD COLUMN IF NOT EXISTS rental_start_date DATE,
-ADD COLUMN IF NOT EXISTS rental_end_date DATE;
+ADD COLUMN IF NOT EXISTS rental_end_date DATE,
+ADD COLUMN IF NOT EXISTS rental_days INTEGER;
 
 -- 2. Add Support for Security Deposits
 ALTER TABLE public.orders 

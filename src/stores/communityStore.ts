@@ -40,10 +40,11 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
                 nodeId: options.nodeId,
             });
 
-            // Filter only TASK and GOODS if no specific type is requested
+            // Filter community types if no specific type is requested
+            const COMMUNITY_TYPES: ListingType[] = ['TASK', 'GOODS', 'EVENT', 'FREE_GIVEAWAY', 'WANTED'];
             const communityListings = options.type
                 ? listings
-                : listings.filter(l => l.type === 'TASK' || l.type === 'GOODS');
+                : listings.filter(l => COMMUNITY_TYPES.includes(l.type));
 
             set({ communityListings, isLoading: false });
         } catch (error: any) {

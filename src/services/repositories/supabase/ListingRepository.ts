@@ -27,6 +27,7 @@ export class SupabaseListingRepository implements IListingRepository {
             rating: Number(row.rating),
             reviewCount: row.review_count,
             isPromoted: row.is_promoted,
+            distanceMeters: row.distance_meters, // New: from PostGIS search
             createdAt: row.created_at,
             updatedAt: row.updated_at
         };
@@ -83,6 +84,7 @@ export class SupabaseListingRepository implements IListingRepository {
             .from('listing_masters')
             .select('*')
             .eq('category_id', categoryId)
+            .eq('status', 'PUBLISHED')
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -94,6 +96,7 @@ export class SupabaseListingRepository implements IListingRepository {
             .from('listing_masters')
             .select('*')
             .eq('node_id', nodeId)
+            .eq('status', 'PUBLISHED')
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -177,17 +180,24 @@ export class SupabaseListingRepository implements IListingRepository {
     }
 
     async create(listing: Omit<ListingMaster, 'id' | 'createdAt' | 'updatedAt'>): Promise<ListingMaster> {
-        // 1. Generate embedding for the listing
+        // 1. Generate embedding for the listing (optional, gracefully handles CORS/network issues)
         const embeddingText = `${listing.titleZh} ${listing.titleEn || ''} ${listing.descriptionZh || ''} ${listing.descriptionEn || ''}`;
         let embedding: number[] | undefined;
 
         try {
-            const { data: embeddingData, error: embeddingError } = await supabase.functions.invoke('generate-embedding', {
+            // Add timeout to prevent blocking on CORS/network issues
+            const embeddingPromise = supabase.functions.invoke('generate-embedding', {
                 body: { text: embeddingText }
             });
-            if (!embeddingError) embedding = embeddingData.embedding;
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Embedding timeout')), 3000)
+            );
+
+            const result = await Promise.race([embeddingPromise, timeoutPromise]) as any;
+            if (result?.data?.embedding) embedding = result.data.embedding;
         } catch (e) {
-            console.error('Failed to generate embedding for new listing:', e);
+            // Silently skip embedding on failure - not critical for listing creation
+            console.warn('[ListingRepo] Embedding generation skipped:', e instanceof Error ? e.message : 'Unknown error');
         }
 
         // 2. Insert with embedding

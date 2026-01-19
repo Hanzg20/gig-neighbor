@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Package, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -7,9 +7,14 @@ import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
 import { OrderStatus } from "@/types/orders";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 const Orders = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const paymentStatus = searchParams.get('payment');
     const { currentUser } = useAuthStore();
     const { orders, updateOrderStatus, loadUserOrders } = useOrderStore();
     const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'completed'>('all');
@@ -25,9 +30,27 @@ const Orders = () => {
         viewMode === 'buyer' ? o.buyerId === currentUser?.id : o.providerId === currentUser?.id
     );
 
+    useEffect(() => {
+        if (!currentUser) {
+            navigate('/login');
+            return;
+        }
+
+        if (paymentStatus === 'success') {
+            toast.success('Payment Successful! Your order is being processed.', {
+                duration: 5000,
+                icon: <CheckCircle className="w-5 h-5 text-green-500" />
+            });
+            window.history.replaceState({}, '', '/orders');
+            setActiveTab('pending');
+        } else if (paymentStatus === 'cancelled') {
+            toast.info('Payment cancelled.');
+            window.history.replaceState({}, '', '/orders');
+        }
+    }, [currentUser, navigate, paymentStatus]);
+
     if (!currentUser) {
-        navigate('/login');
-        return null;
+        return null; // Don't render anything while waiting for the effect
     }
 
     const filteredOrders = userOrders.filter(order => {
@@ -59,8 +82,47 @@ const Orders = () => {
         }
     };
 
-    const handlePayOrder = (orderId: string) => {
-        updateOrderStatus(orderId, 'PENDING_CONFIRMATION');
+    const handlePayOrder = async (orderId: string) => {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return;
+
+        // If it's a paid order (amount > 0), trigger Stripe
+        if (order.pricing.total.amount > 0) {
+            console.log('[🔵 Orders] Initiating payment for order:', orderId);
+            const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                headers: {
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                },
+                body: {
+                    orderType: 'WEB_ORDER',
+                    orderId: order.id,
+                    listingItemId: order.itemId,
+                    masterId: order.masterId,
+                    buyerId: currentUser?.id,
+                    productName: order.snapshot.itemName || 'Service Order',
+                    price: order.pricing.total.amount,
+                    metadata: {
+                        rentalStart: order.rentalStartDate || '',
+                        rentalEnd: order.rentalEndDate || '',
+                        rentalDays: (order.rentalDays || '').toString(),
+                        depositAmount: order.depositAmount || 0,
+                        serviceCallFee: order.serviceCallFee || 0
+                    }
+                }
+            });
+
+            if (error || !data?.url) {
+                console.error('Stripe session error:', error);
+                toast.error('Payment system unavailable');
+                return;
+            }
+
+            // Redirect to Stripe
+            window.location.href = data.url;
+        } else {
+            // Free or negotiable order without price - just confirm (unlikely in this flow)
+            updateOrderStatus(orderId, 'PENDING_CONFIRMATION');
+        }
     };
 
     // Seller actions
@@ -185,6 +247,24 @@ const Orders = () => {
                                             <p className="text-sm text-muted-foreground mb-2">
                                                 {order.snapshot.itemName}
                                             </p>
+                                            {/* Web Ordering Info */}
+                                            <div className="flex flex-wrap gap-2 mb-2">
+                                                {order.rentalStartDate && (
+                                                    <Badge variant="outline" className="text-[10px] border-blue-100 bg-blue-50 text-blue-600">
+                                                        {new Date(order.rentalStartDate).toLocaleDateString()} - {order.rentalEndDate ? new Date(order.rentalEndDate).toLocaleDateString() : '?'}
+                                                    </Badge>
+                                                )}
+                                                {order.serviceCallFee ? (
+                                                    <Badge variant="outline" className="text-[10px] border-orange-100 bg-orange-50 text-orange-600">
+                                                        Booking Fee: ${order.serviceCallFee / 100}
+                                                    </Badge>
+                                                ) : null}
+                                                {order.depositAmount ? (
+                                                    <Badge variant="outline" className="text-[10px] border-amber-100 bg-amber-50 text-amber-600">
+                                                        Deposit: ${order.depositAmount / 100} ({order.depositStatus})
+                                                    </Badge>
+                                                ) : null}
+                                            </div>
                                             <div className="flex items-center justify-between">
                                                 <p className="text-xs text-muted-foreground">
                                                     下单时间: {new Date(order.createdAt).toLocaleDateString('zh-CN')}

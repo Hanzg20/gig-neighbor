@@ -1,7 +1,8 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     TrendingUp, Package, Star, DollarSign, Clock,
-    Eye, Edit, Trash2, Plus, MoreVertical, MessageSquare, Tag, Layout
+    ExternalLink, ArrowDownToLine, ArrowUpToLine, Edit, Trash2, Plus, MoreVertical, MessageSquare, Tag, Layout, Rocket, Eye
 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -11,25 +12,27 @@ import { useOrderStore } from "@/stores/orderStore";
 import { useProviderStore } from "@/stores/providerStore";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 const MyListings = () => {
     const navigate = useNavigate();
     const { currentUser } = useAuthStore();
-    const { listings, listingItems } = useListingStore();
+    const { listings, listingItems, fetchListings, deleteListing, updateListing } = useListingStore();
     const { orders } = useOrderStore();
     const { providers } = useProviderStore();
+
+    useEffect(() => {
+        fetchListings();
+    }, []);
 
     if (!currentUser) {
         navigate('/login');
         return null;
     }
 
-    // A user might have multiple provider profiles (one per identity/role), 
-    // but usually, their 'listings' are tied to their primary provider id.
-    // For regular users (Buyers) posting tasks, their user_id is often the provider_id in our simplified mock/pilot.
-    // In production, we find the profile associated with the user.
-    const userProfile = providers.find(p => p.userId === currentUser.id);
-    const profileId = userProfile?.id || currentUser.id;
+    // Use the providerProfileId directly from the authenticated user session.
+    // This is more reliable than searching the 'providers' store which might not be loaded.
+    const profileId = currentUser.providerProfileId || currentUser.id;
 
     // Filter listings where this user is the "Provider/Poster"
     const myListings = listings.filter(l => l.providerId === profileId);
@@ -45,6 +48,29 @@ const MyListings = () => {
             revenue: totalRevenue,
             views: Math.floor(Math.random() * 200) + 20 // Mock data
         };
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!window.confirm("确定要删除这条发布吗？此操作不可撤销。")) {
+            return;
+        }
+
+        try {
+            await deleteListing(id);
+            toast.success("已成功删除");
+        } catch (err: any) {
+            toast.error(err.message || "删除失败");
+        }
+    };
+
+    const handleToggleStatus = async (id: string, currentStatus: string) => {
+        const nextStatus = currentStatus === 'PUBLISHED' ? 'ARCHIVED' : 'PUBLISHED';
+        try {
+            await updateListing(id, { status: nextStatus as any });
+            toast.success(nextStatus === 'PUBLISHED' ? "已重新上架" : "已下架");
+        } catch (err: any) {
+            toast.error(err.message || "操作失败");
+        }
     };
 
     const getTypeBadge = (type: string) => {
@@ -114,6 +140,15 @@ const MyListings = () => {
                                             <div className="flex items-start justify-between mb-2">
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-1">
+                                                        <div className="flex items-center gap-2">
+                                                            {getTypeBadge(listing.type)}
+                                                            {listing.status === 'ARCHIVED' && (
+                                                                <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-muted font-black text-[10px] uppercase tracking-tighter">
+                                                                    Offline
+                                                                </Badge>
+                                                            )}
+                                                            <span className="text-[10px] font-black text-muted-foreground uppercase opacity-50"># {listing.id.slice(0, 8)}</span>
+                                                        </div>
                                                         <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
                                                             <Clock className="w-3 h-3" /> Just now
                                                         </span>
@@ -134,18 +169,42 @@ const MyListings = () => {
                                                     <Button
                                                         variant="outline"
                                                         size="icon"
-                                                        className="rounded-xl w-10 h-10 border-muted"
-                                                        onClick={() => navigate(`/service/${listing.id}`)}
+                                                        className={`rounded-xl w-10 h-10 border-muted transition-all duration-300 ${listing.status === 'ARCHIVED' ? 'bg-orange-50 border-orange-200 hover:bg-orange-100' : 'hover:bg-primary/5 hover:border-primary/30'}`}
+                                                        onClick={() => handleToggleStatus(listing.id, listing.status)}
+                                                        title={listing.status === 'PUBLISHED' ? '下架 (邻居不可见)' : '重新上架'}
                                                     >
-                                                        <Eye className="w-4 h-4 text-muted-foreground" />
+                                                        {listing.status === 'PUBLISHED' ? (
+                                                            <ArrowDownToLine className="w-4 h-4 text-orange-600" />
+                                                        ) : (
+                                                            <Rocket className="w-4 h-4 text-green-600" />
+                                                        )}
                                                     </Button>
                                                     <Button
                                                         variant="outline"
                                                         size="icon"
-                                                        className="rounded-xl w-10 h-10 border-muted"
-                                                        onClick={() => alert('Edit feature coming soon')}
+                                                        className="rounded-xl w-10 h-10 border-muted hover:bg-primary/5 hover:border-primary/30 transition-all duration-300"
+                                                        onClick={() => navigate(`/service/${listing.id}`)}
+                                                        title="查看预览"
+                                                    >
+                                                        <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="rounded-xl w-10 h-10 border-muted hover:bg-primary/5 hover:border-primary/30 transition-all duration-300"
+                                                        onClick={() => navigate(`/publish?id=${listing.id}`)}
+                                                        title="修改内容"
                                                     >
                                                         <Edit className="w-4 h-4 text-muted-foreground" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="rounded-xl w-10 h-10 border-red-100 hover:bg-red-50 hover:border-red-200 group/delete transition-all duration-300"
+                                                        onClick={() => handleDelete(listing.id)}
+                                                        title="删除发布"
+                                                    >
+                                                        <Trash2 className="w-4 h-4 text-red-500 group-hover/delete:scale-110 transition-transform" />
                                                     </Button>
                                                 </div>
                                             </div>

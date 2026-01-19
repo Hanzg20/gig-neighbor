@@ -25,6 +25,7 @@ serve(async (req) => {
         // Parse request body
         const {
             orderType = 'SCAN_TO_BUY', // 'SCAN_TO_BUY' or 'WEB_ORDER'
+            orderId, // explicitly extract orderId from root
             listingItemId,
             masterId,
             buyerId,
@@ -49,7 +50,7 @@ serve(async (req) => {
         // Get the origin for success/cancel URLs
         const origin = req.headers.get('origin') || 'http://localhost:8080'
 
-        console.log(`[🔵 Checkout] Creating ${orderType} session for:`, { listingItemId, price, orderType })
+        console.log(`[🔵 Checkout] Creating ${orderType} session for:`, { listingItemId, price, orderType, orderId })
 
         // Consolidate metadata
         const stripeMetadata = {
@@ -58,7 +59,8 @@ serve(async (req) => {
             masterId,
             buyerId,
             phoneNumber,
-            ...metadata // Spread additional fields like rentalStart, rentalEnd
+            orderId: orderId || metadata.orderId, // use root-level orderId preferentially
+            ...metadata // Spread additional fields like rentalStart, rentalEnd, rentalDays
         }
 
         // Create Stripe Checkout Session

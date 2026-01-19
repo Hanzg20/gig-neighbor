@@ -13,7 +13,9 @@ export type OrderStatus =
     | 'IN_PROGRESS'          // Work is underway
     | 'COMPLETED'            // Service completed
     | 'CANCELLED'            // Cancelled by user or system
-    | 'DISPUTED';            // Under dispute resolution
+    | 'DISPUTED'              // Under dispute resolution
+    | 'PICKED_UP'             // Item picked up by buyer
+    | 'RETURNED';            // Item returned to provider
 
 /**
  * Payment Status
@@ -47,6 +49,7 @@ export interface OrderSnapshot {
         price: Money;
         unit?: string;
         deposit?: Money;
+        serviceCallFee?: Money; // Added for web ordering
     };
     providerName: string;
     providerBadges: string[];
@@ -59,7 +62,7 @@ export interface Order extends BaseEntity {
     // References
     masterId: string;
     itemId: string;
-    buyerId: string;
+    buyerId?: string;
     providerId: string;
     providerUserId: string; // The auth.users.id of the provider
 
@@ -100,6 +103,7 @@ export interface Order extends BaseEntity {
     depositAmount?: number;
     depositStatus?: 'NONE' | 'HELD' | 'RELEASED' | 'FORFEITED';
     serviceCallFee?: number;
+    rentalDays?: number; // Added for convenience
 }
 
 /**
@@ -120,6 +124,7 @@ export interface CartItem {
     rentalStart?: string;
     rentalEnd?: string;
     consultHours?: number;
+    serviceCallFee?: number; // Added
 }
 
 /**

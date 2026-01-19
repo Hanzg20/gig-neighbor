@@ -29,8 +29,18 @@ const Cart = () => {
 
     const calculateSubtotal = () => {
         return enrichedCartItems.reduce((sum, ci) => {
-            const price = ci.item?.pricing.price.amount || 0;
-            return sum + (price * ci.quantity);
+            let price = ci.item?.pricing.price.amount || 0;
+            let qty = ci.quantity || 1;
+
+            // Handle rental duration
+            if (ci.master?.type === 'RENTAL' && ci.rentalStart && ci.rentalEnd) {
+                const days = Math.max(1, Math.ceil((new Date(ci.rentalEnd).getTime() - new Date(ci.rentalStart).getTime()) / (1000 * 60 * 60 * 24)));
+                qty *= days;
+            } else if (ci.master?.type === 'CONSULTATION' && ci.consultHours) {
+                qty *= ci.consultHours;
+            }
+
+            return sum + (price * qty);
         }, 0);
     };
 
@@ -43,7 +53,7 @@ const Cart = () => {
     const total = subtotal + platformFee;
 
     const formatMoney = (amount: number) => {
-        return `¥${(amount / 100).toFixed(2)}`;
+        return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount / 100);
     };
 
     const handleUpdateQuantity = (cartItem: any, delta: number) => {
@@ -65,16 +75,16 @@ const Cart = () => {
 
             <div className="container max-w-4xl py-8 px-4">
                 <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-3xl font-extrabold">购物车</h1>
+                    <h1 className="text-3xl font-extrabold">{currentUser.id ? 'My Cart' : '购物车'}</h1>
                     {enrichedCartItems.length > 0 && (
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                                if (confirm('确定清空购物车吗？')) clearCart();
+                                if (confirm('Clear cart?')) clearCart();
                             }}
                         >
-                            清空购物车
+                            Clear
                         </Button>
                     )}
                 </div>
@@ -82,12 +92,12 @@ const Cart = () => {
                 {enrichedCartItems.length === 0 ? (
                     <div className="text-center py-20">
                         <ShoppingBag className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-                        <p className="text-muted-foreground mb-4">购物车还是空的</p>
+                        <p className="text-muted-foreground mb-4">Your cart is empty</p>
                         <Button
                             onClick={() => navigate('/')}
                             className="btn-action"
                         >
-                            去逛逛
+                            Explore services
                         </Button>
                     </div>
                 ) : (
@@ -116,12 +126,24 @@ const Cart = () => {
                                                 >
                                                     {master.titleZh}
                                                 </h3>
-                                                <p className="text-sm text-muted-foreground mb-2 line-clamp-1">
-                                                    {item.nameZh}
-                                                </p>
+                                                <div className="flex flex-wrap gap-2 mb-2">
+                                                    <span className="text-sm text-muted-foreground line-clamp-1">
+                                                        {item.nameZh}
+                                                    </span>
+                                                    {cartItem.rentalStart && (
+                                                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 rounded-full flex items-center">
+                                                            📅 {new Date(cartItem.rentalStart).toLocaleDateString()} - {new Date(cartItem.rentalEnd!).toLocaleDateString()}
+                                                        </span>
+                                                    )}
+                                                    {cartItem.consultHours && (
+                                                        <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 rounded-full flex items-center">
+                                                            ⏱️ {cartItem.consultHours} hrs
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="flex items-center justify-between">
                                                     <p className="text-lg font-bold text-primary">
-                                                        {item.pricing.price.formatted}
+                                                        {formatMoney(item.pricing.price.amount)}
                                                         <span className="text-xs text-muted-foreground ml-1">
                                                             /{item.pricing.unit}
                                                         </span>

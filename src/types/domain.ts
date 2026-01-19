@@ -24,7 +24,7 @@ export interface BaseEntity {
   updatedAt: string;
 }
 
-export type CategoryType = 'FOOD' | 'SERVICE' | 'RENTAL' | 'GOODS' | 'CONSULTATION';
+export type CategoryType = 'FOOD' | 'SERVICE' | 'RENTAL' | 'GOODS' | 'CONSULTATION' | 'EVENT' | 'FREE_GIVEAWAY' | 'WANTED';
 
 export type UserRoleType = 'SUPER_ADMIN' | 'MODERATOR' | 'PROVIDER' | 'BUYER';
 
@@ -93,6 +93,16 @@ export interface BeanTransaction {
 
 export type ProviderIdentity = 'NEIGHBOR' | 'MERCHANT';
 
+export interface ProfessionalCredential extends BaseEntity {
+  providerId: string;
+  type: 'LAWYER' | 'REAL_ESTATE_AGENT' | 'HVAC' | 'ELECTRICIAN' | 'ACCOUNTANT' | 'HEALTHPRO' | 'OTHER';
+  licenseNumber: string;
+  jurisdiction: string;
+  status: 'VERIFIED' | 'PENDING' | 'EXPIRED' | 'REJECTED';
+  verifiedAt?: string;
+  extraData?: Record<string, any>;
+}
+
 export interface ProviderProfile extends BaseEntity {
   userId: string;
 
@@ -126,9 +136,12 @@ export interface ProviderProfile extends BaseEntity {
     address: string;
     radiusKm: number; // Service area
   };
+
+  // Professional Directory Extensions
+  credentials?: ProfessionalCredential[];
 }
 
-export type ListingType = 'SERVICE' | 'RENTAL' | 'CONSULTATION' | 'GOODS' | 'TASK';
+export type ListingType = 'SERVICE' | 'RENTAL' | 'CONSULTATION' | 'GOODS' | 'TASK' | 'EVENT' | 'FREE_GIVEAWAY' | 'WANTED' | 'OTHER';
 
 export type PricingModel = 'FIXED' | 'HOURLY' | 'DAILY' | 'NEGOTIABLE' | 'DEPOSIT_REQUIRED' | 'QUOTE' | 'VISIT_FEE';
 
@@ -158,6 +171,8 @@ export interface ListingMaster extends BaseEntity {
   descriptionZh: string;
   descriptionEn?: string;
 
+  attributes?: Record<string, any>; // JSONB attributes (e.g. pricingMode)
+
   images: string[];
   type: ListingType;
   categoryId: string; // Linked to RefCode
@@ -169,6 +184,7 @@ export interface ListingMaster extends BaseEntity {
   rating: number;
   reviewCount: number;
   isPromoted?: boolean;
+  distanceMeters?: number; // Calculated distance from search center
 
   // New: Link to child items
   itemIds?: string[];

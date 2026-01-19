@@ -141,22 +141,18 @@ const QuickScanCheckout = () => {
                 body: {
                     listingItemId: selectedItem.id,
                     phoneNumber,
-                    productName: language === 'zh'
+                    productName: (language === 'zh'
                         ? `${listing?.titleZh} - ${selectedItem.nameZh}`
-                        : `${listing?.titleEn} - ${selectedItem.nameEn}`,
+                        : `${listing?.titleEn} - ${selectedItem.nameEn}`) || 'Neighbourhood Service',
                     price: selectedItem.pricing.price.amount, // Amount in cents
                     currency: selectedItem.pricing.price.currency.toLowerCase(),
                     masterId: id,
                 },
             });
 
-            if (error) {
-                console.error('[❌ Checkout] Failed to create session:', error);
-                throw new Error(error.message || 'Failed to create checkout session');
-            }
-
-            if (!data?.url) {
-                throw new Error('No checkout URL returned');
+            if (error || !data?.url) {
+                console.error('[❌ Checkout] Stripe session error details:', error);
+                throw error || new Error("Failed to create checkout session: No URL or error occurred.");
             }
 
             console.log('[✅ Checkout] Session created, redirecting to Stripe...');

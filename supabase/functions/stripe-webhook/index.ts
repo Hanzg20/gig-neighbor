@@ -115,10 +115,16 @@ serve(async (req) => {
                     orderId, // Optional: if we created a pending order first
                     rentalStart,
                     rentalEnd,
+                    rentalDays,
                     depositAmount,
                     serviceCallFee
                 } = session.metadata || {}
                 const listingItemId = rawItemId?.trim();
+
+                // Special Handling for Demo Users: If the ID is the hardcoded demo UUID, 
+                // we treat it as NULL in the database to avoid FK violations.
+                const DEMO_BUYER_ID = '99999999-9999-9999-9999-999999999999';
+                const safeBuyerId = buyerId === DEMO_BUYER_ID ? null : buyerId;
 
                 if (!listingItemId && orderType === 'SCAN_TO_BUY') {
                     console.error('[❌ Webhook] Missing listingItemId in metadata')
@@ -145,7 +151,7 @@ serve(async (req) => {
                     const { data: inventoryItem, error: rpcError } = await supabase.rpc('allocate_inventory_item', {
                         p_listing_item_id: listingItemId,
                         p_order_id: session.id, // Use session ID as temporary order reference
-                        p_buyer_id: buyerId || phoneNumber // Store phone or buyer ID
+                        p_buyer_id: safeBuyerId || phoneNumber // Store phone or buyer ID
                     })
 
                     if (rpcError || !inventoryItem) {
@@ -204,6 +210,7 @@ serve(async (req) => {
                     // If it's a rental or has metadata, ensure it's captured (if not already in DB)
                     if (rentalStart) updateData.rental_start_date = rentalStart;
                     if (rentalEnd) updateData.rental_end_date = rentalEnd;
+                    if (rentalDays) updateData.rental_days = parseInt(rentalDays);
                     if (depositAmount) updateData.deposit_amount = parseInt(depositAmount);
                     if (serviceCallFee) updateData.service_call_fee = parseInt(serviceCallFee);
 
@@ -222,7 +229,7 @@ serve(async (req) => {
                             .from('orders')
                             .insert({
                                 ...updateData,
-                                buyer_id: buyerId,
+                                buyer_id: safeBuyerId,
                                 item_id: listingItemId,
                                 master_id: masterId,
                                 amount_total: session.amount_total || 0,

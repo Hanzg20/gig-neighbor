@@ -1,0 +1,149 @@
+import React, { useState, useEffect } from 'react';
+import { ListingFieldsConfig, FormData, FormErrors } from '@/types/listingFields';
+import { calculateCompleteness, validateAll, shouldDisplayField } from '@/utils/formValidation';
+import FormFieldRenderer from './FormFieldRenderer';
+import CompletenessIndicator from './CompletenessIndicator';
+import { Button } from '@/components/ui/button';
+
+interface DynamicListingFormProps {
+    config: ListingFieldsConfig;
+    initialData?: FormData;
+    onSubmit: (data: FormData) => void;
+    onCancel?: () => void;
+    submitLabel?: string;
+}
+
+const DynamicListingForm: React.FC<DynamicListingFormProps> = ({
+    config,
+    initialData = {},
+    onSubmit,
+    onCancel,
+    submitLabel = '✨ 确认发布'
+}) => {
+    const [formData, setFormData] = useState<FormData>(initialData);
+    const [errors, setErrors] = useState<FormErrors>({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Calculate completeness when form data changes
+    const completeness = calculateCompleteness(formData, config);
+
+    // Auto-save to localStorage
+    useEffect(() => {
+        const saveTimeout = setTimeout(() => {
+            localStorage.setItem('listing-draft', JSON.stringify(formData));
+        }, 1000);
+
+        return () => clearTimeout(saveTimeout);
+    }, [formData]);
+
+    const handleFieldChange = (name: string, value: any) => {
+        setFormData(prev => ({ ...prev, [name]: value }));
+
+        // Clear error when user starts typing
+        if (errors[name]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[name];
+                return newErrors;
+            });
+        }
+    };
+
+    const handleSubmit = async () => {
+        // Validate all fields
+        const validation = validateAll(formData, config);
+
+        if (!validation.isValid) {
+            setErrors(validation.errors);
+            // Scroll to first error
+            const firstErrorField = Object.keys(validation.errors)[0];
+            const element = document.getElementById(`field-${firstErrorField}`);
+            element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            await onSubmit(formData);
+            // Clear draft on successful submit
+            localStorage.removeItem('listing-draft');
+        } catch (error) {
+            console.error('Submit error:', error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Completeness Indicator */}
+            <CompletenessIndicator score={completeness} />
+
+            {/* Field Groups */}
+            {config.groups.map((group, groupIndex) => (
+                <div key={groupIndex} className="bg-card border rounded-2xl p-6 space-y-5">
+                    <div>
+                        <h3 className="text-lg font-black mb-1">{group.title}</h3>
+                        {group.description && (
+                            <p className="text-sm text-muted-foreground">{group.description}</p>
+                        )}
+                    </div>
+
+                    <div className="space-y-4">
+                        {group.fields.map(field => {
+                            // Check if field should be displayed
+                            if (!shouldDisplayField(field, formData)) {
+                                return null;
+                            }
+
+                            return (
+                                <div key={field.name} id={`field-${field.name}`}>
+                                    <FormFieldRenderer
+                                        field={field}
+                                        value={formData[field.name]}
+                                        error={errors[field.name]}
+                                        onChange={(value) => handleFieldChange(field.name, value)}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ))}
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 sticky bottom-4 bg-background/80 backdrop-blur-sm p-4 rounded-2xl border shadow-lg">
+                {onCancel && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onCancel}
+                        className="flex-1"
+                        disabled={isSubmitting}
+                    >
+                        取消
+                    </Button>
+                )}
+                <Button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="flex-[2] btn-action"
+                    disabled={isSubmitting || completeness.missingRequired.length > 0}
+                >
+                    {isSubmitting ? (submitLabel.includes('修改') ? '保存中...' : '发布中...') : submitLabel}
+                </Button>
+            </div>
+
+            {/* Missing Required Fields Warning */}
+            {completeness.missingRequired.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                    <p className="text-sm font-bold text-red-700">
+                        ⚠️ 还有 {completeness.missingRequired.length} 个必填项未完成
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default DynamicListingForm;

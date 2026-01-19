@@ -267,7 +267,7 @@ const ProviderDashboard = () => {
                                     <span className="text-xs font-black tracking-tight">私信咨询</span>
                                 </button>
                                 <button
-                                    onClick={() => navigate('/post-gig')}
+                                    onClick={() => navigate('/publish')}
                                     className="p-4 rounded-[24px] bg-primary/20 border border-primary/30 hover:bg-primary/30 transition-all flex flex-col gap-3 group"
                                 >
                                     <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center text-white group-hover:rotate-90 transition-transform">

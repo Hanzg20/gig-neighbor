@@ -38,11 +38,19 @@ export class SupabaseOrderRepository implements IOrderRepository {
     }
 
     async getByUser(userId: string): Promise<Order[]> {
-        const { data, error } = await supabase
+        const DEMO_BUYER_ID = '99999999-9999-9999-9999-999999999999';
+
+        let query = supabase
             .from('orders')
-            .select('*')
-            .eq('buyer_id', userId)
-            .order('created_at', { ascending: false });
+            .select('*');
+
+        if (userId === DEMO_BUYER_ID) {
+            query = query.is('buyer_id', null);
+        } else {
+            query = query.eq('buyer_id', userId);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) throw error;
         return (data || []).map(this.mapToDomain);
@@ -60,10 +68,16 @@ export class SupabaseOrderRepository implements IOrderRepository {
     }
 
     async create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
+        // Special Handling for Demo Users: If the ID is the hardcoded demo UUID, 
+        // we pass NULL to Supabase because it won't exist in the user_profiles table 
+        // (unless properly seeded with auth.users). Subabase 'orders' table has 
+        // buyer_id set to NULLABLE for guest support.
+        const DEMO_BUYER_ID = '99999999-9999-9999-9999-999999999999';
+
         const dbOrder = {
             master_id: order.masterId,
             item_id: order.itemId,
-            buyer_id: order.buyerId,
+            buyer_id: order.buyerId === DEMO_BUYER_ID ? null : order.buyerId,
             provider_id: order.providerId,
             status: order.status,
             amount_base: order.pricing.baseAmount.amount,
@@ -76,11 +90,12 @@ export class SupabaseOrderRepository implements IOrderRepository {
             payment_status: order.paymentStatus,
             actual_transaction_model: order.snapshot.itemPricing.model, // Based on snapshot
             metadata: order.metadata || {},
-            rental_start_date: (order as any).rentalStartDate,
-            rental_end_date: (order as any).rentalEndDate,
-            deposit_amount: (order as any).depositAmount || 0,
-            deposit_status: (order as any).depositStatus || 'NONE',
-            service_call_fee: (order as any).serviceCallFee || 0
+            rental_start_date: order.rentalStartDate,
+            rental_end_date: order.rentalEndDate,
+            rental_days: order.rentalDays,
+            deposit_amount: order.depositAmount || 0,
+            deposit_status: order.depositStatus || 'NONE',
+            service_call_fee: order.serviceCallFee || 0
         };
 
         const { data, error } = await supabase
@@ -94,15 +109,21 @@ export class SupabaseOrderRepository implements IOrderRepository {
     }
 
     async update(id: string, updates: Partial<Order>): Promise<Order> {
+        const DEMO_BUYER_ID = '99999999-9999-9999-9999-999999999999';
         const dbUpdates: any = { updated_at: new Date().toISOString() };
         if (updates.status) dbUpdates.status = updates.status;
         if (updates.paymentStatus) dbUpdates.payment_status = updates.paymentStatus;
         if (updates.metadata) dbUpdates.metadata = updates.metadata;
         if (updates.rentalStartDate) dbUpdates.rental_start_date = updates.rentalStartDate;
         if (updates.rentalEndDate) dbUpdates.rental_end_date = updates.rentalEndDate;
+        if (updates.rentalDays !== undefined) dbUpdates.rental_days = updates.rentalDays;
         if (updates.depositAmount !== undefined) dbUpdates.deposit_amount = updates.depositAmount;
         if (updates.depositStatus) dbUpdates.deposit_status = updates.depositStatus;
         if (updates.serviceCallFee !== undefined) dbUpdates.service_call_fee = updates.serviceCallFee;
+
+        if (updates.buyerId !== undefined) {
+            dbUpdates.buyer_id = updates.buyerId === DEMO_BUYER_ID ? null : updates.buyerId;
+        }
 
         if (updates.pricing) {
             dbUpdates.amount_base = updates.pricing.baseAmount.amount;
@@ -132,11 +153,13 @@ export class SupabaseOrderRepository implements IOrderRepository {
             return `${currency === 'CAD' ? '$' : currency} ${(amount / 100).toFixed(2)}`;
         };
 
+        const DEMO_BUYER_ID = '99999999-9999-9999-9999-999999999999';
+
         return {
             id: dbOrder.id,
             masterId: dbOrder.master_id,
             itemId: dbOrder.item_id,
-            buyerId: dbOrder.buyer_id,
+            buyerId: dbOrder.buyer_id === null ? DEMO_BUYER_ID : dbOrder.buyer_id,
             providerId: dbOrder.provider_id,
             providerUserId: (Array.isArray(dbOrder.provider_profiles)
                 ? dbOrder.provider_profiles[0]?.user_id
@@ -176,6 +199,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
             metadata: dbOrder.metadata,
             rentalStartDate: dbOrder.rental_start_date,
             rentalEndDate: dbOrder.rental_end_date,
+            rentalDays: dbOrder.rental_days,
             depositAmount: dbOrder.deposit_amount,
             depositStatus: dbOrder.deposit_status,
             serviceCallFee: dbOrder.service_call_fee,

@@ -12,7 +12,7 @@ import { LocationSelector } from "@/components/home/LocationSelector";
 import { PromoBanner } from "@/components/home/PromoBanner";
 import { TaskBoard } from "@/components/home/TaskBoard";
 import { ArrowRight, Sparkles, TrendingUp, Clock, MapPin } from "lucide-react";
-import { SearchBar } from "@/components/SearchBar";
+import { SmartSearchBar } from "@/components/SmartSearchBar";
 import { Link, useNavigate } from "react-router-dom";
 import { ListingMaster } from "@/types/domain";
 import { ListingCard } from "@/components/ListingCard";
@@ -138,10 +138,11 @@ const Index = () => {
       {/* Hero Section with Glassmorphism */}
       {/* Hero Section - Compact & Active */}
       <div className="relative bg-background border-b border-border shadow-sm overflow-hidden">
-        {/* Animated Background - Subtle & Alive */}
+        {/* Animated Background - Enhanced Mesh Gradient */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '4s' }} />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }} />
+          <div className="absolute -top-24 -left-24 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
+          <div className="absolute -bottom-24 -right-24 w-[500px] h-[500px] bg-accent/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,transparent_0%,rgba(var(--background),0.8)_100%)]" />
         </div>
 
         <div className="container relative py-3 sm:py-4 px-4 sm:px-6">
@@ -169,7 +170,7 @@ const Index = () => {
               transition={{ delay: 0.1 }}
               className="w-full max-w-4xl mx-auto relative z-10"
             >
-              <SearchBar />
+              <SmartSearchBar />
               {/* Floating AI badge - Closer integration */}
               <div className="absolute -top-2 sm:-top-3 right-0 md:-right-4">
                 <Badge variant="secondary" className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 bg-gradient-to-r from-primary/10 to-accent/10 text-primary border-primary/20 shadow-sm backdrop-blur-md">
@@ -247,11 +248,17 @@ const Index = () => {
             variants={sectionVariants}
           >
             <div className="flex items-center justify-between mb-6 sm:mb-8">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent flex items-center gap-2 sm:gap-3">
-                  🍪 {t.marketTitle}
-                </h2>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t.marketDesc}</p>
+              <div className="flex items-center gap-3 sm:gap-4 p-1">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center text-2xl shadow-sm border border-orange-200/50">
+                  🍪
+                </div>
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground flex items-center gap-2">
+                    {t.marketTitle}
+                    <Sparkles className="w-5 h-5 text-orange-400" />
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium">{t.marketDesc}</p>
+                </div>
               </div>
               <Link
                 to="/category/goods"

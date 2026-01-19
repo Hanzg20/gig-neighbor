@@ -64,6 +64,24 @@ const ReviewSubmission = () => {
                 media: uploadedImages,
                 isNeighborStory,
             });
+
+            // Reward JinBeans if story is promoted
+            if (isNeighborStory) {
+                try {
+                    const beanRepo = repositoryFactory.getBeanRepository();
+                    await beanRepo.addTransaction({
+                        userId: currentUser.id,
+                        amount: 50,
+                        type: 'STORY_BONUS',
+                        descriptionZh: '评价故事奖励',
+                        descriptionEn: 'Review story bonus'
+                    });
+                } catch (beanError) {
+                    console.error("Failed to reward beans:", beanError);
+                    // Don't fail the whole submission if bean reward fails
+                }
+            }
+
             toast.success("Review submitted! You've earned 50 JinBeans! 🎉");
             navigate(`/service/${order.masterId}`);
         } catch (error) {

@@ -35,6 +35,15 @@ const Register = () => {
         }
 
         try {
+            // Check for redirect param
+            const searchParams = new URLSearchParams(window.location.search);
+            const role = searchParams.get('role');
+            let redirectTo = window.location.origin + "/login";
+
+            if (role === 'PROVIDER') {
+                redirectTo += "?redirect=/become-provider";
+            }
+
             const { data, error: signUpError } = await supabase.auth.signUp({
                 email,
                 password,
@@ -43,7 +52,7 @@ const Register = () => {
                         name: name,
                         nodeId: nodeId,
                     },
-                    emailRedirectTo: window.location.origin + "/login"
+                    emailRedirectTo: redirectTo
                 }
             });
 

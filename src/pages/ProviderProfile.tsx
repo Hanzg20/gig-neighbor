@@ -17,11 +17,17 @@ import {
     TrendingUp,
     CheckCircle2,
     Sparkles,
-    Box
+    Box,
+    ShieldCheck,
+    Scale,
+    Building2,
+    Zap,
+    ExternalLink
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { ListingCard } from '@/components/ListingCard';
+import { ShareSheet } from '@/components/common/ShareSheet';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useConfigStore } from '@/stores/configStore';
@@ -162,18 +168,7 @@ export default function ProviderProfile() {
         navigate('/chat', { state: { providerId } });
     };
 
-    const handleShareProfile = async () => {
-        const url = window.location.href;
-        if (navigator.share) {
-            await navigator.share({
-                title: businessName || 'Provider Profile',
-                url
-            });
-        } else {
-            navigator.clipboard.writeText(url);
-            alert(language === 'zh' ? '链接已复制到剪贴板！' : 'Link copied to clipboard!');
-        }
-    };
+
 
     if (isLoading) {
         return (
@@ -251,6 +246,23 @@ export default function ProviderProfile() {
                                         </Badge>
                                     )}
 
+                                    {/* Professional Credentials Badges */}
+                                    {provider.credentials && provider.credentials.filter(c => c.status === 'VERIFIED').map(c => {
+                                        const config = {
+                                            'LAWYER': { icon: Scale, label: language === 'zh' ? '认证律师' : 'Verified Lawyer', color: 'bg-indigo-600' },
+                                            'REAL_ESTATE_AGENT': { icon: Building2, label: language === 'zh' ? 'RECO认证经纪' : 'RECO Verified', color: 'bg-emerald-600' },
+                                            'ELECTRICIAN': { icon: Zap, label: language === 'zh' ? 'ESA持证电工' : 'ESA Licensed', color: 'bg-amber-600' },
+                                            'HVAC': { icon: Zap, label: language === 'zh' ? 'TSSA认证' : 'TSSA Certified', color: 'bg-orange-600' },
+                                        }[c.type] || { icon: ShieldCheck, label: c.type, color: 'bg-slate-600' };
+
+                                        return (
+                                            <Badge key={c.id} className={`gap-1 ${config.color} text-white`}>
+                                                <config.icon className="w-3 h-3" />
+                                                {config.label}
+                                            </Badge>
+                                        );
+                                    })}
+
                                     {avgRating >= 4.8 && reviews.length >= 20 && (
                                         <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-800 border-amber-200">
                                             <Award className="w-3 h-3" />
@@ -303,10 +315,19 @@ export default function ProviderProfile() {
                                         <MessageCircle className="w-4 h-4" />
                                         {t.contact}
                                     </Button>
-                                    <Button variant="outline" onClick={handleShareProfile} className="gap-2">
-                                        <Share2 className="w-4 h-4" />
-                                        {t.share}
-                                    </Button>
+                                    <ShareSheet
+                                        title={businessName || 'Provider Profile'}
+                                        content={description || t.defaultBio}
+                                        imageUrl={providerAvatar}
+                                        authorName={businessName || 'Gig Neighbor'}
+                                        authorAvatar={providerAvatar}
+                                        trigger={
+                                            <Button variant="outline" className="gap-2">
+                                                <Share2 className="w-4 h-4" />
+                                                {t.share}
+                                            </Button>
+                                        }
+                                    />
 
                                     {/* Edit Button for Owner */}
                                     {isOwner && (
@@ -476,6 +497,43 @@ export default function ProviderProfile() {
                                             {t.certifications}
                                         </h4>
                                         <p className="text-muted-foreground">{provider.licenseInfo}</p>
+                                    </div>
+                                )}
+
+                                {provider.credentials && provider.credentials.length > 0 && (
+                                    <div className="pt-4 border-t">
+                                        <h4 className="font-semibold mb-4 flex items-center gap-2">
+                                            <ShieldCheck className="w-4 h-4 text-primary" />
+                                            {language === 'zh' ? '专业认证详情' : 'Professional Verification'}
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {provider.credentials.map(c => (
+                                                <Card key={c.id} className="p-4 bg-muted/30 border-none">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <span className="text-sm font-bold text-primary">{c.type.replace('_', ' ')}</span>
+                                                        <Badge variant={c.status === 'VERIFIED' ? 'default' : 'secondary'} className="text-[10px] h-5">
+                                                            {c.status}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {language === 'zh' ? '证书编号: ' : 'License #: '}
+                                                            <span className="text-foreground font-mono">{c.licenseNumber}</span>
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {language === 'zh' ? '注册地: ' : 'Jurisdiction: '}
+                                                            <span className="text-foreground">{c.jurisdiction}</span>
+                                                        </p>
+                                                        {c.verifiedAt && (
+                                                            <p className="text-[10px] text-muted-foreground italic pt-1">
+                                                                {language === 'zh' ? '验证于 ' : 'Verified on '}
+                                                                {new Date(c.verifiedAt).toLocaleDateString()}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </Card>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 

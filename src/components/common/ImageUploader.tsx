@@ -17,13 +17,21 @@ const ImageUploader = ({
     bucketName,
     onUpload,
     onUploadingChange,
-    maxFiles = 3,
+    maxFiles = 6,
     existingImages = [],
     folderPath = 'uploads'
 }: ImageUploaderProps) => {
     const [uploading, setUploading] = useState(false);
     const [previews, setPreviews] = useState<string[]>(existingImages);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+    const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
+
+    // Sync external existingImages if they change and we haven't touched previews
+    // This handles the case where parent component updates images
+    if (JSON.stringify(existingImages) !== JSON.stringify(previews) && !uploading) {
+        setPreviews(existingImages);
+    }
 
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
@@ -40,10 +48,14 @@ const ImageUploader = ({
 
         try {
             for (const file of files) {
-                if (file.size > 2 * 1024 * 1024) {
-                    toast.error(`${file.name} is too large. Max size is 2MB.`);
+                if (file.size > 5 * 1024 * 1024) { // Increased to 5MB
+                    toast.error(`${file.name} is too large. Max size is 5MB.`);
                     continue;
                 }
+
+                // Create local preview immediately for better UX
+                const localUrl = URL.createObjectURL(file);
+                // newUrls.push(localUrl); // We could use local URLs, but for now let's stick to Supabase URLs to avoid complexity
 
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
@@ -88,15 +100,82 @@ const ImageUploader = ({
         onUpload(updatedPreviews);
     };
 
+    // Drag and Drop Handlers
+    const handleDragStart = (e: React.DragEvent, index: number) => {
+        setDraggedIndex(index);
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", index.toString()); // For firefox compatibility
+        // e.dataTransfer.setDragImage(e.currentTarget, 20, 20); 
+    };
+
+    const handleDragOver = (e: React.DragEvent, index: number) => {
+        e.preventDefault(); // Necessary to allow dropping
+        e.dataTransfer.dropEffect = "move";
+
+        if (draggedIndex === null || draggedIndex === index) return;
+
+        // Debounce or check threshold if needed, but for now direct swap is reactive
+        // We only update visual state here, commit to parent on Drop to avoid props churn
+        const newPreviews = [...previews];
+        const draggedItem = newPreviews[draggedIndex];
+        newPreviews.splice(draggedIndex, 1);
+        newPreviews.splice(index, 0, draggedItem);
+
+        setPreviews(newPreviews);
+        setDraggedIndex(index);
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setDraggedIndex(null);
+        onUpload(previews); // Commit the new order finally
+    };
+
+    const handleDragEnd = () => {
+        setDraggedIndex(null);
+        // Ensure we sync if drop happened outside or cancelled, 
+        // though previews state is our source of truth during drag
+        onUpload(previews);
+    };
+
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
                 {previews.map((url, idx) => (
-                    <div key={idx} className="relative group aspect-square rounded-2xl overflow-hidden border-2 border-primary/20 bg-muted/30 shadow-sm animate-in zoom-in-95 duration-200">
-                        <img src={url} alt={`Upload ${idx}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <div
+                        key={`${url}-${idx}`}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, idx)}
+                        onDragOver={(e) => handleDragOver(e, idx)}
+                        onDrop={handleDrop}
+                        onDragEnd={handleDragEnd}
+                        className={`relative group aspect-square rounded-2xl overflow-hidden border-2 bg-muted/30 shadow-sm transition-all duration-200 cursor-move
+                            ${idx === 0 ? 'border-primary ring-2 ring-primary/20' : 'border-transparent'}
+                            ${draggedIndex === idx ? 'opacity-40 scale-95 ring-2 ring-primary border-primary border-dashed' : 'opacity-100'}
+                        `}
+                    >
+                        <img src={url} alt={`Upload ${idx}`} className="w-full h-full object-cover pointer-events-none" />
+
+                        {/* Cover Badge */}
+                        {idx === 0 && (
+                            <div className="absolute top-2 left-2 px-2 py-0.5 bg-primary text-white text-[10px] font-bold rounded-full shadow-md z-10">
+                                Cover
+                            </div>
+                        )}
+
+                        {uploadingFiles.has(url) && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
+                                <Loader2 className="w-8 h-8 text-white animate-spin" />
+                            </div>
+                        )}
+
                         <button
-                            onClick={() => removeImage(idx)}
-                            className="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500/90 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors scale-0 group-hover:scale-100 duration-200"
+                            type="button" // Prevent form submission
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                removeImage(idx);
+                            }}
+                            className="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500/90 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 duration-200"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -136,7 +215,7 @@ const ImageUploader = ({
                 />
             </div>
             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest text-center">
-                Supported: JPG, PNG • Max 2MB • Up to {maxFiles} images
+                Supported: JPG, PNG • Max 5MB • Drag to reorder
             </p>
         </div>
     );

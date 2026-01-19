@@ -1,14 +1,15 @@
 import { Link } from "react-router-dom";
-import { Star, MapPin, Tag, TrendingUp, Heart } from "lucide-react";
+import { Star, MapPin, Tag, TrendingUp, Heart, Sparkles, Layers } from "lucide-react";
 import { ListingMaster } from "@/types/domain";
 import { useListingStore } from "@/stores/listingStore";
 import { useProviderStore } from "@/stores/providerStore";
 import { useConfigStore } from "@/stores/configStore";
 import { VerificationBadge } from "./ui/VerificationBadge";
+import { Badge } from "./ui/badge";
 import { motion } from "framer-motion";
 import { useState } from "react";
 
-export const ListingCard = ({ item }: { item: ListingMaster }) => {
+export const ListingCard = ({ item }: { item: ListingMaster & { similarity?: number } }) => {
     const { listingItems } = useListingStore();
     const { getProviderById } = useProviderStore();
     const { refCodes, language } = useConfigStore();
@@ -85,6 +86,7 @@ export const ListingCard = ({ item }: { item: ListingMaster }) => {
                         src={item.images[0]}
                         alt={displayTitle}
                         onLoad={() => setImageLoaded(true)}
+                        loading="lazy"
                         className={`w-full h-full object-cover group-hover:scale-110 transition-all duration-700 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
                     />
 
@@ -102,7 +104,6 @@ export const ListingCard = ({ item }: { item: ListingMaster }) => {
                         <span className="text-foreground">{item.rating}</span>
                     </motion.div>
 
-                    {/* Type Badge */}
                     <motion.div
                         initial={{ x: -20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
@@ -111,6 +112,13 @@ export const ListingCard = ({ item }: { item: ListingMaster }) => {
                     >
                         {typeConfig.badge}
                     </motion.div>
+
+                    {/* Multiple Images Indicator */}
+                    {item.images.length > 1 && (
+                        <div className="absolute top-3 right-14 bg-black/50 backdrop-blur-md text-white p-1.5 rounded-lg shadow-sm z-10">
+                            <Layers className="w-3.5 h-3.5" />
+                        </div>
+                    )}
 
                     {/* Favorite Button */}
                     <button
@@ -123,8 +131,24 @@ export const ListingCard = ({ item }: { item: ListingMaster }) => {
                         <Heart className={`w-4 h-4 transition-all ${isFavorited ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} />
                     </button>
 
-                    {/* Trending indicator if rating > 4.5 */}
-                    {item.rating && item.rating > 4.5 && (
+                    {/* AI Similarity Badge - 优先级最高 */}
+                    {item.similarity && item.similarity > 0.75 && (
+                        <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="absolute bottom-3 left-3 bg-gradient-to-r from-primary to-primary/80 text-white px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-lg backdrop-blur-sm"
+                        >
+                            <Sparkles className="w-3 h-3 animate-pulse" />
+                            {language === 'zh' ? '高度匹配' : 'High Match'}
+                            <span className="ml-0.5 text-[10px] opacity-90">
+                                {Math.round(item.similarity * 100)}%
+                            </span>
+                        </motion.div>
+                    )}
+
+                    {/* Trending indicator if rating > 4.5 (只在没有相似度徽章时显示) */}
+                    {item.rating && item.rating > 4.5 && (!item.similarity || item.similarity <= 0.75) && (
                         <div className="absolute bottom-3 left-3 bg-orange-500/95 text-white px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 shadow-lg backdrop-blur-sm">
                             <TrendingUp className="w-3 h-3" />
                             {language === 'zh' ? '热门' : 'Hot'}

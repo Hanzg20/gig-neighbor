@@ -89,13 +89,18 @@ export function IndustryIconGrid() {
             {/* Icon Container */}
             <motion.div
               className="w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center shadow-sm transition-all duration-300 group-hover:scale-110 relative"
-              style={{ backgroundColor: industry.bgColor }}
+              style={{
+                backgroundColor: industry.bgColor,
+                border: `1px solid ${industry.color}20`
+              }}
               whileHover={{
-                boxShadow: `0 8px 24px -4px ${industry.color}40`,
+                boxShadow: `0 8px 32px -4px ${industry.color}40`,
+                backgroundColor: `${industry.color}20`,
+                borderColor: `${industry.color}40`
               }}
             >
               <Icon
-                className="w-7 h-7 md:w-8 md:h-8"
+                className="w-7 h-7 md:w-8 md:h-8 drop-shadow-sm"
                 style={{ color: industry.color }}
               />
 

@@ -28,7 +28,19 @@ export class SupabaseProviderRepository implements IProviderRepository {
                 radiusKm: row.service_radius_km || 5,
             } : { lat: 0, lng: 0, address: '', radiusKm: 5 },
             createdAt: row.created_at,
-            updatedAt: row.updated_at
+            updatedAt: row.updated_at,
+            credentials: row.professional_credentials ? row.professional_credentials.map((c: any) => ({
+                id: c.id,
+                providerId: c.provider_id,
+                type: c.type,
+                licenseNumber: c.license_number,
+                jurisdiction: c.jurisdiction,
+                status: c.status,
+                verifiedAt: c.verified_at,
+                extraData: c.extra_data,
+                createdAt: c.created_at,
+                updatedAt: c.updated_at
+            })) : undefined
         };
     }
 
@@ -55,7 +67,7 @@ export class SupabaseProviderRepository implements IProviderRepository {
     async getById(id: string): Promise<ProviderProfile | null> {
         const { data, error } = await supabase
             .from('provider_profiles')
-            .select('*')
+            .select('*, professional_credentials(*)')
             .eq('id', id)
             .single();
 

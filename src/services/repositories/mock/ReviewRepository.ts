@@ -88,4 +88,8 @@ export class MockReviewRepository implements IReviewRepository {
         }
         return reply;
     }
+
+    async getNeighborStories(limit: number = 10): Promise<Review[]> {
+        return this.reviews.filter(r => r.isNeighborStory).slice(0, limit);
+    }
 }

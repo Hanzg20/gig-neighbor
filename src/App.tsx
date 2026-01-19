@@ -7,6 +7,8 @@ import MobileBottomNav from "./components/MobileBottomNav";
 import Index from "./pages/Index";
 import ServiceDetail from "./pages/ServiceDetail";
 import PostGig from "./pages/PostGig";
+import PublishService from "./pages/provider/PublishService";
+import Publish from "./pages/Publish";
 import Profile from "./pages/Profile";
 import CategoryListing from "./pages/CategoryListing";
 import Login from "./pages/Login";
@@ -18,6 +20,7 @@ import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import Cart from "./pages/Cart";
 import Community from "./pages/Community";
+import CommunityPostDetail from "./pages/CommunityPostDetail";
 import MyListings from "./pages/MyListings";
 import ProviderDashboard from "./pages/ProviderDashboard";
 import ReviewSubmission from "./pages/ReviewSubmission";
@@ -52,7 +55,10 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/service/:id" element={<ServiceDetail />} />
-              <Route path="/post-gig" element={<PostGig />} />
+              <Route path="/service/:id" element={<ServiceDetail />} />
+              <Route path="/post-gig" element={<Publish />} />
+              <Route path="/publish" element={<Publish />} />
+              <Route path="/provider/publish-service" element={<Publish />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/category/:type" element={<CategoryListing />} />
               <Route path="/login" element={<Login />} />
@@ -65,8 +71,10 @@ const App = () => {
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/community" element={<Community />} />
+              <Route path="/community/:id" element={<CommunityPostDetail />} />
               <Route path="/my-listings" element={<MyListings />} />
               <Route path="/provider/dashboard" element={<ProviderDashboard />} />
+              <Route path="/provider/publish-service" element={<PublishService />} />
               <Route path="/provider/orders" element={<Orders />} />
               <Route path="/review/:id" element={<ReviewSubmission />} />
               <Route path="/provider/:providerId" element={<ProviderProfile />} />

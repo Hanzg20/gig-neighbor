@@ -13,6 +13,7 @@ import { InstantPayFlow } from "@/components/checkout/InstantPayFlow";
 import { QuoteRequestFlow } from "@/components/checkout/QuoteRequestFlow";
 import { GoodsDetailView } from "@/components/checkout/GoodsDetailView";
 import { TaskDetailView } from "@/components/checkout/TaskDetailView";
+import { ShareSheet } from "@/components/common/ShareSheet";
 import { EnhancedReviewList } from "@/components/reviews/EnhancedReviewList";
 import { Link } from "react-router-dom";
 import { Calendar } from "@/components/ui/calendar";
@@ -181,6 +182,35 @@ const ServiceDetail = () => {
   };
 
   const renderPricingCard = () => {
+    // 1. Negotiable Mode: Hide price, show status
+    if (master.attributes?.pricingMode === 'NEGOTIABLE') {
+      return (
+        <div className="flex flex-col">
+          <span className="text-2xl font-black text-primary">{language === 'zh' ? '价格面议' : 'Negotiable'}</span>
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+            {language === 'zh' ? '请联系商家确认' : 'Please contact provider'}
+          </p>
+        </div>
+      );
+    }
+
+    // 2. Quote Mode: Show "Visit Fee" or "Request Quote"
+    if (master.attributes?.pricingMode === 'QUOTE') {
+      if (!selectedItem) return null;
+      const basePrice = selectedItem.pricing.price.amount;
+      return (
+        <div className="flex flex-col">
+          <span className="text-2xl font-black text-primary">
+            {basePrice > 0 ? new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(basePrice / 100) : (language === 'zh' ? '免费询价' : 'Free Quote')}
+          </span>
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+            {basePrice > 0 ? (language === 'zh' ? '上门/预订费' : 'Booking Fee') : (language === 'zh' ? '需确认最终报价' : 'Price TBD')}
+          </p>
+        </div>
+      );
+    }
+
+    // 3. Fixed Mode (Default)
     if (!selectedItem) return null;
     const { pricing } = selectedItem;
     const total = calculateTotal();
@@ -195,9 +225,11 @@ const ServiceDetail = () => {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-            ${pricing.price.amount / 100} / {pricing.unit || (master.type === 'RENTAL' ? t.day : master.type === 'CONSULTATION' ? t.hr : t.ea)}
-          </p>
+          {pricing.price.amount > 0 && (
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+              ${pricing.price.amount / 100} / {pricing.unit || (master.type === 'RENTAL' ? t.day : master.type === 'CONSULTATION' ? t.hr : t.ea)}
+            </p>
+          )}
           {pricing.deposit && (
             <Badge variant="outline" className="h-4 px-1.5 text-[9px] font-black border-orange-200 bg-orange-50 text-orange-600 uppercase">
               {t.deposit} ${pricing.deposit.amount / 100}
@@ -234,9 +266,18 @@ const ServiceDetail = () => {
             <button onClick={() => setIsLiked(!isLiked)} className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-xl border border-white/30 hover:bg-white/40 transition-all">
               <Heart className={`w-5 h-5 ${isLiked ? 'fill-accent text-accent' : 'text-white'}`} />
             </button>
-            <button className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-xl border border-white/30 hover:bg-white/40 transition-all">
-              <Share2 className="w-5 h-5 text-white" />
-            </button>
+            <ShareSheet
+              title={getTranslation(master, 'title')}
+              content={getTranslation(master, 'description')}
+              imageUrl={master.images[currentImage]}
+              authorName={provider ? getTranslation(provider, 'businessName') : 'Gig Neighbor'}
+              authorAvatar={provider ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${provider.id}` : undefined}
+              trigger={
+                <button className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-xl border border-white/30 hover:bg-white/40 transition-all">
+                  <Share2 className="w-5 h-5 text-white" />
+                </button>
+              }
+            />
           </div>
         </div>
 
@@ -508,12 +549,20 @@ const ServiceDetail = () => {
           </div>
           <div className="flex-1 flex items-center justify-between gap-4">
             {renderPricingCard()}
-            {selectedItem?.pricing.model === 'QUOTE' || selectedItem?.pricing.model === 'VISIT_FEE' ? (
+            {/* Dynamic Buttons based on Pricing Mode */}
+            {master.attributes?.pricingMode === 'NEGOTIABLE' ? (
               <Button
-                onClick={() => navigate(`/checkout?item_id=${selectedItem.id}`)}
+                onClick={() => navigate('/chat')}
+                className="btn-action h-14 flex-1 max-w-[200px] text-sm font-black uppercase tracking-widest shadow-elevated rounded-2xl bg-secondary hover:bg-secondary/90 text-secondary-foreground"
+              >
+                {language === 'zh' ? '联系议价' : 'Contact for Price'}
+              </Button>
+            ) : master.attributes?.pricingMode === 'QUOTE' ? (
+              <Button
+                onClick={() => navigate(`/checkout?item_id=${selectedItem?.id || ''}`)}
                 className="btn-action h-14 flex-1 max-w-[200px] text-sm font-black uppercase tracking-widest shadow-elevated rounded-2xl bg-blue-600 hover:bg-blue-700"
               >
-                {selectedItem.pricing.model === 'VISIT_FEE' ? t.bookVisit : t.requestQuote}
+                {language === 'zh' ? '发起询价' : 'Request Quote'}
               </Button>
             ) : (
               <Button

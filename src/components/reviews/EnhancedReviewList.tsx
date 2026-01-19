@@ -85,7 +85,7 @@ export const EnhancedReviewList: React.FC<EnhancedReviewListProps> = ({ listingI
 
                         <div className="flex items-start gap-4 mb-5">
                             <Avatar className="w-12 h-12 rounded-2xl shadow-card border border-white">
-                                <AvatarImage src={review.buyerAvatar} />
+                                <AvatarImage src={review.buyerAvatar} loading="lazy" />
                                 <AvatarFallback className="bg-primary/10 text-primary font-black uppercase text-xs">
                                     {review.buyerName?.substring(0, 2) || 'NB'}
                                 </AvatarFallback>
@@ -127,6 +127,7 @@ export const EnhancedReviewList: React.FC<EnhancedReviewListProps> = ({ listingI
                                             src={url}
                                             className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-500"
                                             alt="Review media"
+                                            loading="lazy"
                                             onError={(e) => {
                                                 (e.target as HTMLImageElement).src = 'https://via.placeholder.com/140?text=Image+Error';
                                             }}

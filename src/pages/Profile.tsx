@@ -4,7 +4,7 @@ import {
     User, Settings, Heart, MapPin, Package, Store, Shield,
     ChevronRight, LogOut, Bell, CreditCard, Star, Layout,
     UserCircle, ShieldCheck, HelpCircle, Languages, Trash2,
-    Briefcase, Milestone
+    Briefcase, Milestone, PlusCircle
 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -69,6 +69,7 @@ const Profile = () => {
         helpSupport: language === 'zh' ? '帮助与反馈' : 'Help & Support',
         language: language === 'zh' ? '语言设置' : 'Language',
         security: language === 'zh' ? '安全与隐私' : 'Security & Privacy',
+        publishService: language === 'zh' ? '发布服务' : 'Publish Service',
     };
 
     const buyerMenu = [
@@ -99,6 +100,7 @@ const Profile = () => {
     const providerMenu = [
         {
             section: t.secTransactions, items: [
+                { icon: PlusCircle, label: t.publishService, path: '/publish' },
                 { icon: Milestone, label: t.dashboard, path: '/provider/dashboard' },
                 { icon: Briefcase, label: t.manageListings, path: '/my-listings' },
                 { icon: Package, label: t.salesOrders, path: '/provider/orders', badge: 2 },
@@ -236,7 +238,7 @@ const Profile = () => {
                                     const Icon = item.icon;
                                     return (
                                         <button
-                                            key={item.path}
+                                            key={`${item.path}-${itemIdx}`}
                                             onClick={() => navigate(item.path)}
                                             className={`w-full px-5 py-4 flex items-center gap-4 hover:bg-primary/5 transition-all group border-b border-muted-foreground/5 last:border-none`}
                                         >

@@ -150,6 +150,27 @@ export interface ICommunityStatsRepository {
     getStats(nodeId?: string): Promise<CommunityStats>;
 }
 
+export interface PayoutRequest {
+    id: string;
+    providerId: string;
+    amountCents: number;
+    currency: string;
+    status: 'PENDING' | 'COMPLETED' | 'REJECTED';
+    method: string;
+    details: any;
+    createdAt: string;
+}
+
+export interface IPayoutRepository {
+    getRequests(providerId: string): Promise<PayoutRequest[]>;
+    createRequest(request: Omit<PayoutRequest, 'id' | 'status' | 'createdAt'>): Promise<PayoutRequest>;
+    getProviderEarnings(providerId: string): Promise<{
+        totalRevenue: number;
+        availableBalance: number;
+        pendingPayouts: number;
+    }>;
+}
+
 export interface IInventoryRepository {
     getByListingItem(listingItemId: string): Promise<InventoryItem[]>;
     getByOrder(orderId: string): Promise<InventoryItem | null>;

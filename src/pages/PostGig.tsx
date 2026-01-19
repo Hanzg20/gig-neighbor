@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Header from "@/components/Header";
-import { ArrowLeft, Check, Upload, Banknote, Tag, MapPin, ArrowRight, Sparkles, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Check, Upload, Banknote, Tag, MapPin, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import CategorySelector from "@/components/Post/CategorySelector";
@@ -9,9 +9,11 @@ import PostTaskWizard from "@/components/Post/PostTaskWizard";
 import { RefCode } from "@/types/domain";
 import { useEffect } from "react";
 import ImageUploader from "../components/common/ImageUploader";
+import { useListingStore } from "@/stores/listingStore";
 import { useAuthStore } from "@/stores/authStore";
 
-type ListingType = 'SERVICE' | 'RENTAL' | 'CONSULTATION' | 'GOODS' | 'TASK';
+type ListingType = 'GOODS' | 'RENTAL' | 'TASK';
+type PricingModel = 'FIXED' | 'HOURLY' | 'DAILY' | 'VISIT_FEE' | 'QUOTE' | 'NEGOTIABLE';
 
 const PostGig = () => {
     const navigate = useNavigate();
@@ -23,7 +25,7 @@ const PostGig = () => {
     const [selectedCategory, setSelectedCategory] = useState<RefCode | null>(null);
 
     useEffect(() => {
-        if (typeFromUrl && ['SERVICE', 'RENTAL', 'CONSULTATION', 'GOODS', 'TASK'].includes(typeFromUrl)) {
+        if (typeFromUrl && ['GOODS', 'RENTAL', 'TASK'].includes(typeFromUrl)) {
             setSelectedType(typeFromUrl);
             setStep(2);
         }
@@ -31,10 +33,20 @@ const PostGig = () => {
 
     // Form State
     const [title, setTitle] = useState("");
+    const [description, setDescription] = useState("");
     const [images, setImages] = useState<string[]>([]);
-    const [price, setPrice] = useState("");
     const [isUploading, setIsUploading] = useState(false);
+
+    // Pricing state
+    const [pricingModel, setPricingModel] = useState<PricingModel>('FIXED');
+    const [price, setPrice] = useState("");
+    const [unit, setUnit] = useState("item");
+    const [deposit, setDeposit] = useState("");
+    const [visitFee, setVisitFee] = useState("");
+    const [isPresenceOnly, setIsPresenceOnly] = useState(false);
+
     const { currentUser } = useAuthStore();
+    const { createListing } = useListingStore();
 
     const steps = [
         { id: 1, title: "选择类型" },
@@ -142,6 +154,18 @@ const PostGig = () => {
                 />
             </div>
 
+            <div className="space-y-3">
+                <label className="text-sm font-semibold flex items-center gap-2">
+                    描述您的{selectedType === 'RENTAL' ? '宝贝' : '服务'}
+                </label>
+                <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="在这里详细介绍一下吧..."
+                    className="w-full p-4 rounded-xl border bg-muted/30 focus:bg-background focus:border-primary outline-none transition-all min-h-[120px]"
+                />
+            </div>
+
             <Button
                 onClick={() => setStep(4)}
                 className="w-full py-6 font-bold text-lg rounded-xl"
@@ -159,10 +183,10 @@ const PostGig = () => {
             <div className="space-y-3">
                 <label className="text-sm font-semibold flex items-center gap-2">
                     <Banknote className="w-4 h-4" />
-                    {selectedType === 'RENTAL' ? '日租金' : selectedType === 'CONSULTATION' ? '每小时价格' : selectedType === 'TASK' ? '悬赏金额' : '一口价'} (CNY)
+                    {selectedType === 'RENTAL' ? '日租金' : selectedType === 'TASK' ? '悬赏金额' : '一口价'} (CAD)
                 </label>
                 <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-lg">¥</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-lg">$</span>
                     <input
                         type="number"
                         value={price}
@@ -175,7 +199,7 @@ const PostGig = () => {
 
             {selectedType === 'RENTAL' && (
                 <div className="space-y-3 animate-slide-in">
-                    <label className="text-sm font-semibold">押金 (CNY)</label>
+                    <label className="text-sm font-semibold">押金 (CAD)</label>
                     <input
                         type="number"
                         placeholder="0.00"
@@ -197,7 +221,7 @@ const PostGig = () => {
 
             <Button
                 onClick={() => {
-                    // Finish logic
+                    // Mock submission
                     alert("发布成功！(Mock)");
                     navigate('/');
                 }}
