@@ -50,6 +50,7 @@ export function ShareSheet({
     // Poster State
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+    const cardRef = useRef<HTMLDivElement>(null);
 
     // Combine text for "Copy Text" feature (Xiaohongshu style)
     const combinedText = `【${title}】\n${content}\n----------------\n链接：${url}`;
@@ -79,24 +80,25 @@ export function ShareSheet({
     const handleGeneratePoster = async () => {
         setIsGenerating(true);
         try {
-            // Find the hidden card
-            const element = document.getElementById('share-card-source');
+            const element = cardRef.current;
             if (!element) throw new Error("Card element not found");
 
-            // Wait a bit for any images or fonts to settle
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Wait for images and layout
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             const canvas = await html2canvas(element, {
                 useCORS: true,
-                scale: 2, // Higher quality
+                scale: 2,
                 backgroundColor: '#ffffff',
-                logging: false,
-                height: element.scrollHeight, // Use full height to avoid clipping
-                width: 375, // Explicitly set width
+                logging: false, // Turn off for production
+                width: 375,
+                height: element.offsetHeight,
+                windowWidth: 375, // Lock window width for consistent layout calculation
                 onclone: (clonedDoc) => {
-                    const clonedElement = clonedDoc.getElementById('share-card');
-                    if (clonedElement) {
-                        clonedElement.style.transform = 'none'; // reset any transforms
+                    const clonedElement = clonedDoc.querySelector('[data-share-card]');
+                    if (clonedElement instanceof HTMLElement) {
+                        clonedElement.style.visibility = 'visible';
+                        clonedElement.style.position = 'static';
                     }
                 }
             });
@@ -125,9 +127,9 @@ export function ShareSheet({
 
     const ShareContent = () => (
         <div className="p-4 space-y-6">
-            {/* Hidden Source Card for html2canvas */}
-            <div className="fixed left-[-9999px] top-[-9999px]">
-                <div id="share-card-source">
+            {/* Hidden Source Card - Visibility hidden avoids layout issues while allowing cloning */}
+            <div className="absolute opacity-0 pointer-events-none -z-50 overflow-hidden h-0 overflow-y-visible">
+                <div ref={cardRef} data-share-card>
                     <ShareCard
                         title={title}
                         content={content}
