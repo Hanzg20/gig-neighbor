@@ -176,8 +176,8 @@ const CommunityPostDetail = () => {
 
                 {/* Main Content Card */}
                 <div className={`rounded-3xl shadow-sm border p-6 mb-6 relative ${currentPost.isFact
-                        ? 'bg-gradient-to-b from-amber-50 to-card border-amber-200/50'
-                        : 'bg-card'
+                    ? 'bg-gradient-to-b from-amber-50 to-card border-amber-200/50'
+                    : 'bg-card'
                     }`}>
                     {/* Fact Badge (if fact post) */}
                     {currentPost.isFact && (
@@ -416,6 +416,7 @@ const CommunityPostDetail = () => {
                                         onOpenChange={setIsShareOpen}
                                         title={currentPost.title || "分享一条动态"}
                                         content={currentPost.content}
+                                        url={`${window.location.origin}/community/${currentPost.id}`}
                                         imageUrl={effectiveImageUrl}
                                         authorName={currentPost.author?.name}
                                         authorAvatar={currentPost.author?.avatar}
