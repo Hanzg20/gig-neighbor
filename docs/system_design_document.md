@@ -1,7 +1,10 @@
-# 📐 JUSTWEDO - Comprehensive System Design Document
+# 📐 JUSTWEDO - Comprehensive# System Design Document v0.0.5.1
+*Last Updated: 2026-01-19*
 ## 🍁 Canadian Community Services Platform
 
-**Version**: 0.0.5 (Media Separation & Poster Optimization)  
+## 1. Introduction
+This document outlines the architecture and implementation details of the Gig Neighbor platform.
+Version 0.0.5 focus: **Media Link Separation, Sharing Poster Optimization, and JustTalk Fact System (真言系统) Integration.**
 **Last Updated**: 2026-01-19  
 **Target Market**: Canada (GTA/Ontario primary)
 

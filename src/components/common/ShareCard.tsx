@@ -22,12 +22,12 @@ export const ShareCard = ({
     qrUrl,
     id = "share-card",
     brandingTitle = "渥帮 JUSTWEDO",
-    brandingSubtitle = "JWD"
+    brandingSubtitle = "Just telling it like it is"
 }: ShareCardProps) => {
     return (
         <div
             id={id}
-            className="w-[375px] bg-white p-6 rounded-none shadow-xl"
+            className="w-[375px] bg-white px-6 pt-6 pb-12 rounded-none shadow-xl"
             style={{ backgroundColor: '#ffffff' }}
         >
             {/* Header / Branding */}
@@ -35,7 +35,7 @@ export const ShareCard = ({
                 <img src="/logo.png" className="w-8 h-8 object-contain" alt="Logo" />
                 <div className="flex flex-col leading-none">
                     <span className="font-black text-sm tracking-tight">{brandingTitle}</span>
-                    <span className="text-[10px] text-muted-foreground font-bold tracking-widest">{brandingSubtitle}</span>
+                    <span className="text-[10px] text-muted-foreground font-bold tracking-tight">{brandingSubtitle}</span>
                 </div>
             </div>
 

@@ -2,20 +2,25 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCommunityPostStore } from "@/stores/communityPostStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useConfigStore } from "@/stores/configStore";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, MapPin, Clock, Heart, MessageCircle, Share2, MoreVertical, Briefcase, Trash2, Edit2 } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Heart, MessageCircle, Share2, MoreVertical, Briefcase, Trash2, Edit2, Shield, Calendar, Bookmark } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { CommunityPostType } from "@/types/community";
+import { CommunityPostType, FACT_TYPE_CONFIG, ConsensusVoteType } from "@/types/community";
 import { ShareSheet } from "@/components/common/ShareSheet";
 import { LitePost } from "@/components/Community/LitePost";
 import { MediaEmbed } from "@/components/Community/MediaEmbed";
 import { HashtagText } from "@/components/Community/HashtagText";
+import { ConsensusBar, ConsensusLegend } from "@/components/Community/ConsensusBar";
+import { FactVoteButtons } from "@/components/Community/FactVoteButtons";
+import { UserLevelBadge } from "@/components/Community/UserLevelBadge";
+import { CommentItem } from "@/components/Community/CommentItem";
 import { parseEmbedLink } from "@/lib/embedUtils";
 import {
     DropdownMenu,
@@ -35,9 +40,15 @@ const CommunityPostDetail = () => {
         likePost,
         unlikePost,
         addComment,
-        deletePost
+        deletePost,
+        voteOnFact,
+        savePost,
+        unsavePost,
+        likeComment,
+        unlikeComment
     } = useCommunityPostStore();
     const { currentUser } = useAuthStore();
+    const { language } = useConfigStore();
 
     const [commentText, setCommentText] = useState("");
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -129,6 +140,28 @@ const CommunityPostDetail = () => {
         navigate(`/publish?from_post=${currentPost.id}`);
     };
 
+    const handleVote = async (voteType: ConsensusVoteType) => {
+        if (!currentUser) {
+            toast.error(language === 'zh' ? '请先登录' : 'Please login first');
+            return;
+        }
+        await voteOnFact(currentPost.id, currentUser.id, voteType);
+    };
+
+    const handleSave = async () => {
+        if (!currentUser) {
+            toast.error(language === 'zh' ? '请先登录' : 'Please login first');
+            return;
+        }
+        if (currentPost.isSavedByMe) {
+            await unsavePost(currentPost.id, currentUser.id);
+            toast.success(language === 'zh' ? '已取消收藏' : 'Unsaved');
+        } else {
+            await savePost(currentPost.id, currentUser.id);
+            toast.success(language === 'zh' ? '已收藏' : 'Saved');
+        }
+    };
+
     const isOwner = currentUser?.id === currentPost.authorId;
 
     return (
@@ -142,17 +175,35 @@ const CommunityPostDetail = () => {
                 </Button>
 
                 {/* Main Content Card */}
-                <div className="bg-card rounded-3xl shadow-sm border p-6 mb-6 relative">
+                <div className={`rounded-3xl shadow-sm border p-6 mb-6 relative ${currentPost.isFact
+                        ? 'bg-gradient-to-b from-amber-50 to-card border-amber-200/50'
+                        : 'bg-card'
+                    }`}>
+                    {/* Fact Badge (if fact post) */}
+                    {currentPost.isFact && (
+                        <div className="absolute -top-3 left-6 flex items-center gap-1.5 px-3 py-1 bg-amber-500 text-white rounded-full text-xs font-bold shadow-md">
+                            <Shield className="w-3.5 h-3.5" />
+                            {language === 'zh' ? '真言' : 'Verified Fact'}
+                        </div>
+                    )}
+
                     {/* Header: Author & Meta */}
-                    <div className="flex justify-between items-start mb-4">
+                    <div className={`flex justify-between items-start mb-4 ${currentPost.isFact ? 'mt-2' : ''}`}>
                         <div className="flex items-center gap-3">
-                            <Avatar className="w-12 h-12 border-2 border-background shadow-sm">
+                            <Avatar className={`w-12 h-12 border-2 shadow-sm ${currentPost.isFact ? 'border-amber-300' : 'border-background'}`}>
                                 <AvatarImage src={currentPost.author?.avatar} />
                                 <AvatarFallback>{currentPost.author?.name?.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div>
                                 <div className="flex items-center gap-2">
                                     <h3 className="font-bold text-base">{currentPost.author?.name}</h3>
+                                    {/* User Level Badge */}
+                                    {currentPost.author?.level && (
+                                        <UserLevelBadge
+                                            level={currentPost.author.level}
+                                            size="sm"
+                                        />
+                                    )}
                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getPostTypeLabel(currentPost.postType).color}`}>
                                         {getPostTypeLabel(currentPost.postType).label}
                                     </span>
@@ -226,7 +277,62 @@ const CommunityPostDetail = () => {
                             className="text-foreground/90 leading-relaxed whitespace-pre-wrap text-[15px]"
                         />
 
-                        {/* Social Media Embeds - MOVED to Media Area below */}
+                        {/* Fact Metadata (only for fact posts) */}
+                        {currentPost.isFact && currentPost.factData && (
+                            <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-200/30 space-y-3">
+                                <div className="flex items-center gap-2 text-amber-700 font-bold text-sm">
+                                    <Shield className="w-4 h-4" />
+                                    {language === 'zh' ? '真言信息' : 'Fact Details'}
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                    {/* Event Type */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-lg">{FACT_TYPE_CONFIG[currentPost.factData.factType]?.icon}</span>
+                                        <span className="text-foreground/80">
+                                            {language === 'zh'
+                                                ? FACT_TYPE_CONFIG[currentPost.factData.factType]?.zh
+                                                : FACT_TYPE_CONFIG[currentPost.factData.factType]?.en}
+                                        </span>
+                                    </div>
+                                    {/* Occurred At */}
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                        <Calendar className="w-4 h-4" />
+                                        <span>{currentPost.factData.occurredAt}</span>
+                                    </div>
+                                    {/* Location */}
+                                    <div className="flex items-center gap-2 text-muted-foreground col-span-2">
+                                        <MapPin className="w-4 h-4 shrink-0" />
+                                        <span>{currentPost.factData.location}</span>
+                                    </div>
+                                    {/* Subject (if present) */}
+                                    {currentPost.factData.subject && (
+                                        <div className="flex items-center gap-2 text-muted-foreground col-span-2">
+                                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                                                {language === 'zh' ? '涉及' : 'Involves'}: {currentPost.factData.subject.name}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                {/* Evidence Images */}
+                                {currentPost.factData.evidence && currentPost.factData.evidence.length > 0 && (
+                                    <div className="space-y-2">
+                                        <span className="text-xs text-muted-foreground font-medium">
+                                            {language === 'zh' ? '证据图片' : 'Evidence'}
+                                        </span>
+                                        <div className="flex gap-2">
+                                            {currentPost.factData.evidence.map((img, i) => (
+                                                <img
+                                                    key={i}
+                                                    src={img}
+                                                    alt={`Evidence ${i + 1}`}
+                                                    className="w-16 h-16 rounded-lg object-cover border border-amber-200"
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Price Display */}
                         {currentPost.priceHint !== undefined && currentPost.priceHint > 0 && (
@@ -257,6 +363,24 @@ const CommunityPostDetail = () => {
                                 </div>
                             )}
                         </div>
+
+                        {/* Consensus Section (only for fact posts) */}
+                        {currentPost.isFact && currentPost.consensus && (
+                            <div className="p-4 bg-white/50 rounded-2xl border border-amber-100 space-y-4">
+                                <ConsensusBar
+                                    consensus={currentPost.consensus}
+                                    showLabels={true}
+                                    showHint={true}
+                                    size="lg"
+                                />
+                                <Separator className="bg-amber-100" />
+                                <FactVoteButtons
+                                    postId={currentPost.id}
+                                    currentVote={currentPost.myVote}
+                                    onVote={handleVote}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <Separator className="my-4" />
@@ -296,7 +420,7 @@ const CommunityPostDetail = () => {
                                         authorName={currentPost.author?.name}
                                         authorAvatar={currentPost.author?.avatar}
                                         brandingTitle="渥帮 · 真言"
-                                        brandingSubtitle="Grounded in reality."
+                                        brandingSubtitle="Just telling it like it is"
                                         trigger={
                                             <Button variant="ghost" size="sm" className="rounded-full px-4 text-muted-foreground hover:bg-muted">
                                                 <Share2 className="w-5 h-5 mr-1.5" />
@@ -306,71 +430,101 @@ const CommunityPostDetail = () => {
                                     />
                                 );
                             })()}
+
+                            {/* Save/Bookmark Button */}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleSave}
+                                className={`rounded-full px-4 ${currentPost.isSavedByMe ? "text-amber-500 bg-amber-50 hover:bg-amber-100 hover:text-amber-600" : "text-muted-foreground hover:bg-muted"}`}
+                            >
+                                <Bookmark className={`w-5 h-5 mr-1.5 ${currentPost.isSavedByMe ? "fill-current" : ""}`} />
+                                <span className="font-bold">{currentPost.saveCount || (language === 'zh' ? '收藏' : 'Save')}</span>
+                            </Button>
                         </div>
                         <span className="text-xs text-muted-foreground font-medium">
-                            {currentPost.viewCount} 次浏览
+                            {currentPost.viewCount} {language === 'zh' ? '次浏览' : 'views'}
                         </span>
                     </div>
                 </div>
             </div>
 
             {/* Comments Section */}
-            <div className="space-y-6">
-                <h3 className="font-bold text-lg flex items-center gap-2">
-                    评论 <span className="text-muted-foreground font-normal text-sm">{currentPost.commentCount}</span>
-                </h3>
-
-                {/* Comment Input */}
-                <div className="flex gap-3">
-                    <Avatar className="w-8 h-8">
-                        <AvatarImage src={currentUser?.avatar} />
-                        <AvatarFallback>{currentUser?.name?.charAt(0) || "?"}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-2">
-                        <Textarea
-                            placeholder="写下你的评论..."
-                            className="resize-none min-h-[80px] bg-background rounded-2xl border-muted focus:border-primary"
-                            value={commentText}
-                            onChange={e => setCommentText(e.target.value)}
-                        />
-                        <div className="flex justify-end">
-                            <Button
-                                size="sm"
-                                className="rounded-full px-4"
-                                onClick={handleSubmitComment}
-                                disabled={!commentText.trim() || isSubmittingComment}
-                            >
-                                发布评论
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Comment List */}
+            <div className="container max-w-2xl px-4 pb-8">
                 <div className="space-y-6">
-                    {currentPostComments.map(comment => (
-                        <div key={comment.id} className="flex gap-3 group">
-                            <Avatar className="w-8 h-8 mt-1">
-                                <AvatarImage src={comment.author?.avatar} />
-                                <AvatarFallback>{comment.author?.name?.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 space-y-1">
-                                <div className="flex items-center justify-between">
-                                    <span className="font-semibold text-sm">{comment.author?.name}</span>
-                                    <span className="text-xs text-muted-foreground">{getTimeAgo(comment.createdAt)}</span>
-                                </div>
-                                <p className="text-sm text-foreground/90">{comment.content}</p>
-                                <div className="flex gap-4 pt-1">
-                                    <button className="text-xs text-muted-foreground hover:text-primary font-medium">回复</button>
-                                    <button className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
-                                        <Heart className="w-3 h-3" /> {comment.likeCount > 0 && comment.likeCount}
-                                    </button>
-                                </div>
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5" />
+                        {language === 'zh' ? '评论' : 'Comments'} <span className="text-muted-foreground font-normal text-sm">{currentPost.commentCount}</span>
+                    </h3>
+
+                    {/* Comment Input */}
+                    <div className="flex gap-3">
+                        <Avatar className="w-9 h-9">
+                            <AvatarImage src={currentUser?.avatar} />
+                            <AvatarFallback>{currentUser?.name?.charAt(0) || "?"}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 space-y-2">
+                            <Textarea
+                                placeholder={language === 'zh' ? '写下你的评论...' : 'Write a comment...'}
+                                className="resize-none min-h-[80px] bg-background rounded-2xl border-muted focus:border-primary"
+                                value={commentText}
+                                onChange={e => setCommentText(e.target.value)}
+                            />
+                            <div className="flex justify-end">
+                                <Button
+                                    size="sm"
+                                    className="rounded-full px-4"
+                                    onClick={handleSubmitComment}
+                                    disabled={!commentText.trim() || isSubmittingComment}
+                                >
+                                    {language === 'zh' ? '发布评论' : 'Post'}
+                                </Button>
                             </div>
                         </div>
-                    ))}
+                    </div>
+
+                    {/* Comment List */}
+                    <div className="space-y-5">
+                        {currentPostComments.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground text-sm">
+                                {language === 'zh' ? '暂无评论，快来抢沙发！' : 'No comments yet. Be the first!'}
+                            </div>
+                        ) : (
+                            currentPostComments.map(comment => (
+                                <CommentItem
+                                    key={comment.id}
+                                    comment={comment}
+                                    onLike={async (commentId) => {
+                                        if (!currentUser) {
+                                            toast.error(language === 'zh' ? '请先登录' : 'Please login');
+                                            return;
+                                        }
+                                        const targetComment = currentPostComments.find(c => c.id === commentId);
+                                        if (targetComment?.isLikedByMe) {
+                                            await unlikeComment(commentId, currentUser.id);
+                                        } else {
+                                            await likeComment(commentId, currentUser.id);
+                                        }
+                                    }}
+                                    onReply={async (parentCommentId, content) => {
+                                        if (!currentUser) {
+                                            toast.error(language === 'zh' ? '请先登录' : 'Please login');
+                                            return;
+                                        }
+                                        await addComment(currentUser.id, {
+                                            postId: currentPost.id,
+                                            content,
+                                            parentCommentId
+                                        });
+                                    }}
+                                />
+                            ))
+                        )}
+                    </div>
                 </div>
             </div>
+
+            <Footer />
         </div>
     );
 };

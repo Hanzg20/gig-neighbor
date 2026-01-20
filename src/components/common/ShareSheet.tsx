@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
-import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerClose } from "@/components/ui/drawer";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerClose, DrawerDescription } from "@/components/ui/drawer";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -125,115 +125,6 @@ export function ShareSheet({
         document.body.removeChild(link);
     };
 
-    const ShareContent = () => (
-        <div className="p-4 space-y-6">
-            {/* Hidden Source Card - Visibility hidden avoids layout issues while allowing cloning */}
-            <div className="absolute opacity-0 pointer-events-none -z-50 overflow-hidden h-0 overflow-y-visible">
-                <div ref={cardRef} data-share-card>
-                    <ShareCard
-                        title={title}
-                        content={content}
-                        imageUrl={imageUrl}
-                        authorName={authorName || 'Gig Neighbor'}
-                        authorAvatar={authorAvatar}
-                        qrUrl={url}
-                        brandingTitle={brandingTitle}
-                        brandingSubtitle={brandingSubtitle}
-                    />
-                </div>
-            </div>
-
-            {generatedImage ? (
-                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
-                    <div className="relative rounded-xl overflow-hidden shadow-lg border">
-                        <img src={generatedImage} alt="Share Poster" className="w-full h-auto" />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <Button variant="outline" onClick={() => setGeneratedImage(null)}>
-                            <ArrowLeft className="w-4 h-4 mr-2" />
-                            返回选项
-                        </Button>
-                        <Button onClick={handleDownloadImage} className="font-bold">
-                            <Download className="w-4 h-4 mr-2" />
-                            保存图片
-                        </Button>
-                    </div>
-                    <p className="text-center text-xs text-muted-foreground">长按图片也可直接保存发送给朋友</p>
-                </div>
-            ) : (
-                <>
-                    {/* Preview Card */}
-                    <div className="bg-muted/30 rounded-xl p-4 flex gap-4 items-start">
-                        <div className="w-20 h-20 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
-                            {imageUrl ? (
-                                <img src={imageUrl} alt="preview" className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-3xl">📝</div>
-                            )}
-                        </div>
-                        <div className="flex-1 min-w-0 space-y-1">
-                            <h4 className="font-bold line-clamp-1">{title}</h4>
-                            <p className="text-xs text-muted-foreground line-clamp-2">{content}</p>
-                            <p className="text-[10px] text-muted-foreground/60 break-all">{url}</p>
-                        </div>
-                    </div>
-
-                    {/* Action Grid */}
-                    <div className="grid grid-cols-3 gap-4">
-                        <Button
-                            variant="outline"
-                            className="h-auto flex-col py-4 gap-2 border-2 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all"
-                            onClick={handleCopyLink}
-                        >
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${copiedLink ? 'bg-green-100 text-green-600' : 'bg-muted'}`}>
-                                {copiedLink ? <Check className="w-5 h-5" /> : <Link2 className="w-5 h-5" />}
-                            </div>
-                            <span className="font-bold text-xs md:text-sm">复制链接</span>
-                        </Button>
-
-                        <Button
-                            variant="outline"
-                            className="h-auto flex-col py-4 gap-2 border-2 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all"
-                            onClick={handleCopyText}
-                        >
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${copiedText ? 'bg-green-100 text-green-600' : 'bg-muted'}`}>
-                                {copiedText ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                            </div>
-                            <span className="font-bold text-xs md:text-sm">复制口令</span>
-                        </Button>
-
-                        <Button
-                            variant="outline"
-                            className="h-auto flex-col py-4 gap-2 border-2 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all"
-                            onClick={handleGeneratePoster}
-                            disabled={isGenerating}
-                        >
-                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
-                            </div>
-                            <span className="font-bold text-xs md:text-sm">生成海报</span>
-                        </Button>
-                    </div>
-
-                    {/* QR Code (Optional decoration) */}
-                    <div className="flex justify-center pt-2 opacity-50 pointer-events-none">
-                        <div className="flex flex-col items-center gap-2">
-                            <div className="bg-white p-2 rounded-lg">
-                                <QRCodeSVG value={url} size={60} />
-                            </div>
-                            <span className="text-[10px] text-muted-foreground">扫码查看</span>
-                        </div>
-                    </div>
-                </>
-            )}
-
-            <div className="text-center">
-                <Button variant="ghost" className="w-full rounded-full" onClick={() => setShow(false)}>关闭</Button>
-            </div>
-        </div>
-    );
-
     if (isDesktop) {
         return (
             <Dialog open={show} onOpenChange={setShow}>
@@ -249,8 +140,121 @@ export function ShareSheet({
                         <DialogTitle className="text-center font-black text-xl">
                             {generatedImage ? '保存海报' : '分享给邻居'}
                         </DialogTitle>
+                        {/* Hidden Description for Accessibility */}
+                        <DialogDescription className="sr-only">
+                            分享详情至社交平台或保存海报
+                        </DialogDescription>
                     </DialogHeader>
-                    <ShareContent />
+
+                    <div className="p-4 space-y-6">
+                        {/* Hidden Source Card - Fixed positioning outside view but with real dimensions */}
+                        <div
+                            className="fixed pointer-events-none opacity-0"
+                            style={{ left: '-9999px', top: '0' }}
+                        >
+                            <div ref={cardRef} data-share-card>
+                                <ShareCard
+                                    title={title}
+                                    content={content}
+                                    imageUrl={imageUrl}
+                                    authorName={authorName || 'Gig Neighbor'}
+                                    authorAvatar={authorAvatar}
+                                    qrUrl={url}
+                                    brandingTitle={brandingTitle}
+                                    brandingSubtitle={brandingSubtitle}
+                                />
+                            </div>
+                        </div>
+
+                        {generatedImage ? (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+                                <div className="relative rounded-xl overflow-hidden shadow-lg border">
+                                    <img src={generatedImage} alt="Share Poster" className="w-full h-auto" />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Button variant="outline" onClick={() => setGeneratedImage(null)}>
+                                        <ArrowLeft className="w-4 h-4 mr-2" />
+                                        返回选项
+                                    </Button>
+                                    <Button onClick={handleDownloadImage} className="font-bold">
+                                        <Download className="w-4 h-4 mr-2" />
+                                        保存图片
+                                    </Button>
+                                </div>
+                                <p className="text-center text-xs text-muted-foreground">长按图片也可直接保存发送给朋友</p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Preview Card */}
+                                <div className="bg-muted/30 rounded-xl p-4 flex gap-4 items-start">
+                                    <div className="w-20 h-20 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
+                                        {imageUrl ? (
+                                            <img src={imageUrl} alt="preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-3xl">📝</div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0 space-y-1">
+                                        <h4 className="font-bold line-clamp-1">{title}</h4>
+                                        <p className="text-xs text-muted-foreground line-clamp-2">{content}</p>
+                                        <p className="text-[10px] text-muted-foreground/60 break-all">{url}</p>
+                                    </div>
+                                </div>
+
+                                {/* Action Grid */}
+                                <div className="grid grid-cols-3 gap-4">
+                                    <Button
+                                        variant="outline"
+                                        className="h-auto flex-col py-4 gap-2 border-2 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all"
+                                        onClick={handleCopyLink}
+                                    >
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${copiedLink ? 'bg-green-100 text-green-600' : 'bg-muted'}`}>
+                                            {copiedLink ? <Check className="w-5 h-5" /> : <Link2 className="w-5 h-5" />}
+                                        </div>
+                                        <span className="font-bold text-xs md:text-sm">复制链接</span>
+                                    </Button>
+
+                                    <Button
+                                        variant="outline"
+                                        className="h-auto flex-col py-4 gap-2 border-2 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all"
+                                        onClick={handleCopyText}
+                                    >
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${copiedText ? 'bg-green-100 text-green-600' : 'bg-muted'}`}>
+                                            {copiedText ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                                        </div>
+                                        <span className="font-bold text-xs md:text-sm">复制口令</span>
+                                    </Button>
+
+                                    <Button
+                                        variant="outline"
+                                        className="h-auto flex-col py-4 gap-2 border-2 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all"
+                                        onClick={handleGeneratePoster}
+                                        disabled={isGenerating}
+                                    >
+                                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                                            {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
+                                        </div>
+                                        <span className="font-bold text-xs md:text-sm">生成海报</span>
+                                    </Button>
+                                </div>
+
+                                {/* QR Code (Optional decoration) */}
+                                <div className="flex justify-center pt-2 opacity-50 pointer-events-none">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="bg-white p-2 rounded-lg">
+                                            <QRCodeSVG value={url} size={60} />
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground">扫码查看</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="text-center">
+                            <Button variant="ghost" className="w-full rounded-full" onClick={() => setShow(false)}>关闭</Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         );
@@ -270,9 +274,121 @@ export function ShareSheet({
                     <DrawerTitle className="font-black text-xl">
                         {generatedImage ? '保存海报' : '分享给邻居'}
                     </DrawerTitle>
+                    {/* Hidden Description for Accessibility */}
+                    <DrawerDescription className="sr-only">
+                        分享详情至社交平台或保存海报
+                    </DrawerDescription>
                 </DrawerHeader>
                 <div className="overflow-y-auto">
-                    <ShareContent />
+                    <div className="p-4 space-y-6">
+                        {/* Hidden Source Card */}
+                        <div
+                            className="fixed pointer-events-none opacity-0"
+                            style={{ left: '-9999px', top: '0' }}
+                        >
+                            <div ref={cardRef} data-share-card>
+                                <ShareCard
+                                    title={title}
+                                    content={content}
+                                    imageUrl={imageUrl}
+                                    authorName={authorName || 'Gig Neighbor'}
+                                    authorAvatar={authorAvatar}
+                                    qrUrl={url}
+                                    brandingTitle={brandingTitle}
+                                    brandingSubtitle={brandingSubtitle}
+                                />
+                            </div>
+                        </div>
+
+                        {generatedImage ? (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+                                <div className="relative rounded-xl overflow-hidden shadow-lg border">
+                                    <img src={generatedImage} alt="Share Poster" className="w-full h-auto" />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Button variant="outline" onClick={() => setGeneratedImage(null)}>
+                                        <ArrowLeft className="w-4 h-4 mr-2" />
+                                        返回选项
+                                    </Button>
+                                    <Button onClick={handleDownloadImage} className="font-bold">
+                                        <Download className="w-4 h-4 mr-2" />
+                                        保存图片
+                                    </Button>
+                                </div>
+                                <p className="text-center text-xs text-muted-foreground">长按图片也可直接保存发送给朋友</p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Preview Card */}
+                                <div className="bg-muted/30 rounded-xl p-4 flex gap-4 items-start">
+                                    <div className="w-20 h-20 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
+                                        {imageUrl ? (
+                                            <img src={imageUrl} alt="preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-3xl">📝</div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0 space-y-1">
+                                        <h4 className="font-bold line-clamp-1">{title}</h4>
+                                        <p className="text-xs text-muted-foreground line-clamp-2">{content}</p>
+                                        <p className="text-[10px] text-muted-foreground/60 break-all">{url}</p>
+                                    </div>
+                                </div>
+
+                                {/* Action Grid */}
+                                <div className="grid grid-cols-3 gap-4">
+                                    <Button
+                                        variant="outline"
+                                        className="h-auto flex-col py-4 gap-2 border-2 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all"
+                                        onClick={handleCopyLink}
+                                    >
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${copiedLink ? 'bg-green-100 text-green-600' : 'bg-muted'}`}>
+                                            {copiedLink ? <Check className="w-5 h-5" /> : <Link2 className="w-5 h-5" />}
+                                        </div>
+                                        <span className="font-bold text-xs md:text-sm">复制链接</span>
+                                    </Button>
+
+                                    <Button
+                                        variant="outline"
+                                        className="h-auto flex-col py-4 gap-2 border-2 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all"
+                                        onClick={handleCopyText}
+                                    >
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${copiedText ? 'bg-green-100 text-green-600' : 'bg-muted'}`}>
+                                            {copiedText ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                                        </div>
+                                        <span className="font-bold text-xs md:text-sm">复制口令</span>
+                                    </Button>
+
+                                    <Button
+                                        variant="outline"
+                                        className="h-auto flex-col py-4 gap-2 border-2 hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all"
+                                        onClick={handleGeneratePoster}
+                                        disabled={isGenerating}
+                                    >
+                                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                                            {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
+                                        </div>
+                                        <span className="font-bold text-xs md:text-sm">生成海报</span>
+                                    </Button>
+                                </div>
+
+                                {/* QR Code (Optional decoration) */}
+                                <div className="flex justify-center pt-2 opacity-50 pointer-events-none">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="bg-white p-2 rounded-lg">
+                                            <QRCodeSVG value={url} size={60} />
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground">扫码查看</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="text-center">
+                            <Button variant="ghost" className="w-full rounded-full" onClick={() => setShow(false)}>关闭</Button>
+                        </div>
+                    </div>
                 </div>
             </DrawerContent>
         </Drawer>
