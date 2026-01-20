@@ -72,6 +72,12 @@ export interface User {
 
   // Pilot Node Context
   nodeId?: string; // Preferred community node (e.g., NODE_LEES)
+
+  // Community Contribution & Level (JustTalk System)
+  contributionScore?: number;  // Total contribution score
+  level?: number;              // User level (1-5)
+  levelIcon?: string;          // Level icon emoji
+  levelName?: string;          // Level name
 }
 
 export interface UserAddress extends BaseEntity {

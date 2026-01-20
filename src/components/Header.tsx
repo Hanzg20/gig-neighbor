@@ -29,11 +29,11 @@ const Header = () => {
   const t = {
     discover: language === 'zh' ? '发现' : 'Discover',
     map: language === 'zh' ? '地图' : 'Map',
-    community: language === 'zh' ? '渥说' : 'JustTalk',
+    community: language === 'zh' ? '邻里' : 'Neighbors',
     orders: language === 'zh' ? '订单' : 'Orders',
     myPosts: language === 'zh' ? '我的发布' : 'My Posts',
     chat: language === 'zh' ? '消息' : 'Chat',
-    post: language === 'zh' ? '渥说一下' : 'JustTalk',
+    post: language === 'zh' ? '说一下' : 'Post',
     postSomething: language === 'zh' ? '发布需求' : 'Post Something',
     myProfile: language === 'zh' ? '我的主页' : 'My Profile',
     wait: language === 'zh' ? '稍候...' : 'Wait...',

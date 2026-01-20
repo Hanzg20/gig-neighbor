@@ -194,40 +194,12 @@ const Publish = () => {
             const images = formData.images as string[];
 
             const masterData = {
-                // Only set providerId for new listings. For updates, we rely on the existing one.
-                ...(isEditMode ? {} : { providerId: currentUser.id }),
-                titleZh: title,
-                titleEn: title,
-                descriptionZh: description,
-                descriptionEn: description,
-                images: images || [],
-                type: selectedCategory === 'OTHER' ? 'GOODS' : (selectedCategory || 'GOODS') as any,
-                categoryId: (() => {
-                    const uiCat = selectedCategory || 'GOODS';
-                    const map: Record<string, string> = {
-                        'GOODS': '1040200',
-                        'SERVICE': '1010100',
-                        'RENTAL': '1040300',
-                        'TASK': '1010600',
-                        'CONSULTATION': '1030200',
-                        'FREE_GIVEAWAY': '1040200',
-                        'WANTED': '1040200',
-                        'OTHER': '1040200'
-                    };
-                    return map[uiCat] || '1040200';
-                })(),
-                nodeId: activeNodeId,
-                status: 'PUBLISHED' as const,
-                tags: skippedCategory ? ['pending-classification'] : [],
-                location: { fullAddress: (formData.pickupLocation as string) || (formData.location as string) || "Ottawa, ON" },
-                rating: 5,
-                reviewCount: 0,
-                isPromoted: false,
                 attributes: {
                     ...(initialData?.attributes || {}), // Preserve existing attributes if editing
                     pricingMode: formData.pricingMode || 'FIXED'
-                }
-            };
+                },
+                providerId: currentUser.id // Ensure providerId is always present to satisfy type
+            } as any;
 
             let finalItems: any[] = [];
 
@@ -358,7 +330,7 @@ const Publish = () => {
                     className="font-black text-primary"
                     onClick={() => navigate('/community')}
                 >
-                    前往渥说发帖 &rarr;
+                    前往真言发帖 &rarr;
                 </Button>
             </div>
         </div>

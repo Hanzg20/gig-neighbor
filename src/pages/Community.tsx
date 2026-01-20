@@ -87,7 +87,7 @@ const Community = () => {
                         >
                             <div className="flex items-center gap-2 mb-1">
                                 <h1 className="text-2xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                                    {language === 'zh' ? '渥说' : 'JustTalk'}
+                                    {language === 'zh' ? '真言' : 'JustTalk'}
                                 </h1>
                                 <span className="text-lg sm:text-2xl">💬</span>
                             </div>

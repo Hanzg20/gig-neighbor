@@ -4,7 +4,9 @@ import {
     CommunityComment,
     CommunityPostType,
     CreateCommunityPostInput,
-    CreateCommentInput
+    CreateCommentInput,
+    ConsensusVoteType,
+    Consensus
 } from '@/types/community';
 import { communityPostRepository } from '@/services/repositories/supabase/CommunityPostRepository';
 
@@ -37,9 +39,19 @@ interface CommunityPostState {
 
     addComment: (authorId: string, input: CreateCommentInput) => Promise<CommunityComment>;
     deleteComment: (commentId: string) => Promise<void>;
+    likeComment: (commentId: string, userId: string) => Promise<void>;
+    unlikeComment: (commentId: string, userId: string) => Promise<void>;
 
     // Post-to-Service conversion
     convertToService: (postId: string, listingId: string) => Promise<void>;
+
+    // 真言投票
+    voteOnFact: (postId: string, userId: string, voteType: ConsensusVoteType) => Promise<void>;
+    removeVote: (postId: string, userId: string) => Promise<void>;
+
+    // 收藏
+    savePost: (postId: string, userId: string) => Promise<void>;
+    unsavePost: (postId: string, userId: string) => Promise<void>;
 
     reset: () => void;
 }
@@ -230,6 +242,56 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
         }));
     },
 
+    likeComment: async (commentId: string, userId: string) => {
+        // Optimistic update
+        set(state => ({
+            currentPostComments: state.currentPostComments.map(c =>
+                c.id === commentId
+                    ? { ...c, likeCount: c.likeCount + 1, isLikedByMe: true }
+                    : c
+            )
+        }));
+
+        try {
+            await communityPostRepository.likeComment(commentId, userId);
+        } catch (error) {
+            // Rollback on error
+            set(state => ({
+                currentPostComments: state.currentPostComments.map(c =>
+                    c.id === commentId
+                        ? { ...c, likeCount: Math.max(0, c.likeCount - 1), isLikedByMe: false }
+                        : c
+                )
+            }));
+            throw error;
+        }
+    },
+
+    unlikeComment: async (commentId: string, userId: string) => {
+        // Optimistic update
+        set(state => ({
+            currentPostComments: state.currentPostComments.map(c =>
+                c.id === commentId
+                    ? { ...c, likeCount: Math.max(0, c.likeCount - 1), isLikedByMe: false }
+                    : c
+            )
+        }));
+
+        try {
+            await communityPostRepository.unlikeComment(commentId, userId);
+        } catch (error) {
+            // Rollback on error
+            set(state => ({
+                currentPostComments: state.currentPostComments.map(c =>
+                    c.id === commentId
+                        ? { ...c, likeCount: c.likeCount + 1, isLikedByMe: true }
+                        : c
+                )
+            }));
+            throw error;
+        }
+    },
+
     convertToService: async (postId: string, listingId: string) => {
         await communityPostRepository.convertToListing(postId, listingId);
         set(state => ({
@@ -239,6 +301,190 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
                     : p
             )
         }));
+    },
+
+    // 真言投票
+    voteOnFact: async (postId: string, userId: string, voteType: ConsensusVoteType) => {
+        // 获取当前投票状态
+        const { currentPost, posts } = get();
+        const post = currentPost?.id === postId ? currentPost : posts.find(p => p.id === postId);
+        const previousVote = post?.myVote;
+
+        // 乐观更新
+        const updateConsensus = (consensus: Consensus | undefined, oldVote: ConsensusVoteType | undefined, newVote: ConsensusVoteType): Consensus => {
+            const updated: Consensus = consensus ? { ...consensus } : {
+                agree: 0,
+                partial: 0,
+                disagree: 0,
+                uncertain: 0,
+                totalVotes: 0,
+                level: 'PENDING'
+            };
+
+            // 移除旧投票
+            if (oldVote) {
+                updated[oldVote] = Math.max(0, updated[oldVote] - 1);
+            } else {
+                updated.totalVotes++;
+            }
+
+            // 添加新投票
+            updated[newVote]++;
+
+            return updated;
+        };
+
+        set(state => ({
+            posts: state.posts.map(p =>
+                p.id === postId
+                    ? {
+                        ...p,
+                        myVote: voteType,
+                        consensus: updateConsensus(p.consensus, previousVote, voteType)
+                    }
+                    : p
+            ),
+            currentPost: state.currentPost?.id === postId
+                ? {
+                    ...state.currentPost,
+                    myVote: voteType,
+                    consensus: updateConsensus(state.currentPost.consensus, previousVote, voteType)
+                }
+                : state.currentPost
+        }));
+
+        try {
+            await communityPostRepository.voteOnFact(postId, userId, voteType);
+        } catch (error) {
+            // 回滚
+            set(state => ({
+                posts: state.posts.map(p =>
+                    p.id === postId
+                        ? { ...p, myVote: previousVote, consensus: post?.consensus }
+                        : p
+                ),
+                currentPost: state.currentPost?.id === postId
+                    ? { ...state.currentPost, myVote: previousVote, consensus: post?.consensus }
+                    : state.currentPost
+            }));
+            throw error;
+        }
+    },
+
+    removeVote: async (postId: string, userId: string) => {
+        const { currentPost, posts } = get();
+        const post = currentPost?.id === postId ? currentPost : posts.find(p => p.id === postId);
+        const previousVote = post?.myVote;
+
+        if (!previousVote) return;
+
+        // 乐观更新
+        set(state => ({
+            posts: state.posts.map(p =>
+                p.id === postId
+                    ? {
+                        ...p,
+                        myVote: undefined,
+                        consensus: p.consensus ? {
+                            ...p.consensus,
+                            [previousVote]: Math.max(0, p.consensus[previousVote] - 1),
+                            totalVotes: Math.max(0, p.consensus.totalVotes - 1)
+                        } : undefined
+                    }
+                    : p
+            ),
+            currentPost: state.currentPost?.id === postId && state.currentPost.consensus
+                ? {
+                    ...state.currentPost,
+                    myVote: undefined,
+                    consensus: {
+                        ...state.currentPost.consensus,
+                        [previousVote]: Math.max(0, state.currentPost.consensus[previousVote] - 1),
+                        totalVotes: Math.max(0, state.currentPost.consensus.totalVotes - 1)
+                    }
+                }
+                : state.currentPost
+        }));
+
+        try {
+            await communityPostRepository.removeVote(postId, userId);
+        } catch (error) {
+            // 回滚
+            set(state => ({
+                posts: state.posts.map(p =>
+                    p.id === postId
+                        ? { ...p, myVote: previousVote, consensus: post?.consensus }
+                        : p
+                ),
+                currentPost: state.currentPost?.id === postId
+                    ? { ...state.currentPost, myVote: previousVote, consensus: post?.consensus }
+                    : state.currentPost
+            }));
+            throw error;
+        }
+    },
+
+    // 收藏
+    savePost: async (postId: string, userId: string) => {
+        // 乐观更新
+        set(state => ({
+            posts: state.posts.map(p =>
+                p.id === postId
+                    ? { ...p, isSavedByMe: true, saveCount: (p.saveCount || 0) + 1 }
+                    : p
+            ),
+            currentPost: state.currentPost?.id === postId
+                ? { ...state.currentPost, isSavedByMe: true, saveCount: (state.currentPost.saveCount || 0) + 1 }
+                : state.currentPost
+        }));
+
+        try {
+            await communityPostRepository.savePost(postId, userId);
+        } catch (error) {
+            // 回滚
+            set(state => ({
+                posts: state.posts.map(p =>
+                    p.id === postId
+                        ? { ...p, isSavedByMe: false, saveCount: Math.max(0, (p.saveCount || 1) - 1) }
+                        : p
+                ),
+                currentPost: state.currentPost?.id === postId
+                    ? { ...state.currentPost, isSavedByMe: false, saveCount: Math.max(0, (state.currentPost.saveCount || 1) - 1) }
+                    : state.currentPost
+            }));
+            throw error;
+        }
+    },
+
+    unsavePost: async (postId: string, userId: string) => {
+        // 乐观更新
+        set(state => ({
+            posts: state.posts.map(p =>
+                p.id === postId
+                    ? { ...p, isSavedByMe: false, saveCount: Math.max(0, (p.saveCount || 1) - 1) }
+                    : p
+            ),
+            currentPost: state.currentPost?.id === postId
+                ? { ...state.currentPost, isSavedByMe: false, saveCount: Math.max(0, (state.currentPost.saveCount || 1) - 1) }
+                : state.currentPost
+        }));
+
+        try {
+            await communityPostRepository.unsavePost(postId, userId);
+        } catch (error) {
+            // 回滚
+            set(state => ({
+                posts: state.posts.map(p =>
+                    p.id === postId
+                        ? { ...p, isSavedByMe: true, saveCount: (p.saveCount || 0) + 1 }
+                        : p
+                ),
+                currentPost: state.currentPost?.id === postId
+                    ? { ...state.currentPost, isSavedByMe: true, saveCount: (state.currentPost.saveCount || 0) + 1 }
+                    : state.currentPost
+            }));
+            throw error;
+        }
     },
 
     reset: () => {

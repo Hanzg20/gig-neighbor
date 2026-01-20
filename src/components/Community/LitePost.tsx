@@ -3,12 +3,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Plus, MapPin, Send, Loader2, Edit2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, MapPin, Send, Loader2, Edit2, Shield, Calendar, MapPinned } from "lucide-react";
 import ImageUploader from "@/components/common/ImageUploader";
 import { useAuthStore } from "@/stores/authStore";
 import { useCommunityPostStore } from "@/stores/communityPostStore";
 import { toast } from "sonner";
-import { CommunityPostType } from "@/types/community";
+import { CommunityPostType, FactType, FactData, FACT_TYPE_CONFIG } from "@/types/community";
 import { MediaEmbed } from "./MediaEmbed";
 
 interface LitePostProps {
@@ -24,15 +27,28 @@ interface LitePostProps {
         price?: number;
         postType: CommunityPostType;
         nodeId?: string;
+        // 真言相关
+        isFact?: boolean;
+        factData?: FactData;
     };
 }
 
 const LITE_CATEGORIES: { id: CommunityPostType; label: string; icon: string; tag: string }[] = [
-    { id: 'MOMENT', label: '邻里动态', icon: '🏘️', tag: '#邻里' },
-    { id: 'ACTION', label: '闲置交易', icon: '🎒', tag: '#交易' },
-    { id: 'HELP', label: '求助寻物', icon: '🔍', tag: '#求助' },
-    { id: 'NOTICE', label: '社区公告', icon: '📢', tag: '#公告' },
-    { id: 'LATEST', label: '发现分享', icon: '✨', tag: '#分享' },
+    { id: 'MOMENT', label: '邻里', icon: '🏘️', tag: '#邻里' },
+    { id: 'ACTION', label: '参加', icon: '🤝', tag: '#活动' },
+    { id: 'HELP', label: '求助', icon: '🆘', tag: '#求助' },
+    { id: 'NOTICE', label: '公告', icon: '📢', tag: '#公告' },
+];
+
+// 真言事件类型选项
+const FACT_TYPE_OPTIONS: { id: FactType; label: string; icon: string }[] = [
+    { id: 'SERVICE_EXPERIENCE', label: '服务体验', icon: '🛠️' },
+    { id: 'PROPERTY_ISSUE', label: '物业问题', icon: '🏠' },
+    { id: 'PRICE_CHANGE', label: '价格变动', icon: '💰' },
+    { id: 'SAFETY_ALERT', label: '安全提醒', icon: '⚠️' },
+    { id: 'RECOMMENDATION', label: '真心推荐', icon: '⭐' },
+    { id: 'NEIGHBORHOOD_INFO', label: '社区信息', icon: '📍' },
+    { id: 'OTHER', label: '其他', icon: '📝' },
 ];
 
 export function LitePost({ onSuccess, trigger, postId, initialData }: LitePostProps) {
@@ -44,9 +60,18 @@ export function LitePost({ onSuccess, trigger, postId, initialData }: LitePostPr
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [mediaUrl, setMediaUrl] = useState(""); // Decoupled media link field for posters/clean content
-    const [selectedCat, setSelectedCat] = useState(LITE_CATEGORIES[0]); const [price, setPrice] = useState("");
+    const [selectedCat, setSelectedCat] = useState(LITE_CATEGORIES[0]);
+    const [price, setPrice] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showMediaInput, setShowMediaInput] = useState(false);
+
+    // 真言模式状态
+    const [isFact, setIsFact] = useState(false);
+    const [factOccurredAt, setFactOccurredAt] = useState(""); // 发生时间
+    const [factLocation, setFactLocation] = useState(""); // 发生地点
+    const [factType, setFactType] = useState<FactType>("SERVICE_EXPERIENCE");
+    const [factSubjectName, setFactSubjectName] = useState(""); // 涉及对象名称
+    const [factEvidence, setFactEvidence] = useState<string[]>([]); // 证据图片
 
     const { currentUser } = useAuthStore();
     const { createPost, updatePost } = useCommunityPostStore();
@@ -66,6 +91,16 @@ export function LitePost({ onSuccess, trigger, postId, initialData }: LitePostPr
 
             const category = LITE_CATEGORIES.find(c => c.id === initialData.postType) || LITE_CATEGORIES[0];
             setSelectedCat(category);
+
+            // 初始化真言模式数据
+            if (initialData.isFact && initialData.factData) {
+                setIsFact(true);
+                setFactOccurredAt(initialData.factData.occurredAt || "");
+                setFactLocation(initialData.factData.location || "");
+                setFactType(initialData.factData.factType || "SERVICE_EXPERIENCE");
+                setFactSubjectName(initialData.factData.subject?.name || "");
+                setFactEvidence(initialData.factData.evidence || []);
+            }
         }
     }, [open, initialData]);
 
@@ -80,11 +115,35 @@ export function LitePost({ onSuccess, trigger, postId, initialData }: LitePostPr
             return;
         }
 
+        // 真言模式验证
+        if (isFact) {
+            if (!factOccurredAt) {
+                toast.error("真言模式需要填写发生时间");
+                return;
+            }
+            if (!factLocation) {
+                toast.error("真言模式需要填写发生地点");
+                return;
+            }
+        }
+
         setIsSubmitting(true);
         try {
             const finalTitle = title.trim() || description.slice(0, 30) || (isEditMode ? "编辑动态" : "邻里分享");
             const priceInCents = price ? Math.floor(parseFloat(price) * 100) : undefined;
             const nodeId = currentUser.nodeId || 'NODE_LEES';
+
+            // 构建真言数据
+            const factData: FactData | undefined = isFact ? {
+                occurredAt: factOccurredAt,
+                location: factLocation,
+                factType: factType,
+                subject: factSubjectName ? {
+                    type: 'other',
+                    name: factSubjectName,
+                } : undefined,
+                evidence: factEvidence.length > 0 ? factEvidence : undefined,
+            } : undefined;
 
             if (isEditMode && postId) {
                 // UPDATE
@@ -95,8 +154,9 @@ export function LitePost({ onSuccess, trigger, postId, initialData }: LitePostPr
                     images: images,
                     mediaUrl: mediaUrl,
                     priceHint: priceInCents,
-                    locationText: "渥说", // Could make this editable later
-                    tags: [selectedCat.tag.replace('#', '')]
+                    locationText: "真言",
+                    tags: [selectedCat.tag.replace('#', '')],
+                    factData: factData,
                 });
                 toast.success("动态已更新");
             } else {
@@ -109,11 +169,13 @@ export function LitePost({ onSuccess, trigger, postId, initialData }: LitePostPr
                     mediaUrl: mediaUrl,
                     priceHint: priceInCents,
                     priceNegotiable: true,
-                    locationText: "渥说",
+                    locationText: "真言",
                     nodeId: nodeId,
-                    tags: [selectedCat.tag.replace('#', '')]
+                    tags: [selectedCat.tag.replace('#', '')],
+                    isFact: isFact,
+                    factData: factData,
                 });
-                toast.success("发布成功！已在渥说展示");
+                toast.success(isFact ? "真言发布成功！等待邻居验证" : "发布成功！已在真言展示");
             }
 
             setOpen(false);
@@ -135,6 +197,13 @@ export function LitePost({ onSuccess, trigger, postId, initialData }: LitePostPr
         setShowMediaInput(false);
         setPrice("");
         setSelectedCat(LITE_CATEGORIES[0]);
+        // 重置真言模式
+        setIsFact(false);
+        setFactOccurredAt("");
+        setFactLocation("");
+        setFactType("SERVICE_EXPERIENCE");
+        setFactSubjectName("");
+        setFactEvidence([]);
     };
 
     return (
@@ -174,6 +243,108 @@ export function LitePost({ onSuccess, trigger, postId, initialData }: LitePostPr
                             </button>
                         ))}
                     </div>
+
+                    {/* 真言模式开关 */}
+                    <div className={`flex items-center justify-between p-4 rounded-2xl transition-all ${isFact ? 'bg-amber-500/10 border-2 border-amber-500/30' : 'bg-muted/20'}`}>
+                        <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isFact ? 'bg-amber-500/20 text-amber-600' : 'bg-muted text-muted-foreground'}`}>
+                                <Shield className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <Label htmlFor="fact-mode" className="font-bold text-base cursor-pointer">
+                                    真言模式
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    {isFact ? '需填写时间地点，邻居可验证' : '开启后可获得邻居共识认证'}
+                                </p>
+                            </div>
+                        </div>
+                        <Switch
+                            id="fact-mode"
+                            checked={isFact}
+                            onCheckedChange={setIsFact}
+                            className="data-[state=checked]:bg-amber-500"
+                        />
+                    </div>
+
+                    {/* 真言额外字段 */}
+                    {isFact && (
+                        <div className="space-y-4 p-4 bg-amber-500/5 rounded-2xl border border-amber-500/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="flex items-center gap-2 text-amber-600 mb-2">
+                                <Shield className="w-4 h-4" />
+                                <span className="text-sm font-bold">真言信息 (必填)</span>
+                            </div>
+
+                            {/* 发生时间 */}
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 shrink-0">
+                                    <Calendar className="w-5 h-5" />
+                                </div>
+                                <Input
+                                    type="date"
+                                    placeholder="发生时间"
+                                    value={factOccurredAt}
+                                    onChange={(e) => setFactOccurredAt(e.target.value)}
+                                    className="bg-white/50 border-amber-500/20 focus-visible:ring-amber-500 rounded-xl"
+                                />
+                            </div>
+
+                            {/* 发生地点 */}
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 shrink-0">
+                                    <MapPinned className="w-5 h-5" />
+                                </div>
+                                <Input
+                                    placeholder="发生地点 (如: XX小区/XX店铺)"
+                                    value={factLocation}
+                                    onChange={(e) => setFactLocation(e.target.value)}
+                                    className="bg-white/50 border-amber-500/20 focus-visible:ring-amber-500 rounded-xl"
+                                />
+                            </div>
+
+                            {/* 事件类型 */}
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 shrink-0">
+                                    <span className="text-lg">{FACT_TYPE_OPTIONS.find(t => t.id === factType)?.icon || '📝'}</span>
+                                </div>
+                                <Select value={factType} onValueChange={(v) => setFactType(v as FactType)}>
+                                    <SelectTrigger className="bg-white/50 border-amber-500/20 focus:ring-amber-500 rounded-xl">
+                                        <SelectValue placeholder="选择事件类型" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {FACT_TYPE_OPTIONS.map((type) => (
+                                            <SelectItem key={type.id} value={type.id}>
+                                                <span className="flex items-center gap-2">
+                                                    <span>{type.icon}</span>
+                                                    <span>{type.label}</span>
+                                                </span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* 涉及对象 (可选) */}
+                            <Input
+                                placeholder="涉及对象 (可选，如: XX家政/张师傅)"
+                                value={factSubjectName}
+                                onChange={(e) => setFactSubjectName(e.target.value)}
+                                className="bg-white/50 border-amber-500/20 focus-visible:ring-amber-500 rounded-xl"
+                            />
+
+                            {/* 证据图片 */}
+                            <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">证据图片 (可选，最多3张)</Label>
+                                <ImageUploader
+                                    bucketName="listing-media"
+                                    onUpload={setFactEvidence}
+                                    maxFiles={3}
+                                    existingImages={factEvidence}
+                                    folderPath={`community/${currentUser?.id || 'anonymous'}/evidence`}
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {/* Media Area */}
                     <div className="bg-muted/20 rounded-2xl p-4 border-2 border-dashed border-muted space-y-4">

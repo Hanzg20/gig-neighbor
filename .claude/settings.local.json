@@ -14,7 +14,8 @@
       "Bash(git commit:*)",
       "Bash(dir:*)",
       "Bash(powershell -ExecutionPolicy Bypass -File \"d:\\My Project\\ts\\hangs\\gig-neighbor\\rebrand.ps1\")",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

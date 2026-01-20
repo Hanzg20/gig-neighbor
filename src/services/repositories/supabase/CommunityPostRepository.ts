@@ -5,7 +5,11 @@ import {
     CommunityPostType,
     CreateCommunityPostInput,
     UpdateCommunityPostInput,
-    CreateCommentInput
+    CreateCommentInput,
+    ConsensusVoteType,
+    Consensus,
+    FactData,
+    FactVoteRecord
 } from '@/types/community';
 
 /**
@@ -26,6 +30,13 @@ export class SupabaseCommunityPostRepository {
             content: row.content,
             images: row.images || [],
             mediaUrl: row.media_url,
+
+            // 真言相关字段
+            isFact: row.is_fact || false,
+            factData: row.fact_data as FactData | undefined,
+            consensus: row.consensus as Consensus | undefined,
+            saveCount: row.save_count || 0,
+
             priceHint: row.price_hint,
             priceNegotiable: row.price_negotiable,
             locationText: row.location_text,
@@ -40,9 +51,11 @@ export class SupabaseCommunityPostRepository {
             author: row.author ? {
                 id: row.author.id,
                 name: row.author.name,
-                avatar: row.author.avatar
+                avatar: row.author.avatar,
+                // Level will be fetched separately when needed
             } : undefined,
             isLikedByMe: row.is_liked_by_me || false,
+            isSavedByMe: row.is_saved_by_me || false,
             createdAt: row.created_at,
             updatedAt: row.updated_at
         };
@@ -63,6 +76,10 @@ export class SupabaseCommunityPostRepository {
         if (input.tags !== undefined) dbRow.tags = input.tags;
         if ('status' in input && input.status) dbRow.status = input.status;
         if ('isResolved' in input && input.isResolved !== undefined) dbRow.is_resolved = input.isResolved;
+
+        // 真言相关字段
+        if ('isFact' in input && input.isFact !== undefined) dbRow.is_fact = input.isFact;
+        if (input.factData !== undefined) dbRow.fact_data = input.factData;
 
         return dbRow;
     }
@@ -261,7 +278,8 @@ export class SupabaseCommunityPostRepository {
             author: row.author ? {
                 id: row.author.id,
                 name: row.author.name,
-                avatar: row.author.avatar
+                avatar: row.author.avatar,
+                // Level will be fetched separately when needed
             } : undefined,
             createdAt: row.created_at,
             updatedAt: row.updated_at
@@ -310,6 +328,114 @@ export class SupabaseCommunityPostRepository {
         if (error) throw error;
     }
 
+    /**
+     * 获取帖子的评论（包含嵌套结构）
+     */
+    async getCommentsWithReplies(postId: string): Promise<CommunityComment[]> {
+        const { data, error } = await supabase
+            .from('community_comments')
+            .select(`
+                *,
+                author:user_profiles!author_id (id, name, avatar)
+            `)
+            .eq('post_id', postId)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        const comments = (data || []).map(row => this.mapCommentFromDb(row));
+
+        // Build tree structure
+        const commentMap = new Map<string, CommunityComment>();
+        const rootComments: CommunityComment[] = [];
+
+        // First pass: create map of all comments
+        for (const comment of comments) {
+            comment.replies = [];
+            commentMap.set(comment.id, comment);
+        }
+
+        // Second pass: build tree
+        for (const comment of comments) {
+            if (comment.parentCommentId && commentMap.has(comment.parentCommentId)) {
+                const parent = commentMap.get(comment.parentCommentId)!;
+                parent.replies = parent.replies || [];
+                parent.replies.push(comment);
+            } else {
+                rootComments.push(comment);
+            }
+        }
+
+        return rootComments;
+    }
+
+    /**
+     * 点赞评论
+     */
+    async likeComment(commentId: string, userId: string): Promise<void> {
+        const { error } = await supabase
+            .from('community_comment_likes')
+            .insert({
+                comment_id: commentId,
+                user_id: userId
+            });
+
+        if (error && error.code !== '23505') {
+            // Ignore duplicate key error
+            throw error;
+        }
+
+        // Update like count
+        await supabase.rpc('increment_comment_likes', { p_comment_id: commentId });
+    }
+
+    /**
+     * 取消点赞评论
+     */
+    async unlikeComment(commentId: string, userId: string): Promise<void> {
+        const { error } = await supabase
+            .from('community_comment_likes')
+            .delete()
+            .eq('comment_id', commentId)
+            .eq('user_id', userId);
+
+        if (error) throw error;
+
+        // Decrement like count
+        await supabase.rpc('decrement_comment_likes', { p_comment_id: commentId });
+    }
+
+    /**
+     * 检查用户是否点赞了评论
+     */
+    async isCommentLikedByUser(commentId: string, userId: string): Promise<boolean> {
+        const { data, error } = await supabase
+            .from('community_comment_likes')
+            .select('comment_id')
+            .eq('comment_id', commentId)
+            .eq('user_id', userId)
+            .single();
+
+        if (error) return false;
+        return !!data;
+    }
+
+    /**
+     * 批量检查用户点赞的评论
+     */
+    async getUserLikedCommentIds(userId: string, commentIds: string[]): Promise<Set<string>> {
+        if (commentIds.length === 0) return new Set();
+
+        const { data, error } = await supabase
+            .from('community_comment_likes')
+            .select('comment_id')
+            .eq('user_id', userId)
+            .in('comment_id', commentIds);
+
+        if (error) return new Set();
+        return new Set((data || []).map(row => row.comment_id));
+    }
+
     // ==========================================
     // POST-TO-SERVICE CONVERSION
     // ==========================================
@@ -337,6 +463,180 @@ export class SupabaseCommunityPostRepository {
 
         if (error) return null;
         return data?.listing_id;
+    }
+
+    // ==========================================
+    // FACT VOTING (真言投票)
+    // ==========================================
+
+    /**
+     * 获取用户对帖子的投票
+     */
+    async getUserVote(postId: string, userId: string): Promise<ConsensusVoteType | null> {
+        const { data, error } = await supabase
+            .from('fact_votes')
+            .select('vote_type')
+            .eq('post_id', postId)
+            .eq('user_id', userId)
+            .single();
+
+        if (error || !data) return null;
+        return data.vote_type as ConsensusVoteType;
+    }
+
+    /**
+     * 获取多个帖子的用户投票
+     */
+    async getUserVotes(postIds: string[], userId: string): Promise<Map<string, ConsensusVoteType>> {
+        if (postIds.length === 0) return new Map();
+
+        const { data, error } = await supabase
+            .from('fact_votes')
+            .select('post_id, vote_type')
+            .eq('user_id', userId)
+            .in('post_id', postIds);
+
+        const voteMap = new Map<string, ConsensusVoteType>();
+        if (!error && data) {
+            data.forEach(row => {
+                voteMap.set(row.post_id, row.vote_type as ConsensusVoteType);
+            });
+        }
+        return voteMap;
+    }
+
+    /**
+     * 投票或更新投票
+     * 注意: consensus 的更新由数据库触发器自动处理
+     */
+    async voteOnFact(postId: string, userId: string, voteType: ConsensusVoteType): Promise<void> {
+        const { error } = await supabase
+            .from('fact_votes')
+            .upsert({
+                post_id: postId,
+                user_id: userId,
+                vote_type: voteType,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'post_id,user_id'
+            });
+
+        if (error) throw error;
+    }
+
+    /**
+     * 删除投票
+     */
+    async removeVote(postId: string, userId: string): Promise<void> {
+        const { error } = await supabase
+            .from('fact_votes')
+            .delete()
+            .eq('post_id', postId)
+            .eq('user_id', userId);
+
+        if (error) throw error;
+    }
+
+    /**
+     * 获取帖子的所有投票记录
+     */
+    async getVoteRecords(postId: string): Promise<FactVoteRecord[]> {
+        const { data, error } = await supabase
+            .from('fact_votes')
+            .select('*')
+            .eq('post_id', postId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return (data || []).map(row => ({
+            id: row.id,
+            postId: row.post_id,
+            userId: row.user_id,
+            voteType: row.vote_type as ConsensusVoteType,
+            createdAt: row.created_at
+        }));
+    }
+
+    // ==========================================
+    // POST SAVES (收藏)
+    // ==========================================
+
+    /**
+     * 收藏帖子
+     */
+    async savePost(postId: string, userId: string): Promise<void> {
+        const { error } = await supabase
+            .from('post_saves')
+            .insert({ post_id: postId, user_id: userId });
+
+        if (error && !error.message.includes('duplicate')) throw error;
+    }
+
+    /**
+     * 取消收藏
+     */
+    async unsavePost(postId: string, userId: string): Promise<void> {
+        const { error } = await supabase
+            .from('post_saves')
+            .delete()
+            .eq('post_id', postId)
+            .eq('user_id', userId);
+
+        if (error) throw error;
+    }
+
+    /**
+     * 检查是否已收藏
+     */
+    async isSavedByUser(postId: string, userId: string): Promise<boolean> {
+        const { data, error } = await supabase
+            .from('post_saves')
+            .select('post_id')
+            .eq('post_id', postId)
+            .eq('user_id', userId)
+            .single();
+
+        return !!data && !error;
+    }
+
+    /**
+     * 获取用户收藏的帖子ID列表
+     */
+    async getSavedPostIds(userId: string, postIds: string[]): Promise<Set<string>> {
+        if (postIds.length === 0) return new Set();
+
+        const { data, error } = await supabase
+            .from('post_saves')
+            .select('post_id')
+            .eq('user_id', userId)
+            .in('post_id', postIds);
+
+        if (error) return new Set();
+        return new Set((data || []).map(row => row.post_id));
+    }
+
+    /**
+     * 获取用户收藏的所有帖子
+     */
+    async getSavedPosts(userId: string, limit = 20, offset = 0): Promise<CommunityPost[]> {
+        const { data, error } = await supabase
+            .from('post_saves')
+            .select(`
+                post:community_posts (
+                    *,
+                    author:user_profiles!author_id (id, name, avatar)
+                )
+            `)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        if (error) throw error;
+
+        return (data || [])
+            .filter(row => row.post)
+            .map(row => this.mapPostFromDb(row.post));
     }
 }
 
