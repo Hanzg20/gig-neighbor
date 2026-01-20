@@ -21,9 +21,23 @@ interface ShareSheetProps {
     trigger?: React.ReactNode;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    brandingTitle?: string;
+    brandingSubtitle?: string;
 }
 
-export function ShareSheet({ title, content, url = window.location.href, imageUrl, authorName, authorAvatar, trigger, open, onOpenChange }: ShareSheetProps) {
+export function ShareSheet({
+    title,
+    content,
+    url = window.location.href,
+    imageUrl,
+    authorName,
+    authorAvatar,
+    trigger,
+    open,
+    onOpenChange,
+    brandingTitle,
+    brandingSubtitle
+}: ShareSheetProps) {
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const [isOpen, setIsOpen] = useState(false);
     const hasControlledOpen = open !== undefined;
@@ -69,12 +83,15 @@ export function ShareSheet({ title, content, url = window.location.href, imageUr
             const element = document.getElementById('share-card-source');
             if (!element) throw new Error("Card element not found");
 
+            // Wait a bit for any images or fonts to settle
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             const canvas = await html2canvas(element, {
                 useCORS: true,
                 scale: 2, // Higher quality
                 backgroundColor: '#ffffff',
                 logging: false,
-                height: element.offsetHeight, // Explicitly set height
+                height: element.scrollHeight, // Use full height to avoid clipping
                 width: 375, // Explicitly set width
                 onclone: (clonedDoc) => {
                     const clonedElement = clonedDoc.getElementById('share-card');
@@ -118,6 +135,8 @@ export function ShareSheet({ title, content, url = window.location.href, imageUr
                         authorName={authorName || 'Gig Neighbor'}
                         authorAvatar={authorAvatar}
                         qrUrl={url}
+                        brandingTitle={brandingTitle}
+                        brandingSubtitle={brandingSubtitle}
                     />
                 </div>
             </div>

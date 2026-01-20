@@ -295,6 +295,8 @@ const CommunityPostDetail = () => {
                                         imageUrl={effectiveImageUrl}
                                         authorName={currentPost.author?.name}
                                         authorAvatar={currentPost.author?.avatar}
+                                        brandingTitle="渥帮 · 真言"
+                                        brandingSubtitle="Grounded in reality."
                                         trigger={
                                             <Button variant="ghost" size="sm" className="rounded-full px-4 text-muted-foreground hover:bg-muted">
                                                 <Share2 className="w-5 h-5 mr-1.5" />

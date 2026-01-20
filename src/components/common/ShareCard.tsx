@@ -9,9 +9,21 @@ interface ShareCardProps {
     authorAvatar?: string;
     qrUrl: string;
     id?: string; // DOM ID for capture
+    brandingTitle?: string;
+    brandingSubtitle?: string;
 }
 
-export const ShareCard = ({ title, content, imageUrl, authorName, authorAvatar, qrUrl, id = "share-card" }: ShareCardProps) => {
+export const ShareCard = ({
+    title,
+    content,
+    imageUrl,
+    authorName,
+    authorAvatar,
+    qrUrl,
+    id = "share-card",
+    brandingTitle = "渥帮 JUSTWEDO",
+    brandingSubtitle = "JWD"
+}: ShareCardProps) => {
     return (
         <div
             id={id}
@@ -22,8 +34,8 @@ export const ShareCard = ({ title, content, imageUrl, authorName, authorAvatar, 
             <div className="flex items-center gap-2 mb-4">
                 <img src="/logo.png" className="w-8 h-8 object-contain" alt="Logo" />
                 <div className="flex flex-col leading-none">
-                    <span className="font-black text-sm tracking-tight">渥帮 JUSTWEDO</span>
-                    <span className="text-[10px] text-muted-foreground font-bold tracking-widest">JWD</span>
+                    <span className="font-black text-sm tracking-tight">{brandingTitle}</span>
+                    <span className="text-[10px] text-muted-foreground font-bold tracking-widest">{brandingSubtitle}</span>
                 </div>
             </div>
 
@@ -59,7 +71,7 @@ export const ShareCard = ({ title, content, imageUrl, authorName, authorAvatar, 
                     <span className="text-xs font-bold text-muted-foreground">{authorName}</span>
                 </div>
 
-                <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap decoration-clone box-decoration-clone">
+                <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap line-clamp-[6] overflow-hidden">
                     {content}
                 </p>
             </div>
@@ -67,12 +79,12 @@ export const ShareCard = ({ title, content, imageUrl, authorName, authorAvatar, 
             <div className="my-4 border-t border-dashed border-gray-200" />
 
             {/* Footer / QR */}
-            <div className="flex items-center justify-between bg-[#daf4e6] p-4 rounded-xl">
+            <div className="flex items-center justify-between bg-[#daf4e6] p-4 rounded-xl mt-auto">
                 <div className="flex flex-col gap-1">
                     <span className="text-xs font-black text-[#0f4d30]">长按识别二维码</span>
                     <span className="text-[10px] text-[#2c7a52]">查看详情 & 参与互动</span>
                 </div>
-                <div className="bg-white p-1.5 rounded-lg shadow-sm">
+                <div className="bg-white p-1.5 rounded-lg shadow-sm flex-shrink-0">
                     <QRCodeSVG value={qrUrl} size={60} />
                 </div>
             </div>
