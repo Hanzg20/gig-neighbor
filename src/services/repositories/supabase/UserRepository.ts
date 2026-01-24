@@ -327,14 +327,14 @@ export class SupabaseUserRepository implements IUserRepository {
     /**
      * Get user profile by ID with follow stats
      */
+    /**
+     * Get user profile by ID with follow stats
+     * Uses secure view for public access
+     */
     async getUserProfile(userId: string): Promise<UserProfileSummary | null> {
         const { data, error } = await supabase
-            .from('user_profiles')
-            .select(`
-                id, name, avatar, bio,
-                follower_count, following_count, post_count,
-                created_at
-            `)
+            .from('view_public_profiles')
+            .select('*')
             .eq('id', userId)
             .single();
 

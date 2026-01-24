@@ -22,72 +22,103 @@ export const ShareCard = ({
     qrUrl,
     id = "share-card",
     brandingTitle = "渥帮 JUSTWEDO",
-    brandingSubtitle = "Just telling it like it is"
+    brandingSubtitle = "Discover Your Neighborhood"
 }: ShareCardProps) => {
     return (
         <div
             id={id}
-            className="w-[375px] bg-white px-6 pt-6 pb-12 rounded-none shadow-xl"
-            style={{ backgroundColor: '#ffffff' }}
+            className="w-[375px] bg-white relative overflow-hidden"
+            style={{
+                fontFamily: "'Inter', system-ui, sans-serif",
+                backgroundColor: '#ffffff' // Explicit for html2canvas
+            }}
         >
-            {/* Header / Branding */}
-            <div className="flex items-center gap-2 mb-4">
-                <img src="/logo.png" className="w-8 h-8 object-contain" alt="Logo" />
-                <div className="flex flex-col leading-none">
-                    <span className="font-black text-sm tracking-tight">{brandingTitle}</span>
-                    <span className="text-[10px] text-muted-foreground font-bold tracking-tight">{brandingSubtitle}</span>
-                </div>
-            </div>
-
-            {/* Main Image */}
-            <div className="w-full aspect-square bg-muted rounded-2xl overflow-hidden relative mb-4">
-                {imageUrl ? (
-                    <img
-                        src={imageUrl}
-                        alt="Post Cover"
-                        className="w-full h-full object-cover"
-                        crossOrigin="anonymous"
-                    />
-                ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-secondary/30">
-                        <span className="text-4xl mb-2">📝</span>
-                        <span className="text-sm font-medium">纯文字动态</span>
+            {/* 1. Immersive Header Image Area using Background Image to prevent stretching */}
+            <div
+                className="relative w-full aspect-[4/5] bg-gray-100 bg-cover bg-center bg-no-repeat"
+                style={{
+                    backgroundImage: imageUrl ? `url("${imageUrl}")` : undefined
+                }}
+            >
+                {!imageUrl && (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 text-gray-400">
+                        <span className="text-4xl mb-2">✨</span>
+                        <span className="text-xs font-medium tracking-widest uppercase">JustWeDo Moment</span>
                     </div>
                 )}
-            </div>
 
-            {/* Content */}
-            <div className="mb-4">
-                <h2 className="text-xl font-black leading-tight text-foreground line-clamp-2 mb-2">
-                    {title}
-                </h2>
+                {/* Gradient Overlay for Text Protection */}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
 
-                {/* Author Info */}
-                <div className="flex items-center gap-2 mb-3">
-                    <Avatar className="w-6 h-6 border border-border/50">
-                        <AvatarImage src={authorAvatar} crossOrigin="anonymous" />
-                        <AvatarFallback>{authorName?.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs font-bold text-muted-foreground">{authorName}</span>
+                {/* Top Branding (White on Dark) */}
+                <div className="absolute top-6 left-6 flex items-center gap-2 z-10">
+                    <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-lg flex items-center justify-center border border-white/30 shadow-sm">
+                        <img src="/logo.png" className="w-5 h-5 object-contain brightness-200 invert" alt="Logo" />
+                    </div>
+                    <div className="flex flex-col text-white drop-shadow-md">
+                        <span className="font-extrabold text-sm tracking-tight leading-none">{brandingTitle}</span>
+                        <span className="text-[9px] font-medium opacity-80 tracking-widest uppercase mt-0.5">{brandingSubtitle}</span>
+                    </div>
                 </div>
 
-                <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap line-clamp-[6] overflow-hidden">
-                    {content}
-                </p>
+                {/* Floating Title Card (Premium Magazine Style) */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 z-20">
+                    <div className="bg-white/95 backdrop-blur-xl p-5 pb-8 rounded-2xl shadow-2xl border border-white/50">
+                        {/* Author Pill */}
+                        <div className="flex items-center gap-2 mb-3">
+                            <Avatar className="w-5 h-5 ring-2 ring-white shadow-sm flex-shrink-0">
+                                <AvatarImage src={authorAvatar} crossOrigin="anonymous" />
+                                <AvatarFallback className="bg-gray-100 text-[8px] font-bold text-gray-500">
+                                    {authorName?.charAt(0)}
+                                </AvatarFallback>
+                            </Avatar>
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider line-clamp-1 leading-relaxed max-w-[220px] py-0.5">
+                                {authorName || 'Gig Neighbor'}
+                            </span>
+                        </div>
+
+                        {/* Title - Increased bottom spacing and line height stability */}
+                        <h2 className="text-xl font-black text-gray-900 leading-normal mb-2 line-clamp-3 tracking-tight pb-1">
+                            {title}
+                        </h2>
+
+                        {/* Short Excerpt */}
+                        <p className="text-xs font-medium text-gray-500 line-clamp-2 leading-relaxed">
+                            {content}
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            <div className="my-4 border-t border-dashed border-gray-200" />
-
-            {/* Footer / QR */}
-            <div className="flex items-center justify-between bg-[#daf4e6] p-4 rounded-xl mt-auto">
-                <div className="flex flex-col gap-1">
-                    <span className="text-xs font-black text-[#0f4d30]">长按识别二维码</span>
-                    <span className="text-[10px] text-[#2c7a52]">查看详情 & 参与互动</span>
-                </div>
-                <div className="bg-white p-1.5 rounded-lg shadow-sm flex-shrink-0">
-                    <QRCodeSVG value={qrUrl} size={60} />
+            {/* 3. Footer / QR Section */}
+            <div className="p-6 mt-0 bg-white">
+                <div className="bg-gray-50 rounded-2xl p-4 flex items-center justify-between border border-gray-100">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-xs font-black text-gray-900 tracking-tight">SCAN TO VIEW</span>
+                        <span className="text-[10px] text-gray-500 font-medium max-w-[140px]">
+                            Long press to identify QR code and view details
+                        </span>
+                    </div>
+                    <div className="bg-white p-1.5 rounded-xl shadow-sm border border-gray-100 flex-shrink-0">
+                        <QRCodeSVG
+                            value={qrUrl}
+                            size={52}
+                            level="M"
+                            imageSettings={{
+                                src: "/logo.png",
+                                x: undefined,
+                                y: undefined,
+                                height: 12,
+                                width: 12,
+                                excavate: true,
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
+
+            {/* Decorative bottom bar */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-primary/80 to-primary/40" />
         </div>
     );
 };

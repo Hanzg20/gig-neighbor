@@ -117,6 +117,7 @@ export interface ProviderProfile extends BaseEntity {
   businessNameEn?: string;
   descriptionZh?: string;
   descriptionEn?: string;
+  avatar?: string; // Mapped from linked User profile
 
   identity: 'NEIGHBOR' | 'MERCHANT';
   isVerified: boolean;

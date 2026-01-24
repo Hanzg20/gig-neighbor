@@ -1,4 +1,4 @@
-import { ListingMaster, ListingItem, User } from "@/types/domain";
+import { ListingMaster, ListingItem, User, ProviderProfile } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MessageCircle, ShoppingBag, Truck, ShieldCheck, MapPin, Share2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ interface GoodsDetailViewProps {
     master: ListingMaster;
     item: ListingItem;
     items?: ListingItem[]; // Added for variants
-    provider: User;
+    provider: User | ProviderProfile; // Support both types
     onBuy: () => void;
     onChat: () => void;
     onSelect?: (item: ListingItem) => void; // Added for selection
@@ -62,7 +62,12 @@ export const GoodsDetailView = ({ master, item, items = [], provider, onBuy, onC
                         title={getTranslation(master, 'title')}
                         content={getTranslation(master, 'description')}
                         imageUrl={master.images[currentImage]}
-                        authorName={provider ? (provider.businessNameEn || provider.businessNameZh || provider.name || 'Gig Neighbor') : 'Gig Neighbor'}
+                        authorName={
+                            // Duck typing check for ProviderProfile vs User
+                            (provider && 'businessNameEn' in provider)
+                                ? (provider.businessNameEn || provider.businessNameZh || t.postedBy)
+                                : (provider?.name || 'Neighbor')
+                        }
                         authorAvatar={provider?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${provider?.id || 'default'}`}
                         trigger={
                             <button className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xl">
@@ -174,17 +179,19 @@ export const GoodsDetailView = ({ master, item, items = [], provider, onBuy, onC
                         {getTranslation(master, 'description')}
                     </p>
 
-                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-2xl">
-                        <div className="w-10 h-10 rounded-full bg-background border flex items-center justify-center">
-                            <img src={provider?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${provider?.id || 'unknown'}`} className="w-full h-full rounded-full object-cover" />
+                    <Link to={`/provider/${provider?.id || master.providerId}`} className="flex items-center gap-3 p-3 bg-muted/50 rounded-2xl hover:bg-muted transition-colors cursor-pointer">
+                        <div className="w-10 h-10 rounded-full bg-background border flex items-center justify-center overflow-hidden">
+                            <img src={provider?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${provider?.id || 'unknown'}`} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1">
                             <p className="text-xs font-bold text-muted-foreground uppercase">{t.postedBy}</p>
                             <p className="font-black text-foreground">
-                                {provider?.businessNameEn || provider?.businessNameZh || provider?.name || 'Neighbor'}
+                                {(provider && 'businessNameEn' in provider)
+                                    ? (provider.businessNameEn || provider.businessNameZh || 'Neighbor')
+                                    : (provider?.name || 'Neighbor')}
                             </p>
                         </div>
-                    </div>
+                    </Link>
                 </div>
             </div>
 
@@ -200,7 +207,11 @@ export const GoodsDetailView = ({ master, item, items = [], provider, onBuy, onC
                         title={getTranslation(master, 'title')}
                         content={getTranslation(master, 'description')}
                         imageUrl={master.images[currentImage]}
-                        authorName={provider ? (provider.businessNameEn || provider.businessNameZh || provider.name || 'Gig Neighbor') : 'Gig Neighbor'}
+                        authorName={
+                            (provider && 'businessNameEn' in provider)
+                                ? (provider.businessNameEn || provider.businessNameZh || t.postedBy)
+                                : (provider?.name || 'Neighbor')
+                        }
                         authorAvatar={provider?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${provider?.id || 'default'}`}
                         trigger={
                             <Button variant="outline" size="lg" className="rounded-2xl font-bold gap-2">

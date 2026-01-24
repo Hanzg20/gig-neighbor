@@ -5,17 +5,19 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 // Environment variables (set in Supabase Dashboard)
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 serve(async (req) => {
     // CORS headers
     if (req.method === "OPTIONS") {
-        return new Response(null, {
-            headers: {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-            },
+        return new Response("ok", {
+            status: 200,
+            headers: corsHeaders
         });
     }
 
@@ -27,7 +29,7 @@ serve(async (req) => {
                 JSON.stringify({ error: "Missing 'text' parameter" }),
                 {
                     status: 400,
-                    headers: { "Content-Type": "application/json" },
+                    headers: { ...corsHeaders, "Content-Type": "application/json" },
                 }
             );
         }
@@ -57,8 +59,8 @@ serve(async (req) => {
                 JSON.stringify({ embedding }),
                 {
                     headers: {
+                        ...corsHeaders,
                         "Content-Type": "application/json",
-                        "Access-Control-Allow-Origin": "*",
                     },
                 }
             );
@@ -75,8 +77,8 @@ serve(async (req) => {
             }),
             {
                 headers: {
+                    ...corsHeaders,
                     "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
                 },
             }
         );
@@ -87,7 +89,7 @@ serve(async (req) => {
             JSON.stringify({ error: errorMessage }),
             {
                 status: 500,
-                headers: { "Content-Type": "application/json" },
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
             }
         );
     }

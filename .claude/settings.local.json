@@ -15,7 +15,8 @@
       "Bash(dir:*)",
       "Bash(powershell -ExecutionPolicy Bypass -File \"d:\\My Project\\ts\\hangs\\gig-neighbor\\rebrand.ps1\")",
       "Bash(bash:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

@@ -1472,3 +1472,27 @@ VALUES
 ('777b3240-3506-47ba-856e-c97f97687e49', 'ELECTRICIAN', 'ESA-7012345', 'ONTARIO', 'VERIFIED'),
 ('e3cb8bb8-31e9-4a3f-954f-a6139f878404', 'REAL_ESTATE_AGENT', 'RECO-998877', 'ONTARIO', 'VERIFIED')
 ON CONFLICT DO NOTHING;
+
+
+
+
+- 确保 UUID 扩展已开启
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- 插入/更新 核心业务模板
+INSERT INTO public.communication_templates (slug, language, content, description)
+VALUES 
+-- 1. 补货提醒 (面向商家)
+('restock-alert', 'en', '[JWD Alert] Merchant Restock Needed: "${itemName}" is out of stock. Update inventory now to resume Scan-to-Buy services.', 'Variables: ${itemName}'),
+('restock-alert', 'zh', '[JWD 提醒] 商家补货通知：您的商品 "${itemName}" 已售罄。请尽快登录后台补充库存，以恢复扫码购服务。', '变量: ${itemName}'),
+-- 2. 购买成功凭证 (面向客户)
+('purchase-success', 'en', '[JWD] Purchase Successful! Card: ${serialNumber}. PIN: ${secretCode}. Use this at the merchant terminal. Thanks for using JUSTWEDO.com!', 'Variables: ${serialNumber}, ${secretCode}'),
+('purchase-success', 'zh', '[JWD] 支付成功！您的凭证卡号：${serialNumber}。密码：${secretCode}。请在商家设备或柜台出示使用。感谢选择 JUSTWEDO.com！', '变量: ${serialNumber}, ${secretCode}'),
+-- 3. 额外测试：库存告警 (如果您未来需要提前提醒)
+('low-stock-warning', 'en', '[JWD] Low Stock Warning: "${itemName}" has only 3 units left. High traffic detected!', 'Variables: ${itemName}'),
+('low-stock-warning', 'zh', '[JWD] 低库存预警：您的商品 "${itemName}" 仅剩 3 件，请留意补货。', '变量: ${itemName}')
+ON CONFLICT (slug, language) DO UPDATE 
+SET 
+  content = EXCLUDED.content,
+  updated_at = now();
+-- 验证数据
+SELECT slug, language, content FROM public.communication_templates ORDER BY slug, language;

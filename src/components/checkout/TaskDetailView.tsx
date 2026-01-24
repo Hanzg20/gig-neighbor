@@ -1,15 +1,10 @@
-import { ListingMaster, ListingItem, User } from "@/types/domain";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageCircle, FileText, Calendar, Clock, MapPin } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
-import { getTranslation } from "@/stores/listingStore";
-import { useConfigStore } from "@/stores/configStore";
+import { ListingMaster, ListingItem, User, ProviderProfile } from "@/types/domain";
+// ... (imports)
 
 interface TaskDetailViewProps {
     master: ListingMaster;
     item: ListingItem;
-    author: User;
+    author: User | ProviderProfile;
     onQuote: () => void;
     onChat: () => void;
 }
@@ -72,13 +67,17 @@ export const TaskDetailView = ({ master, item, author, onQuote, onChat }: TaskDe
                     </p>
                 </div>
 
-                <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-3xl mb-8">
-                    <img src={author?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${author.id}`} className="w-12 h-12 rounded-2xl bg-white shadow-sm" />
+                <Link to={`/provider/${author?.id}`} className="flex items-center gap-4 p-4 bg-muted/30 rounded-3xl mb-8 hover:bg-muted/50 transition-colors cursor-pointer block">
+                    <img src={author?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${author.id}`} className="w-12 h-12 rounded-2xl bg-white shadow-sm object-cover" />
                     <div>
                         <p className="text-xs font-bold text-muted-foreground uppercase">{t.postedBy}</p>
-                        <p className="font-black text-lg">{author.name || 'Neighbor'}</p>
+                        <p className="font-black text-lg">
+                            {(author && 'businessNameEn' in author)
+                                ? (author.businessNameEn || author.businessNameZh || 'Neighbor')
+                                : (author?.name || 'Neighbor')}
+                        </p>
                     </div>
-                </div>
+                </Link>
             </div>
 
             {/* Fixed Bottom Action Bar */}

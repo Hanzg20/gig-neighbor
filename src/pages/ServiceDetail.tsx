@@ -96,7 +96,18 @@ const ServiceDetail = () => {
         const loadProvider = async () => {
           const repo = repositoryFactory.getProviderRepository();
           const p = await repo.getById(foundMaster.providerId);
-          setProvider(p);
+
+          if (p) {
+            setProvider(p);
+          } else {
+            // Fallback: Try fetching as a regular User (for Task/Goods creators who aren't Providers)
+            console.log('Provider profile not found, trying user profile fallback...', foundMaster.providerId);
+            const userRepo = repositoryFactory.getUserRepository();
+            const u = await userRepo.getUserProfile(foundMaster.providerId);
+            if (u) {
+              setProvider(u);
+            }
+          }
         }
         loadProvider();
       } else {
@@ -117,10 +128,18 @@ const ServiceDetail = () => {
         const listing = await repo.getById(id!);
         if (listing) {
           setMaster(listing);
-          // Fetch provider
+          // Fetch provider with fallback
           const providerRepo = repositoryFactory.getProviderRepository();
           const p = await providerRepo.getById(listing.providerId);
-          setProvider(p);
+
+          if (p) {
+            setProvider(p);
+          } else {
+            console.log('Provider profile not found (direct load), trying user profile fallback...', listing.providerId);
+            const userRepo = repositoryFactory.getUserRepository();
+            const u = await userRepo.getUserProfile(listing.providerId);
+            if (u) setProvider(u);
+          }
 
           // Fetch Items
           const itemRepo = repositoryFactory.getListingItemRepository();
@@ -302,39 +321,38 @@ const ServiceDetail = () => {
           {/* Provider Profile (Neighbor Trust Section) */}
           {provider && (
             <div className="flex items-center gap-4 mb-6">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-3xl overflow-hidden border-2 border-white shadow-card">
+              <Link to={`/provider/${provider.id}`} className="relative group cursor-pointer block">
+                <div className="w-16 h-16 rounded-3xl overflow-hidden border-2 border-white shadow-card group-hover:shadow-lg transition-all">
                   <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${provider.id}`} alt="Provider" className="w-full h-full object-cover bg-muted" />
                 </div>
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary rounded-xl flex items-center justify-center border-2 border-white shadow-sm">
                   <Shield className="w-3 h-3 text-white" />
                 </div>
-              </div>
+              </Link>
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-black text-foreground tracking-tight">
-                    {provider.businessNameEn || provider.businessNameZh || provider.name || t.neighbor}
-                  </h2>
-                  <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black tracking-tighter uppercase px-2 py-0">
-                    {provider.identity === 'MERCHANT' ? t.merchant : t.neighbor}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 px-2 py-1 bg-secondary/10 rounded-lg">
-                    <Star className="w-3 h-3 fill-secondary text-secondary" />
-                    <span className="text-xs font-black text-foreground">{provider.stats.averageRating}</span>
+                <Link to={`/provider/${provider.id}`} className="block group cursor-pointer">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h2 className="text-xl font-black text-foreground tracking-tight group-hover:text-primary transition-colors">
+                      {provider.businessNameEn || provider.businessNameZh || provider.name || t.neighbor}
+                    </h2>
+                    <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black tracking-tighter uppercase px-2 py-0">
+                      {provider.identity === 'MERCHANT' ? t.merchant : t.neighbor}
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
-                    <Award className="w-3 h-3 text-primary" />
-                    <span>{provider.stats.reviewCount} {t.vouched}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 px-2 py-1 bg-secondary/10 rounded-lg">
+                      <Star className="w-3 h-3 fill-secondary text-secondary" />
+                      <span className="text-xs font-black text-foreground">{provider.stats.averageRating}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
+                      <Award className="w-3 h-3 text-primary" />
+                      <span>{provider.stats.reviewCount} {t.vouched}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
+                      <MapPin className="w-3 h-3" />
+                      <span>{provider.location.address?.split(',')[0]}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
-                    <MapPin className="w-3 h-3" />
-                    <span>{provider.location.address?.split(',')[0]}</span>
-                  </div>
-                </div>
-                <Link to={`/provider/${master.providerId}`} className="text-xs font-bold text-primary hover:underline mt-1.5 inline-flex items-center gap-1">
-                  {t.viewProfile} <span className="text-[10px]">→</span>
                 </Link>
               </div>
               <button

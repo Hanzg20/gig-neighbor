@@ -3,7 +3,7 @@ import { ProviderProfile, ProviderIdentity } from '@/types/domain';
 import { IProviderRepository } from '../interfaces';
 
 export class SupabaseProviderRepository implements IProviderRepository {
-    private mapFromDb(row: any): ProviderProfile {
+    private mapFromView(row: any): ProviderProfile {
         return {
             id: row.id,
             userId: row.user_id,
@@ -11,6 +11,7 @@ export class SupabaseProviderRepository implements IProviderRepository {
             businessNameEn: row.business_name_en,
             descriptionZh: row.description_zh,
             descriptionEn: row.description_en,
+            avatar: row.user_avatar, // From View
             identity: row.identity as ProviderIdentity,
             isVerified: row.is_verified,
             verificationLevel: row.verification_level || 1,
@@ -22,28 +23,25 @@ export class SupabaseProviderRepository implements IProviderRepository {
                 reviewCount: row.stats?.review_count || 0,
             },
             location: row.location_address ? {
-                lat: row.location_lat || 0,
-                lng: row.location_lng || 0,
+                lat: 0, // View simplified
+                lng: 0,
                 address: row.location_address,
                 radiusKm: row.service_radius_km || 5,
             } : { lat: 0, lng: 0, address: '', radiusKm: 5 },
             createdAt: row.created_at,
             updatedAt: row.updated_at,
-            credentials: row.professional_credentials ? row.professional_credentials.map((c: any) => ({
+            credentials: row.credentials_json ? row.credentials_json.map((c: any) => ({
                 id: c.id,
-                providerId: c.provider_id,
                 type: c.type,
                 licenseNumber: c.license_number,
                 jurisdiction: c.jurisdiction,
                 status: c.status,
-                verifiedAt: c.verified_at,
-                extraData: c.extra_data,
-                createdAt: c.created_at,
-                updatedAt: c.updated_at
+                verifiedAt: c.verified_at
             })) : undefined
         };
     }
 
+    // mapToDb remains same for Writes (Writes still go to Table, Reads go to View)
     private mapToDb(profile: Partial<ProviderProfile>): any {
         return {
             user_id: profile.userId,
@@ -66,26 +64,27 @@ export class SupabaseProviderRepository implements IProviderRepository {
 
     async getById(id: string): Promise<ProviderProfile | null> {
         const { data, error } = await supabase
-            .from('provider_profiles')
-            .select('*, professional_credentials(*)')
+            .from('view_provider_details')
+            .select('*')
             .eq('id', id)
             .single();
 
         if (error) return null;
-        return this.mapFromDb(data);
+        return this.mapFromView(data);
     }
 
     async getAll(): Promise<ProviderProfile[]> {
         const { data, error } = await supabase
-            .from('provider_profiles')
+            .from('view_provider_details')
             .select('*')
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return (data || []).map(this.mapFromDb);
+        return (data || []).map(this.mapFromView);
     }
 
     async create(profile: Omit<ProviderProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<ProviderProfile> {
+        // Writes still go to TABLE
         const { data, error } = await supabase
             .from('provider_profiles')
             .insert(this.mapToDb(profile))
@@ -93,18 +92,20 @@ export class SupabaseProviderRepository implements IProviderRepository {
             .single();
 
         if (error) throw error;
-        return this.mapFromDb(data);
+        // Re-fetch from view to return complete object? Or just return basic map
+        // For simplicity and performance, we'll map what we have, but avatar might be missing
+        // Better: return this.getById(data.id) to ensure consistency, but expensive.
+        // Let's stick to basic map for now or fetch view.
+        return this.getById(data.id) as Promise<ProviderProfile>;
     }
 
     async update(id: string, data: Partial<ProviderProfile>): Promise<ProviderProfile> {
-        const { data: updatedData, error } = await supabase
+        const { error } = await supabase
             .from('provider_profiles')
             .update(this.mapToDb(data))
-            .eq('id', id)
-            .select()
-            .single();
+            .eq('id', id);
 
         if (error) throw error;
-        return this.mapFromDb(updatedData);
+        return (await this.getById(id))!;
     }
 }

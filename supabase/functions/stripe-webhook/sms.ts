@@ -1,4 +1,6 @@
-// _shared/sms.ts
+// sms.ts
+// Purpose: Multi-provider SMS dispatcher for Edge Functions
+
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.17'
 import { sendSMS_Twilio } from './twilio.ts'
 
@@ -23,6 +25,7 @@ async function sendSMS_AWS(params: SMSParams): Promise<{ success: boolean; messa
         const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+1${phoneNumber.replace(/\D/g, '')}`;
 
         console.log(`[📱 AWS SMS] Sending to ${formattedPhone}`);
+
         const queryParams = [
             `Action=Publish`,
             `Message=${encodeURIComponent(message)}`,
@@ -49,16 +52,19 @@ async function sendSMS_AWS(params: SMSParams): Promise<{ success: boolean; messa
 
 // Main SMS Dispatcher
 export async function sendSMS(params: SMSParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    // 1. Try Twilio First
+    // 1. Try Twilio First (High Reliability)
     if (Deno.env.get('TWILIO_ACCOUNT_SID') && Deno.env.get('TWILIO_AUTH_TOKEN')) {
+        console.log('[🔄 SMS] Attempting send via Twilio...');
         const twilioResult = await sendSMS_Twilio({
             to: params.phoneNumber,
             message: params.message
         });
+
         if (twilioResult.success) return twilioResult;
         console.warn('[⚠️ SMS] Twilio failed, falling back to AWS SNS:', twilioResult.error);
     }
 
     // 2. Fallback to AWS SNS
+    console.log('[🔄 SMS] Attempting send via AWS SNS...');
     return sendSMS_AWS(params);
 }
