@@ -149,6 +149,7 @@ export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDash
         // Group inventory by Master ID
         const masterIds = new Set<string>();
         const masterToProduct = new Map<string, string>();
+        const masterToImage = new Map<string, string>(); // Add image map
 
         filteredInventory.forEach(item => {
             const masterId = getMasterId(item.listingItemId);
@@ -162,6 +163,11 @@ export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDash
                         ? (language === 'zh' ? master.titleZh : master.titleEn)
                         : getProductName(item.listingItemId);
                     masterToProduct.set(masterId, productName);
+
+                    // Get Image
+                    if (master?.images && master.images.length > 0) {
+                        masterToImage.set(masterId, master.images[0]);
+                    }
                 }
             }
         });
@@ -170,6 +176,7 @@ export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDash
         const printData = Array.from(masterIds).map(masterId => ({
             serialNumber: language === 'zh' ? '通用二维码' : 'Universal QR',
             productName: masterToProduct.get(masterId) || 'Product',
+            productImage: masterToImage.get(masterId),
             // URL format: /scan/:masterId (Universal QR - shows all variants)
             url: `${window.location.origin}/scan/${masterId}`
         }));
@@ -185,6 +192,8 @@ export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDash
     const handlePrintSingle = (item: InventoryItem) => {
         const masterId = getMasterId(item.listingItemId);
         const listingItem = items.find(i => i.id === item.listingItemId);
+        const master = listings.find(l => l.id === masterId); // Get master for image
+
         const variantLabel = listingItem
             ? `${language === 'zh' ? listingItem.nameZh : listingItem.nameEn} - $${(listingItem.pricing.price.amount / 100).toFixed(2)}`
             : (language === 'zh' ? '扫码购买' : 'Scan to Buy');
@@ -192,6 +201,7 @@ export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDash
         setItemsToPrint([{
             serialNumber: variantLabel, // Display variant info instead of serial number
             productName: getProductName(item.listingItemId),
+            productImage: master?.images?.[0], // Pass image
             // URL format: /scan/:masterId?preselect=:itemId (Pre-select specific variant)
             url: masterId
                 ? `${window.location.origin}/scan/${masterId}?preselect=${item.listingItemId}`

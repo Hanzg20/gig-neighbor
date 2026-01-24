@@ -177,6 +177,7 @@ export interface ListingMaster extends BaseEntity {
   descriptionZh: string;
   descriptionEn?: string;
 
+  mediaUrl?: string; // Enhanced: link to social videos/posts
   attributes?: Record<string, any>; // JSONB attributes (e.g. pricingMode)
 
   images: string[];

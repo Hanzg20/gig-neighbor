@@ -28,6 +28,14 @@ export const rentalFields: ListingFieldsConfig = {
                     importance: 'required',
                     placeholder: '请说明物品成色、功能，以及您的租用要求...',
                     rows: 6,
+                },
+                {
+                    name: 'mediaUrl',
+                    label: '视频介绍 (YouTube/B站)',
+                    type: 'text',
+                    importance: 'optional',
+                    placeholder: '粘贴 YouTube 或 B站视频链接',
+                    helpText: '展示物品细节或使用说明视频，提升信任度',
                 }
             ]
         },

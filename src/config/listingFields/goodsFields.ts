@@ -34,6 +34,14 @@ export const buyerGoodsFields: ListingFieldsConfig = {
                     }
                 },
                 {
+                    name: 'mediaUrl',
+                    label: '展示视频 (YouTube/B站)',
+                    type: 'text',
+                    importance: 'optional',
+                    placeholder: 'https://www.youtube.com/watch?v=...',
+                    helpText: '支持 YouTube, Bilibili, Vimeo 等主流视频链接',
+                },
+                {
                     name: 'description',
                     label: '详细描述',
                     type: 'textarea',
@@ -193,6 +201,14 @@ export const providerGoodsFields: ListingFieldsConfig = {
                         min: 1,
                         max: 6,
                     }
+                },
+                {
+                    name: 'mediaUrl',
+                    label: '展示视频 (YouTube/B站)',
+                    type: 'text',
+                    importance: 'optional',
+                    placeholder: 'https://www.youtube.com/watch?v=...',
+                    helpText: '支持 YouTube, Bilibili, Vimeo 等主流视频链接',
                 },
                 {
                     name: 'description',

@@ -135,7 +135,7 @@ export class SupabaseCommunityPostRepository {
                 author:user_profiles!author_id (id, name, avatar)
             `)
             .eq('id', id)
-            .single();
+            .maybeSingle();
 
         if (error) return null;
         return this.mapPostFromDb(data);
@@ -245,7 +245,7 @@ export class SupabaseCommunityPostRepository {
             .select('post_id')
             .eq('post_id', postId)
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
 
         return !!data && !error;
     }
@@ -414,7 +414,7 @@ export class SupabaseCommunityPostRepository {
             .select('comment_id')
             .eq('comment_id', commentId)
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
 
         if (error) return false;
         return !!data;
@@ -459,7 +459,7 @@ export class SupabaseCommunityPostRepository {
             .from('community_post_conversions')
             .select('listing_id')
             .eq('post_id', postId)
-            .single();
+            .maybeSingle();
 
         if (error) return null;
         return data?.listing_id;
@@ -478,7 +478,7 @@ export class SupabaseCommunityPostRepository {
             .select('vote_type')
             .eq('post_id', postId)
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
 
         if (error || !data) return null;
         return data.vote_type as ConsensusVoteType;
@@ -595,7 +595,7 @@ export class SupabaseCommunityPostRepository {
             .select('post_id')
             .eq('post_id', postId)
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
 
         return !!data && !error;
     }

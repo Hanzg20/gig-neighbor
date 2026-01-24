@@ -336,6 +336,7 @@ export const CommunityCardV2 = ({ post, onDoubleTap }: CommunityCardV2Props) => 
                 <ShareSheet
                   title={post.title || "分享一条动态"}
                   content={post.content}
+                  url={`${window.location.origin}/community/${post.id}`}
                   imageUrl={post.images[0]}
                   authorName={post.author?.name}
                   authorAvatar={post.author?.avatar}

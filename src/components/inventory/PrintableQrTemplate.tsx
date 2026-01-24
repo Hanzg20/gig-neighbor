@@ -6,6 +6,7 @@ import { InventoryItem, ListingMaster, ListingItem } from '@/types/domain';
 export interface PrintableQrData {
     serialNumber: string; // Display text below QR (e.g., "Standard Card - $50.00" or "Universal QR")
     productName: string;
+    productImage?: string; // Optional image URL
     url: string;
 }
 
@@ -36,10 +37,21 @@ export const PrintableQrTemplate = forwardRef<HTMLDivElement, PrintableQrTemplat
                                 {item.productName}
                             </h3>
 
-                            <div className="w-40 h-40 mb-3">
+                            {/* Optional Product Image */}
+                            {item.productImage && (
+                                <div className="w-24 h-24 mb-2 mx-auto">
+                                    <img
+                                        src={item.productImage}
+                                        alt={item.productName}
+                                        className="w-full h-full object-cover rounded-md"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="w-32 h-32 mb-2">
                                 <QrCodeGenerator
                                     value={item.url}
-                                    size={200}
+                                    size={150}
                                     logoUrl={showLogo ? logoUrl : undefined}
                                     logoSize={18} // Logo占QR码的18%（稍小以确保扫描稳定性）
                                     level="H" // 最高纠错级别

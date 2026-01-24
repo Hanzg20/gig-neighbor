@@ -89,6 +89,10 @@ const PaymentSuccess = () => {
     }[language === 'zh' ? 'zh' : 'en'];
 
     useEffect(() => {
+        let attempts = 0;
+        const maxAttempts = 10; // Poll for 20 seconds (10 * 2000ms)
+        let timeoutId: NodeJS.Timeout;
+
         const fetchOrderDetails = async () => {
             if (!sessionId) {
                 setLoading(false);
@@ -98,11 +102,8 @@ const PaymentSuccess = () => {
             try {
                 const orderRepo = repositoryFactory.getOrderRepository();
                 const inventoryRepo = repositoryFactory.getInventoryRepository();
-                const listingRepo = repositoryFactory.getListingRepository();
 
-                // 1. Fetch order by session ID (stored in snapshot)
-                // Note: We need a way to find order by session_id. 
-                // Since our current repository might not have getBySessionId, we use direct supabase query for now or extend repo.
+                // 1. Fetch order by session ID
                 const { data: orderData, error: orderError } = await supabase
                     .from('orders')
                     .select('*, listing_masters(*), listing_items(*)')
@@ -112,20 +113,31 @@ const PaymentSuccess = () => {
                 if (orderError) throw orderError;
 
                 if (orderData) {
+                    // Order found!
                     // 2. Fetch inventory if it's a serialized item
                     let serialNumber = undefined;
                     const isSerialized = orderData.actual_transaction_model === 'SCAN_TO_BUY';
 
                     if (isSerialized) {
-                        const invItem = await inventoryRepo.getByOrder(sessionId);
+                        const invItem = await inventoryRepo.getByOrder(orderData.id);
                         if (invItem) {
                             serialNumber = invItem.serialNumber;
                         }
                     }
 
+                    // Language-aware product name extraction
+                    const itemNameZh = (orderData.listing_items as any)?.name_zh;
+                    const itemNameEn = (orderData.listing_items as any)?.name_en;
+                    const masterNameZh = (orderData.listing_masters as any)?.title_zh;
+                    const masterNameEn = (orderData.listing_masters as any)?.title_en;
+
+                    const productName = language === 'zh'
+                        ? (itemNameZh || itemNameEn || masterNameZh || masterNameEn || 'JUSTWEDO Order')
+                        : (itemNameEn || itemNameZh || masterNameEn || masterNameZh || 'JUSTWEDO Order');
+
                     const details: OrderDetails = {
-                        productName: orderData.listing_items?.[0]?.nameEn || orderData.listing_masters?.[0]?.titleEn || 'JUSTWEDO Order',
-                        productType: isSerialized ? 'SERIALIZED_ITEM' : 'GOODS', // Simplification
+                        productName,
+                        productType: isSerialized ? 'SERIALIZED_ITEM' : 'GOODS',
                         serialNumber,
                         orderNumber: orderData.id.split('-')[0].toUpperCase(),
                         amount: orderData.amount_total,
@@ -134,18 +146,27 @@ const PaymentSuccess = () => {
                     };
 
                     setOrderDetails(details);
+                    setLoading(false);
                 } else {
-                    // Fallback for cases where order might still be processing
-                    console.warn('Order not found yet, might still be processing via webhook');
+                    // Order not found yet
+                    attempts++;
+                    if (attempts < maxAttempts) {
+                        console.log(`Order not found, retrying... (${attempts}/${maxAttempts})`);
+                        timeoutId = setTimeout(fetchOrderDetails, 2000);
+                    } else {
+                        console.warn('Max retry attempts reached. Order not found.');
+                        setLoading(false);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching order details:', error);
-            } finally {
                 setLoading(false);
             }
         };
 
         fetchOrderDetails();
+
+        return () => clearTimeout(timeoutId);
     }, [sessionId]);
 
     const handleCopy = (text: string) => {
@@ -336,7 +357,14 @@ const PaymentSuccess = () => {
                             {/* Show different button based on purchase source */}
                             {fromScan ? (
                                 <Button
-                                    onClick={() => window.close()}
+                                    onClick={() => {
+                                        // Try to close window (works for popups/new tabs)
+                                        const closed = window.close();
+                                        // Fallback: navigate home if close fails (regular tabs)
+                                        if (!closed) {
+                                            setTimeout(() => navigate('/'), 150);
+                                        }
+                                    }}
                                     className="w-full rounded-xl"
                                 >
                                     {t.closeBtn}

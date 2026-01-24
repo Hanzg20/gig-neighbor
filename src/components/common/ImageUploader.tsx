@@ -61,12 +61,22 @@ const ImageUploader = ({
                 const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
                 const filePath = `${folderPath}/${fileName}`;
 
+                // Debug: Check auth session before upload
+                const { data: { session } } = await supabase.auth.getSession();
+                console.log('📤 Upload attempt:', {
+                    bucket: bucketName,
+                    path: filePath,
+                    isAuthenticated: !!session,
+                    userId: session?.user?.id
+                });
+
                 const { error: uploadError } = await supabase.storage
                     .from(bucketName)
                     .upload(filePath, file);
 
                 if (uploadError) {
                     console.error('Upload error:', uploadError);
+                    console.error('Upload error details:', JSON.stringify(uploadError, null, 2));
                     toast.error(`Failed to upload ${file.name}`);
                     continue;
                 }

@@ -21,6 +21,7 @@ import OrderDetail from "./pages/OrderDetail";
 import Cart from "./pages/Cart";
 import Community from "./pages/Community";
 import CommunityPostDetail from "./pages/CommunityPostDetail";
+import UserProfile from "./pages/UserProfile";
 import MyListings from "./pages/MyListings";
 import ProviderDashboard from "./pages/ProviderDashboard";
 import ReviewSubmission from "./pages/ReviewSubmission";
@@ -35,6 +36,7 @@ import Checkout from "./pages/Checkout";
 import QuickScanCheckout from "./pages/QuickScanCheckout";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import MapDiscovery from "./pages/MapDiscovery";
+import ComingSoon from "./pages/ComingSoon";
 import NotFound from "./pages/NotFound";
 import { CommunityProvider } from "./context/CommunityContext";
 
@@ -72,6 +74,7 @@ const App = () => {
               <Route path="/cart" element={<Cart />} />
               <Route path="/community" element={<Community />} />
               <Route path="/community/:id" element={<CommunityPostDetail />} />
+              <Route path="/user/:userId" element={<UserProfile />} />
               <Route path="/my-listings" element={<MyListings />} />
               <Route path="/provider/dashboard" element={<ProviderDashboard />} />
               <Route path="/provider/publish-service" element={<PublishService />} />
@@ -87,6 +90,13 @@ const App = () => {
               <Route path="/scan/:id" element={<QuickScanCheckout />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="/discover" element={<MapDiscovery />} />
+              <Route path="/user/:userId/followers" element={<ComingSoon />} />
+              <Route path="/user/:userId/following" element={<ComingSoon />} />
+              <Route path="/notifications" element={<ComingSoon />} />
+              <Route path="/settings" element={<PersonalProfile />} />
+              <Route path="/help" element={<ComingSoon />} />
+              <Route path="/verification" element={<ComingSoon />} />
+              <Route path="/favorites" element={<ComingSoon />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

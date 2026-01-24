@@ -122,7 +122,10 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
   verification_level INTEGER DEFAULT 1,
   roles TEXT[] DEFAULT ARRAY['BUYER']::TEXT[],
   permissions TEXT[] DEFAULT ARRAY[]::TEXT[],
-  provider_profile_id UUID,
+  provider_profile_id UUID REFERENCES public.provider_profiles(id),
+  follower_count INTEGER DEFAULT 0, -- Added v1.2 Follow System
+  following_count INTEGER DEFAULT 0, -- Added v1.2 Follow System
+  post_count INTEGER DEFAULT 0, -- Added v1.2 Follow System
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -210,21 +213,21 @@ CREATE TABLE IF NOT EXISTS public.listing_masters (
   tags TEXT[],
   status TEXT DEFAULT 'PUBLISHED',
   location_address TEXT,
+  location JSONB, -- Added v4.1
+  latitude DOUBLE PRECISION, -- Added v4.1
+  longitude DOUBLE PRECISION, -- Added v4.1
+  media_url TEXT, -- Added v4.2
   rating DECIMAL DEFAULT 0,
   review_count INTEGER DEFAULT 0,
   is_promoted BOOLEAN DEFAULT FALSE,
   preferred_transaction_model TEXT DEFAULT 'INSTANT_PAY',
+  attributes JSONB DEFAULT '{}'::jsonb, -- Added v4.2
   metadata JSONB DEFAULT '{}'::jsonb,
   embedding vector(384),
   location_coords geography(POINT),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
-ALTER TABLE public.listing_masters
-  ADD COLUMN location jsonb,
-  ADD COLUMN latitude double precision,
-  ADD COLUMN longitude double precision;
 
 
 CREATE TABLE IF NOT EXISTS public.listing_items (
@@ -1241,6 +1244,8 @@ CREATE TABLE IF NOT EXISTS public.community_posts (
     content TEXT NOT NULL,
     media_url TEXT, -- Social media link (YouTube, Spotify, etc.)
     images TEXT[] DEFAULT '{}',
+    is_fact BOOLEAN DEFAULT FALSE, -- Added v1.1 JustTalk
+    fact_data JSONB, -- Added v1.1 JustTalk
     
     -- Optional pricing (for second-hand / wanted)
     price_hint INTEGER, -- in cents, nullable
@@ -1257,6 +1262,8 @@ CREATE TABLE IF NOT EXISTS public.community_posts (
     like_count INTEGER DEFAULT 0,
     comment_count INTEGER DEFAULT 0,
     view_count INTEGER DEFAULT 0,
+    save_count INTEGER DEFAULT 0, -- Added v1.1 JustTalk
+    consensus JSONB DEFAULT '{"agree":0,"partial":0,"disagree":0,"uncertain":0,"totalVotes":0,"level":"PENDING"}', -- Added v1.1 JustTalk
     
     -- Status
     status TEXT DEFAULT 'ACTIVE', -- 'ACTIVE', 'RESOLVED', 'ARCHIVED', 'DELETED'
@@ -1455,3 +1462,377 @@ BEGIN
         EXECUTE FUNCTION update_updated_at_column();
     END IF;
 END $$;
+-- =============================================
+-- 用户关注系统 (User Followers System) v1.2
+-- =============================================
+
+-- 1. 创建关注关系表
+CREATE TABLE IF NOT EXISTS public.user_followers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    follower_id UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    following_id UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(follower_id, following_id),
+    CHECK (follower_id != following_id)
+);
+
+-- 2. 创建触发器函数：更新关注数
+CREATE OR REPLACE FUNCTION update_follow_counts()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE public.user_profiles SET follower_count = COALESCE(follower_count, 0) + 1 WHERE id = NEW.following_id;
+        UPDATE public.user_profiles SET following_count = COALESCE(following_count, 0) + 1 WHERE id = NEW.follower_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE public.user_profiles SET follower_count = GREATEST(COALESCE(follower_count, 0) - 1, 0) WHERE id = OLD.following_id;
+        UPDATE public.user_profiles SET following_count = GREATEST(COALESCE(following_count, 0) - 1, 0) WHERE id = OLD.follower_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 3. 创建触发器
+DROP TRIGGER IF EXISTS trigger_update_follow_counts ON public.user_followers;
+CREATE TRIGGER trigger_update_follow_counts
+    AFTER INSERT OR DELETE ON public.user_followers
+    FOR EACH ROW EXECUTE FUNCTION update_follow_counts();
+
+-- 4. 自动更新帖子数触发器
+CREATE OR REPLACE FUNCTION update_user_post_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.status = 'ACTIVE' THEN
+            UPDATE public.user_profiles SET post_count = COALESCE(post_count, 0) + 1 WHERE id = NEW.author_id;
+        END IF;
+        RETURN NEW;
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF OLD.status != 'ACTIVE' AND NEW.status = 'ACTIVE' THEN
+            UPDATE public.user_profiles SET post_count = COALESCE(post_count, 0) + 1 WHERE id = NEW.author_id;
+        ELSIF OLD.status = 'ACTIVE' AND NEW.status != 'ACTIVE' THEN
+            UPDATE public.user_profiles SET post_count = GREATEST(COALESCE(post_count, 0) - 1, 0) WHERE id = NEW.author_id;
+        END IF;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        IF OLD.status = 'ACTIVE' THEN
+            UPDATE public.user_profiles SET post_count = GREATEST(COALESCE(post_count, 0) - 1, 0) WHERE id = OLD.author_id;
+        END IF;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_user_post_count ON public.community_posts;
+CREATE TRIGGER trigger_update_user_post_count
+    AFTER INSERT OR UPDATE OF status OR DELETE ON community_posts
+    FOR EACH ROW EXECUTE FUNCTION update_user_post_count();
+
+-- 5. 启用 RLS
+ALTER TABLE public.user_followers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can view follows" ON public.user_followers FOR SELECT USING (true);
+CREATE POLICY "Users can follow others" ON public.user_followers FOR INSERT WITH CHECK (auth.uid() = follower_id);
+CREATE POLICY "Users can unfollow" ON public.user_followers FOR DELETE USING (auth.uid() = follower_id);
+
+-- ==========================================
+-- JUSTTALK 真言系统 (Fact System) v1.1
+-- ==========================================
+
+-- 1. 真言投票表
+CREATE TABLE IF NOT EXISTS public.fact_votes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id UUID NOT NULL REFERENCES public.community_posts(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    vote_type VARCHAR(20) NOT NULL CHECK (vote_type IN ('agree', 'partial', 'disagree', 'uncertain')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(post_id, user_id)
+);
+
+-- 2. 用户贡献度表
+CREATE TABLE IF NOT EXISTS public.user_contributions (
+    user_id UUID PRIMARY KEY REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    score INTEGER DEFAULT 0,
+    level INTEGER DEFAULT 1,
+    total_posts INTEGER DEFAULT 0,
+    fact_posts INTEGER DEFAULT 0,
+    total_comments INTEGER DEFAULT 0,
+    likes_received INTEGER DEFAULT 0,
+    fact_votes_received INTEGER DEFAULT 0,
+    avg_agree_rate DECIMAL(5,4) DEFAULT 0,
+    votes_given INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. 帖子收藏表
+CREATE TABLE IF NOT EXISTS public.post_saves (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id UUID NOT NULL REFERENCES public.community_posts(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(post_id, user_id)
+);
+
+-- 4. 真言逻辑相关索引
+CREATE INDEX IF NOT EXISTS idx_community_posts_is_fact ON public.community_posts(is_fact);
+CREATE INDEX IF NOT EXISTS idx_fact_votes_post_id ON public.fact_votes(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_saves_user_id ON public.post_saves(user_id);
+
+-- 5. 共识更新触发器
+CREATE OR REPLACE FUNCTION update_post_consensus()
+RETURNS TRIGGER AS $$
+DECLARE
+    vote_counts RECORD;
+    total_votes INTEGER;
+    agree_rate DECIMAL;
+    disagree_rate DECIMAL;
+    new_level VARCHAR(20);
+BEGIN
+    SELECT
+        COALESCE(SUM(CASE WHEN vote_type = 'agree' THEN 1 ELSE 0 END), 0) as agree,
+        COALESCE(SUM(CASE WHEN vote_type = 'partial' THEN 1 ELSE 0 END), 0) as partial,
+        COALESCE(SUM(CASE WHEN vote_type = 'disagree' THEN 1 ELSE 0 END), 0) as disagree,
+        COALESCE(SUM(CASE WHEN vote_type = 'uncertain' THEN 1 ELSE 0 END), 0) as uncertain,
+        COUNT(*) as total
+    INTO vote_counts
+    FROM public.fact_votes
+    WHERE post_id = COALESCE(NEW.post_id, OLD.post_id);
+
+    total_votes := vote_counts.total;
+
+    IF total_votes < 3 THEN
+        new_level := 'PENDING';
+    ELSE
+        agree_rate := vote_counts.agree::DECIMAL / total_votes;
+        disagree_rate := vote_counts.disagree::DECIMAL / total_votes;
+
+        IF disagree_rate >= 0.30 THEN
+            new_level := 'CONTROVERSIAL';
+        ELSIF agree_rate >= 0.70 AND total_votes >= 10 THEN
+            new_level := 'HIGH';
+        ELSIF agree_rate >= 0.50 AND total_votes >= 5 THEN
+            new_level := 'MEDIUM';
+        ELSE
+            new_level := 'LOW';
+        END IF;
+    END IF;
+
+    UPDATE public.community_posts
+    SET consensus = jsonb_build_object(
+        'agree', vote_counts.agree,
+        'partial', vote_counts.partial,
+        'disagree', vote_counts.disagree,
+        'uncertain', vote_counts.uncertain,
+        'totalVotes', total_votes,
+        'level', new_level
+    ),
+    updated_at = NOW()
+    WHERE id = COALESCE(NEW.post_id, OLD.post_id);
+
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_consensus_on_vote ON public.fact_votes;
+CREATE TRIGGER trigger_update_consensus_on_vote
+AFTER INSERT OR UPDATE OR DELETE ON public.fact_votes
+FOR EACH ROW EXECUTE FUNCTION update_post_consensus();
+
+-- 6. 自动更新收藏数触发器
+CREATE OR REPLACE FUNCTION update_post_save_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE public.community_posts SET save_count = save_count + 1 WHERE id = NEW.post_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE public.community_posts SET save_count = GREATEST(save_count - 1, 0) WHERE id = OLD.post_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_save_count ON public.post_saves;
+CREATE TRIGGER trigger_update_save_count
+AFTER INSERT OR DELETE ON public.post_saves
+FOR EACH ROW EXECUTE FUNCTION update_post_save_count();
+
+-- 7. 函数: 计算用户贡献度
+CREATE OR REPLACE FUNCTION calculate_user_contribution(p_user_id UUID)
+RETURNS INTEGER AS $$
+DECLARE
+    v_total_posts INTEGER;
+    v_fact_posts INTEGER;
+    v_total_comments INTEGER;
+    v_likes_received INTEGER;
+    v_fact_votes_received INTEGER;
+    v_avg_agree_rate DECIMAL;
+    v_votes_given INTEGER;
+    v_score INTEGER;
+    v_level INTEGER;
+BEGIN
+    SELECT COUNT(*), COALESCE(SUM(CASE WHEN is_fact THEN 1 ELSE 0 END), 0)
+    INTO v_total_posts, v_fact_posts
+    FROM public.community_posts
+    WHERE author_id = p_user_id AND status = 'ACTIVE';
+
+    SELECT COUNT(*) INTO v_total_comments FROM public.community_comments WHERE author_id = p_user_id;
+
+    SELECT COALESCE(SUM(like_count), 0) INTO v_likes_received FROM public.community_posts WHERE author_id = p_user_id;
+
+    SELECT COUNT(*) INTO v_fact_votes_received
+    FROM public.fact_votes fv JOIN public.community_posts cp ON fv.post_id = cp.id
+    WHERE cp.author_id = p_user_id;
+
+    SELECT COALESCE(AVG(CASE WHEN (consensus->>'totalVotes')::INTEGER > 0 THEN (consensus->>'agree')::DECIMAL / (consensus->>'totalVotes')::INTEGER ELSE 0 END), 0)
+    INTO v_avg_agree_rate FROM public.community_posts WHERE author_id = p_user_id AND is_fact = TRUE;
+
+    SELECT COUNT(*) INTO v_votes_given FROM public.fact_votes WHERE user_id = p_user_id;
+
+    v_score := (v_total_posts * 5 + v_fact_posts * 20 + v_total_comments * 2 + v_likes_received * 1 + v_fact_votes_received * 3 + FLOOR(v_avg_agree_rate * 50) + v_votes_given * 1);
+
+    IF v_score >= 5000 THEN v_level := 5; ELSIF v_score >= 2000 THEN v_level := 4; ELSIF v_score >= 500 THEN v_level := 3; ELSIF v_score >= 100 THEN v_level := 2; ELSE v_level := 1; END IF;
+
+    INSERT INTO public.user_contributions (user_id, score, level, total_posts, fact_posts, total_comments, likes_received, fact_votes_received, avg_agree_rate, votes_given, updated_at)
+    VALUES (p_user_id, v_score, v_level, v_total_posts, v_fact_posts, v_total_comments, v_likes_received, v_fact_votes_received, v_avg_agree_rate, v_votes_given, NOW())
+    ON CONFLICT (user_id) DO UPDATE SET score = EXCLUDED.score, level = EXCLUDED.level, total_posts = EXCLUDED.total_posts, fact_posts = EXCLUDED.fact_posts, total_comments = EXCLUDED.total_comments, likes_received = EXCLUDED.likes_received, fact_votes_received = EXCLUDED.fact_votes_received, avg_agree_rate = EXCLUDED.avg_agree_rate, votes_given = EXCLUDED.votes_given, updated_at = NOW();
+
+    RETURN v_score;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ✅ SCHEMA DEPLOYMENT COMPLETE (v4.3)
+
+
+-- ==========================================
+-- DYNAMIC NOTIFICATION & RESTOCK AUTOMATION
+-- ==========================================
+
+-- 1. Create Communication Templates Table
+CREATE TABLE IF NOT EXISTS public.communication_templates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    slug TEXT NOT NULL,
+    language TEXT NOT NULL DEFAULT 'en',
+    content TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(slug, language)
+);
+
+-- Enable RLS (Optional, usually managed by Service Role)
+ALTER TABLE public.communication_templates ENABLE ROW LEVEL SECURITY;
+
+-- 2. Seed Initial Templates (English)
+INSERT INTO public.communication_templates (slug, language, content, description)
+VALUES 
+('restock-alert', 'en', '[JWD Alert] Merchant Restock Needed: "${itemName}" is out of stock. Update inventory now to resume Scan-to-Buy services.', 'Variables: ${itemName}'),
+('purchase-success', 'en', '[JWD] Purchase Successful! Card: ${serialNumber}. PIN: ${secretCode}. Use this at the merchant terminal. Thanks for using JUSTWEDO.com!', 'Variables: ${serialNumber}, ${secretCode}')
+ON CONFLICT (slug, language) DO UPDATE 
+SET content = EXCLUDED.content;
+
+-- 3. Create Automation Trigger: Reset restock timer on new inventory
+CREATE OR REPLACE FUNCTION public.fn_on_restock_reset_alert()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only act if the parent item exists and we are adding available stock
+    IF NEW.listing_item_id IS NOT NULL THEN
+        UPDATE public.listing_items
+        SET attributes = (COALESCE(attributes, '{}'::jsonb) - 'lastRestockNotifiedAt')
+        WHERE id = NEW.listing_item_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop trigger if exists
+DROP TRIGGER IF EXISTS tr_on_restock_reset ON public.listing_inventory;
+
+-- Create trigger
+CREATE TRIGGER tr_on_restock_reset
+AFTER INSERT ON public.listing_inventory
+FOR EACH ROW
+WHEN (NEW.status = 'available')
+EXECUTE FUNCTION public.fn_on_restock_reset_alert();
+
+COMMENT ON TABLE public.communication_templates IS 'Managed SMS and notification templates with variable support.';
+COMMENT ON FUNCTION public.fn_on_restock_reset_alert() IS 'Automatically clears the lastRestockNotifiedAt flag when new stock is added.';
+
+
+- ==========================================
+-- PROJECT SECURITY FACADE: SAFE PUBLIC VIEWS
+-- ==========================================
+
+-- A. CREATE VIEWS FIRST
+-- 1. SAFE INVENTORY VIEW
+CREATE OR REPLACE VIEW public.safe_inventory_levels AS
+SELECT 
+    id, 
+    listing_item_id, 
+    status,
+    created_at
+FROM public.listing_inventory
+WHERE status = 'available';
+
+-- 2. SAFE PROFILE VIEW
+CREATE OR REPLACE VIEW public.public_user_info AS
+SELECT 
+    id, 
+    name, 
+    avatar, 
+    bio, 
+    node_id,
+    created_at
+FROM public.user_profiles;
+
+
+-- B. GRANT PERMISSIONS SECOND
+-- Grant access to public (anon & authenticated)
+GRANT SELECT ON public.safe_inventory_levels TO anon, authenticated;
+GRANT SELECT ON public.public_user_info TO anon, authenticated;
+
+-- Force PostgREST reload
+NOTIFY pgrst, 'reload config';
+
+COMMENT ON VIEW public.safe_inventory_levels IS 'Secure view for checking stock availability without exposing card data.';
+COMMENT ON VIEW public.public_user_info IS 'Secure view for public profile display without exposing private contact info.';
+
+
+-- ==========================================
+-- FAILED FULFILLMENT TRACKING TABLE
+-- ==========================================
+-- Purpose: Track orders where payment succeeded but inventory allocation failed
+-- Use Case: Manual intervention, support tickets, automated retries
+
+CREATE TABLE IF NOT EXISTS public.failed_fulfillments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+    error_message TEXT NOT NULL,
+    retry_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ,
+    resolved_by UUID REFERENCES public.user_profiles(id)
+);
+
+-- Index for quick lookups
+CREATE INDEX IF NOT EXISTS idx_failed_fulfillments_order ON public.failed_fulfillments(order_id);
+CREATE INDEX IF NOT EXISTS idx_failed_fulfillments_unresolved ON public.failed_fulfillments(resolved_at) WHERE resolved_at IS NULL;
+
+-- Enable RLS
+ALTER TABLE public.failed_fulfillments ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Only admins/support can view (you can customize this based on your role system)
+CREATE POLICY "System and admins can view failed fulfillments" 
+ON public.failed_fulfillments FOR SELECT 
+USING (auth.role() = 'service_role' OR auth.role() = 'authenticated');
+
+-- Policy: Only service role can insert (webhook)
+CREATE POLICY "Service role can insert failed fulfillments" 
+ON public.failed_fulfillments FOR INSERT 
+WITH CHECK (auth.role() = 'service_role');
+
+COMMENT ON TABLE public.failed_fulfillments IS 'Tracks orders where payment succeeded but inventory allocation failed, enabling manual intervention.';

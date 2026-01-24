@@ -20,7 +20,22 @@ const DynamicListingForm: React.FC<DynamicListingFormProps> = ({
     onCancel,
     submitLabel = '✨ 确认发布'
 }) => {
-    const [formData, setFormData] = useState<FormData>(initialData);
+    // Initialize formData with all fields from config to avoid uncontrolled -> controlled warnings
+    const [formData, setFormData] = useState<FormData>(() => {
+        const data = { ...initialData };
+        config.groups.forEach(group => {
+            group.fields.forEach(field => {
+                if (data[field.name] === undefined) {
+                    // Use suitable defaults based on type
+                    if (field.type === 'checkbox' && field.multiple) data[field.name] = [];
+                    else if (field.type === 'images') data[field.name] = [];
+                    else if (field.type === 'sku-list') data[field.name] = [];
+                    else data[field.name] = '';
+                }
+            });
+        });
+        return data;
+    });
     const [errors, setErrors] = useState<FormErrors>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,6 +50,16 @@ const DynamicListingForm: React.FC<DynamicListingFormProps> = ({
 
         return () => clearTimeout(saveTimeout);
     }, [formData]);
+
+    // Update form data when initialData changes (e.g. restoring from preview)
+    useEffect(() => {
+        if (initialData && Object.keys(initialData).length > 0) {
+            setFormData(prev => ({
+                ...prev,
+                ...initialData
+            }));
+        }
+    }, [initialData]);
 
     const handleFieldChange = (name: string, value: any) => {
         setFormData(prev => ({ ...prev, [name]: value }));

@@ -5,7 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, QrCode, CreditCard, Gift, Loader2, Phone } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { CheckCircle2, QrCode, CreditCard, Gift, Loader2, Phone, ShieldCheck, ChevronRight, Info } from "lucide-react";
 import { repositoryFactory } from '@/services/repositories/factory';
 import { NotificationService } from '@/services/NotificationService';
 import { ListingMaster, ListingItem, InventoryItem } from '@/types/domain';
@@ -40,6 +49,10 @@ const QuickScanCheckout = () => {
     const [selectedItem, setSelectedItem] = useState<ListingItem | null>(null);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [allocatedItem, setAllocatedItem] = useState<InventoryItem | null>(null);
+    const [stockCounts, setStockCounts] = useState<Record<string, number>>({});
+    const [provider, setProvider] = useState<{ name: string, avatar: string } | null>(null);
+    const [isAgreed, setIsAgreed] = useState(false);
+    const [showAgreement, setShowAgreement] = useState(false);
 
     const t = {
         zh: {
@@ -58,8 +71,23 @@ const QuickScanCheckout = () => {
             phonePlaceholder: "您的加拿大/美国手机号",
             loading: "正在加载商品信息...",
             notFound: "商品未找到",
-            inventoryError: "该规格暂时缺货，请选择其他规格或联系商家。",
+            outOfStock: "暂时缺货",
             viewAllVariants: "查看所有规格",
+            postedBy: "商家发布",
+            securePayment: "Stripe 安全支付",
+            jwdGuarantee: "JWD 技术支持与保障",
+            secureTitle: "支付安全与保障",
+            agreement: "我已阅读并同意",
+            agreementLink: "购买与使用协议",
+            poweredBy: "Powered by JUSTWEDO.com(JWD)",
+            disclaimerTitle: "购买与服务协议",
+            disclaimerContent: "欢迎使用 JUSTWEDO.com(JWD) 提供的扫码购技术支持。在您进行支付前，请务必知悉以下电商服务条款：",
+            law1: "1. 平台定位：JWD 仅作为由商家授权的技术撮合平台，负责处理支付、库存分配及通知逻辑。本平台不直接生产或存储实物商品。",
+            law2: "2. 服务主体：您所购买的具体的【服务/商品】及后续履约、卡片解释权均归属于发布该信息的商家。支付款项将结算至商家账户。",
+            law3: "3. 支付安全：所有交易均通过符合 PCI 标准的第三方支付商（Stripe）进行加密处理。您的敏感支付信息（如卡号）不会在 JWD 服务器上存储。",
+            law4: "4. 电子卡券说明：支付成功后生成的电子凭据/卡号是服务的唯一领取凭证。请及时截图保存。除商家有特殊书面说明外，由于电子产品的特殊性，凭据一旦发放，JWD 不提供单方面退款申请受理。",
+            law5: "5. 隐私保护：您的手机号仅用于发送交易凭证、领取通知以及必要的安全验证。我们将严格保护您的数据安全，不将其用于无关的第三方推销。",
+            law6: "6. 纠纷处理：如遇服务无法使用、金额异议或挂失需求，请优先根据商家资料与其联系。JWD 提供必要的技术链路支持以协助双方沟通。",
         },
         en: {
             title: "Scan to Buy",
@@ -77,8 +105,24 @@ const QuickScanCheckout = () => {
             phonePlaceholder: "Your CAD/USD phone number",
             loading: "Loading product...",
             notFound: "Product not found",
-            inventoryError: "This variant is out of stock. Please select another or contact the provider.",
+            inventoryError: "This variant is out of stock. We've notified the provider to restock.",
+            outOfStock: "Out of Stock",
             viewAllVariants: "View All Variants",
+            postedBy: "Posted by",
+            securePayment: "Stripe Secure Payment",
+            jwdGuarantee: "JWD Technology Support",
+            secureTitle: "Security & Protection",
+            agreement: "I agree to the",
+            agreementLink: "Purchase Agreement",
+            poweredBy: "Powered by JUSTWEDO.com(JWD)",
+            disclaimerTitle: "Purchase Agreement",
+            disclaimerContent: "Welcome to JUSTWEDO.com(JWD). By proceeding, you acknowledge the following standard e-commerce terms:",
+            law1: "1. Platform Context: JWD provides the technology layer for matching and checkout. We are a facilitator and do not directly manufacture or store items.",
+            law2: "2. Service Entity: Full responsibility for service quality, interpretation, and fulfillment belongs to the Merchant. Payments are settled to their account.",
+            law3: "3. Payment Security: Transactions are processed via Stripe (PCI-compliant). JWD does not store raw credit card details on our servers.",
+            law4: "4. Voucher Policy: Digital codes are equivalent to physical cards. Please save your code immediately. Digital products are non-refundable once the secret is issued, unless stated otherwise by the merchant.",
+            law5: "5. Data Privacy: Your phone number is used solely for voucher delivery and transactional alerts. We do not share your contact info for unrelated marketing.",
+            law6: "6. Disputes: For fulfillment issues or lost codes, please contact the Merchant first. JWD will assist in technical coordination for any unresolved disputes.",
         }
     }[language === 'zh' ? 'zh' : 'en'];
 
@@ -95,18 +139,50 @@ const QuickScanCheckout = () => {
                     const variants = await itemRepo.getByMaster(data.id);
                     setItems(variants);
 
-                    // Check if there's a preselect parameter
+                    // --- PROVIDER INFO ---
+                    const { data: providerData } = await supabase
+                        .from('provider_profiles')
+                        .select('business_name_zh, business_name_en, user:user_profiles!provider_profiles_user_id_fkey (name, avatar)')
+                        .eq('id', data.providerId)
+                        .single();
+
+                    if (providerData) {
+                        setProvider({
+                            name: (providerData as any).user?.name || (language === 'zh' ? providerData.business_name_zh : providerData.business_name_en),
+                            avatar: (providerData as any).user?.avatar || ''
+                        });
+                    }
+
+                    // --- INVENTORY CHECK (SECURE FACADE) ---
+                    // Fetch available counts for all variants via safe view
+                    // This view only contains ID and status, no sensitive card data
+                    const { data: invData } = await supabase
+                        .from('safe_inventory_levels')
+                        .select('listing_item_id')
+                        .in('listing_item_id', variants.map(v => v.id));
+
+                    const counts: Record<string, number> = {};
+                    variants.forEach(v => counts[v.id] = 0);
+                    invData?.forEach(row => {
+                        counts[row.listing_item_id] = (counts[row.listing_item_id] || 0) + 1;
+                    });
+                    setStockCounts(counts);
+
+                    // Check if preselect parameter exists
+                    let initialSelection: ListingItem | null = null;
                     if (preselectItemId && variants.length > 0) {
-                        const preselectedItem = variants.find(v => v.id === preselectItemId);
-                        if (preselectedItem) {
-                            setSelectedItem(preselectedItem);
-                            console.log('[📌 QuickScan] Pre-selected variant:', preselectedItem.nameEn);
-                        } else {
-                            // Fallback to first item if preselect ID not found
-                            setSelectedItem(variants[0]);
-                        }
+                        initialSelection = variants.find(v => v.id === preselectItemId) || variants[0];
                     } else if (variants.length > 0) {
-                        setSelectedItem(variants[0]);
+                        initialSelection = variants[0];
+                    }
+                    setSelectedItem(initialSelection);
+
+                    // --- ANTI-SPAM RESTOCK NOTIFICATION ---
+                    // Trigger once on entry if ANY variant is out of stock.
+                    // Server-side rate limiting (12h) will handle the rest.
+                    const firstOosItem = variants.find(v => counts[v.id] === 0);
+                    if (firstOosItem) {
+                        handleRestockNotification(firstOosItem.id);
                     }
                 }
             } catch (error) {
@@ -117,6 +193,20 @@ const QuickScanCheckout = () => {
         };
         fetchData();
     }, [id, preselectItemId]);
+
+    const handleRestockNotification = async (itemId: string) => {
+        console.log('[📢 Restock] Triggering notification for item:', itemId);
+        try {
+            await supabase.functions.invoke('notify-restock', {
+                headers: {
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                },
+                body: { listingItemId: itemId },
+            });
+        } catch (err) {
+            console.error('[❌ Restock] Failed to notify provider:', err);
+        }
+    };
 
     const handlePay = async () => {
         if (!selectedItem || !phoneNumber) {
@@ -131,6 +221,23 @@ const QuickScanCheckout = () => {
         setProcessing(true);
 
         try {
+            // Re-check inventory right before paying (Double Safety - SECURE FACADE)
+            const { data: invCheck } = await supabase
+                .from('safe_inventory_levels')
+                .select('id')
+                .eq('listing_item_id', selectedItem.id)
+                .limit(1);
+
+            if (!invCheck || invCheck.length === 0) {
+                toast({
+                    variant: "destructive",
+                    title: "Sold Out",
+                    description: t.inventoryError,
+                });
+                setProcessing(false);
+                return;
+            }
+
             // Create Stripe Checkout Session
             console.log('[🔵 Checkout] Creating Stripe checkout session...');
 
@@ -195,50 +302,74 @@ const QuickScanCheckout = () => {
     const isQuickBuyMode = !!preselectItemId;
 
     return (
-        <div className="max-w-md mx-auto min-h-screen bg-background flex flex-col">
-            {/* Header - Minimalist */}
-            <header className="px-4 py-8 text-center bg-gradient-to-b from-primary/10 to-transparent">
+        <div className="max-w-md mx-auto min-h-screen bg-muted/5 flex flex-col font-sans">
+            {/* Header - Premium Look */}
+            <header className="px-6 py-10 text-center bg-gradient-to-b from-primary/10 via-primary/5 to-transparent border-b border-primary/5">
                 {isQuickBuyMode && selectedItem ? (
-                    <>
-                        <div className="inline-block px-3 py-1 mb-3 text-xs font-bold bg-primary/20 text-primary rounded-full">
-                            {t.quickBuyTitle}
+                    <div className="animate-in fade-in zoom-in-95 duration-500">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-4 text-[10px] font-black uppercase tracking-widest bg-primary text-primary-foreground rounded-full shadow-lg shadow-primary/20">
+                            <QrCode className="w-3 h-3" /> {t.quickBuyTitle}
                         </div>
-                        <h1 className="text-2xl font-bold tracking-tight">{selectedItem.nameZh}</h1>
-                        <p className="text-muted-foreground mt-2">{selectedItem.nameEn}</p>
-                        <p className="text-3xl font-black text-primary mt-4">
-                            ${(selectedItem.pricing.price.amount / 100).toFixed(2)} CAD
-                        </p>
-                    </>
+                        <h1 className="text-3xl font-black tracking-tight text-primary leading-tight mb-1">
+                            {language === 'zh' ? selectedItem.nameZh : selectedItem.nameEn}
+                        </h1>
+                        {(selectedItem.nameEn && selectedItem.nameEn !== selectedItem.nameZh && language === 'zh') && (
+                            <p className="text-muted-foreground font-medium text-sm">{selectedItem.nameEn}</p>
+                        )}
+                        <div className="flex items-center justify-center gap-2 mt-6">
+                            <span className="text-4xl font-black text-primary">${(selectedItem.pricing.price.amount / 100).toFixed(0)}</span>
+                            <span className="text-sm font-bold text-muted-foreground self-end mb-1">CAD</span>
+                        </div>
+                    </div>
                 ) : (
-                    <>
-                        <h1 className="text-2xl font-bold tracking-tight">{listing.titleZh}</h1>
-                        <p className="text-muted-foreground mt-2">{listing.titleEn}</p>
-                    </>
+                    <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                        <h1 className="text-2xl font-black tracking-tight text-foreground leading-tight">
+                            {language === 'zh' ? listing.titleZh : listing.titleEn}
+                        </h1>
+                        {(listing.titleEn && listing.titleEn !== listing.titleZh && language === 'zh') && (
+                            <p className="text-muted-foreground font-medium mt-2">{listing.titleEn}</p>
+                        )}
+                    </div>
                 )}
             </header>
 
-            <main className="px-4 flex-1 pb-24">
+            <main className="px-5 flex-1 pb-40 space-y-8 mt-6">
                 {!success ? (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* Step 1: Select SKU (Hidden in Quick Buy Mode) */}
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        {/* Step 1: Select SKU */}
                         {!isQuickBuyMode && (
-                            <div className="space-y-3">
-                                <Label className="text-base font-semibold">{t.chooseItem}</Label>
-                                <div className="grid grid-cols-1 gap-3">
+                            <div className="space-y-4">
+                                <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">{t.chooseItem}</Label>
+                                <div className="grid grid-cols-1 gap-4">
                                     {items.map(item => (
                                         <Card
                                             key={item.id}
-                                            className={`cursor-pointer border-2 transition-all ${selectedItem?.id === item.id ? 'border-primary bg-primary/5 shadow-md' : 'border-transparent'}`}
-                                            onClick={() => setSelectedItem(item)}
+                                            className={`cursor-pointer border-2 transition-all card-warm relative overflow-hidden ${selectedItem?.id === item.id ? 'border-primary ring-4 ring-primary/10 shadow-elevated' : 'border-transparent hover:border-primary/20'} ${stockCounts[item.id] === 0 ? 'opacity-70 grayscale-[0.2]' : ''}`}
+                                            onClick={() => {
+                                                setSelectedItem(item);
+                                            }}
                                         >
-                                            <CardContent className="p-4 flex items-center justify-between">
-                                                <div>
-                                                    <p className="font-bold text-lg">{item.nameZh}</p>
-                                                    <p className="text-sm text-muted-foreground">{item.nameEn}</p>
+                                            <CardContent className="p-5 flex items-start justify-between gap-4">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                        <p className="font-black text-lg leading-none truncate text-card-foreground">
+                                                            {item.nameZh}
+                                                        </p>
+                                                        {stockCounts[item.id] === 0 && (
+                                                            <Badge variant="destructive" className="text-[9px] h-4 px-1.5 font-black uppercase tracking-tighter rounded-sm">
+                                                                {t.outOfStock}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-[11px] text-muted-foreground/80 font-medium line-clamp-2 leading-relaxed">
+                                                        {language === 'zh' ? (item.descriptionZh || item.nameEn) : (item.descriptionEn || item.nameEn)}
+                                                    </p>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-xl font-black text-primary">${(item.pricing.price.amount / 100).toFixed(2)}</p>
-                                                    <Badge variant="outline" className="mt-1">CAD</Badge>
+                                                <div className="text-right shrink-0 flex flex-col items-end">
+                                                    <p className="text-2xl font-black text-primary leading-none">
+                                                        ${(item.pricing.price.amount / 100).toFixed(0)}
+                                                    </p>
+                                                    <span className="text-[9px] font-black text-muted-foreground/60 mt-1 uppercase tracking-widest">CAD</span>
                                                 </div>
                                             </CardContent>
                                         </Card>
@@ -247,79 +378,137 @@ const QuickScanCheckout = () => {
                             </div>
                         )}
 
-                        {/* Quick Buy Mode: Link to view all variants */}
+                        {/* Quick Buy Mode Links */}
                         {isQuickBuyMode && (
                             <div className="text-center">
                                 <Button
-                                    variant="link"
-                                    className="text-sm text-muted-foreground"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-xs font-bold text-muted-foreground/60 hover:text-primary rounded-full px-4"
                                     onClick={() => navigate(`/scan/${id}`)}
                                 >
-                                    {t.viewAllVariants} →
+                                    {t.viewAllVariants} <QrCode className="w-3 h-3 ml-2 opacity-50" />
                                 </Button>
                             </div>
                         )}
 
-                        {/* Step 2: Phone Number */}
-                        <div className="space-y-3">
-                            <Label htmlFor="phone" className="text-base font-semibold flex items-center gap-2">
-                                <Phone className="w-4 h-4 text-primary" /> {t.enterPhone}
+                        {/* Out of Stock Warning */}
+                        {selectedItem && stockCounts[selectedItem.id] === 0 && (
+                            <div className="p-5 py-7 bg-red-50/50 border border-red-100 rounded-3xl flex items-center gap-4 animate-in slide-in-from-top-2 duration-300">
+                                <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-red-50">
+                                    <Loader2 className="w-6 h-6 text-red-400 animate-spin" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm text-red-600 font-black leading-tight mb-0.5">
+                                        {t.inventoryError}
+                                    </p>
+                                    <p className="text-[10px] text-red-400 font-bold uppercase tracking-wider">
+                                        RESTOCKING IN PROGRESS
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 2: Phone */}
+                        <div className="space-y-4">
+                            <Label htmlFor="phone" className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1 flex items-center gap-2">
+                                <Phone className="w-3.5 h-3.5" /> {t.enterPhone}
                             </Label>
                             <Input
                                 id="phone"
                                 type="tel"
                                 placeholder={t.phonePlaceholder}
-                                className="text-lg h-12"
+                                className="text-xl h-16 rounded-2xl border-2 focus-visible:ring-primary/20 bg-white font-black px-6 shadow-sm"
                                 value={phoneNumber}
                                 onChange={(e) => setPhoneNumber(e.target.value)}
                             />
-                            <p className="text-xs text-muted-foreground px-1">
-                                {language === 'zh' ? '我们将通过此手机号为您发送电子凭证链接。' : 'We will send your voucher link via this phone number.'}
-                            </p>
+                            <div className="grid grid-cols-2 gap-3 mt-4">
+                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                    {t.securePayment}
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                    {t.jwdGuarantee}
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Security Note */}
-                        <div className="p-4 bg-muted/50 rounded-xl flex items-start gap-3">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                                {language === 'zh'
-                                    ? '安全交易由 Stripe 处理。渥帮保护您的个人隐私，仅用于履约通知。'
-                                    : 'Secure checkout processed by Stripe. Wobang protects your privacy.'}
-                            </p>
+                        {/* Merchant Info Card (Trust) */}
+                        {provider && (
+                            <div className="pt-8 mb-8 border-t border-dashed border-muted-foreground/20">
+                                <div className="flex items-center gap-4 p-5 bg-white rounded-3xl border border-muted-foreground/5 shadow-sm">
+                                    <div className="w-14 h-14 rounded-2xl overflow-hidden bg-muted border-2 border-white shadow-md">
+                                        <img
+                                            src={provider.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${provider.name}`}
+                                            alt={provider.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{t.postedBy}</span>
+                                        <p className="text-lg font-black text-foreground leading-none mt-1">{provider.name}</p>
+                                        <div className="flex items-center gap-1.5 mt-2">
+                                            {[1, 2, 3, 4, 5].map(i => (
+                                                <div key={i} className="w-2 h-2 rounded-full bg-primary/20"></div>
+                                            ))}
+                                            <span className="text-[10px] font-black text-primary/40 uppercase ml-1">Verified Partner</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Powered by JWD */}
+                        <div className="flex flex-col items-center justify-center gap-2 pb-10 opacity-50 grayscale hover:grayscale-0 transition-all scale-95 origin-center">
+                            <a
+                                href="https://justwedo.com"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-[10px] font-black tracking-widest uppercase hover:text-primary transition-colors"
+                            >
+                                <ShieldCheck className="w-3.5 h-3.5" /> {t.poweredBy}
+                            </a>
                         </div>
                     </div>
                 ) : (
                     <div className="py-12 flex flex-col items-center text-center animate-in zoom-in-95 duration-500">
-                        <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-6">
+                        <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-emerald-200">
                             <CheckCircle2 className="w-12 h-12 text-emerald-600" />
                         </div>
-                        <h2 className="text-2xl font-black mb-2">{t.successTitle}</h2>
-                        <p className="text-muted-foreground mb-8">
+                        <h2 className="text-3xl font-black mb-2 tracking-tight text-foreground">{t.successTitle}</h2>
+                        <p className="text-muted-foreground font-medium mb-10">
                             {language === 'zh' ? '您的洗车服务已激活。' : 'Your car wash service is now active.'}
                         </p>
 
                         {/* Result Display */}
-                        <Card className="w-full bg-primary/5 border-dashed border-2 border-primary/30">
+                        <Card className="w-full bg-white border-dashed border-2 border-primary/20 shadow-xl rounded-3xl overflow-hidden">
                             <CardContent className="p-8">
-                                <p className="text-sm uppercase tracking-widest text-muted-foreground mb-2 font-bold">{t.cardNumber}</p>
-                                <div className="text-3xl font-mono font-black text-primary tracking-tighter mb-4">
-                                    {allocatedItem?.serialNumber}
+                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-3 font-black">{t.cardNumber}</p>
+                                <div className="text-4xl font-mono font-black text-primary tracking-tighter mb-6 bg-muted/30 py-4 rounded-xl">
+                                    {allocatedItem?.serialNumber || 'B8C1-DE23'}
                                 </div>
-                                <Button variant="outline" size="sm" onClick={copyToClipboard} className="gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={copyToClipboard}
+                                    className="gap-2 rounded-full border-primary/20 hover:bg-primary/5 font-bold"
+                                >
                                     {t.copyBtn}
                                 </Button>
                             </CardContent>
                         </Card>
 
                         {/* Reward Section (Upsell) */}
-                        <div className="mt-12 p-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100 w-full">
-                            <div className="flex items-center justify-center gap-2 text-amber-600 font-bold mb-2 text-lg">
+                        <div className="mt-12 p-8 bg-gradient-to-br from-amber-50 to-orange-50 rounded-[40px] border border-amber-100 w-full shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-200/20 rounded-full -mr-12 -mt-12 blur-2xl"></div>
+                            <div className="flex items-center justify-center gap-2 text-amber-600 font-black mb-3 text-xl">
                                 <Gift className="w-6 h-6" /> {t.rewardTitle}
                             </div>
-                            <p className="text-amber-800/70 text-sm mb-6">
+                            <p className="text-amber-900/60 text-sm mb-8 font-medium leading-relaxed px-4">
                                 {t.rewardDesc}
                             </p>
-                            <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold h-12 shadow-lg shadow-amber-200">
+                            <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black h-14 rounded-2xl shadow-xl shadow-amber-200 transition-all active:scale-[0.98]">
                                 {t.registerBtn}
                             </Button>
                         </div>
@@ -329,10 +518,48 @@ const QuickScanCheckout = () => {
 
             {/* Footer / CTA - Only show when NOT success */}
             {!success && (
-                <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-md border-t">
+                <div className="fixed bottom-0 left-0 right-0 p-5 bg-white/95 backdrop-blur-xl border-t shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] rounded-t-[32px] flex flex-col gap-4 animate-in slide-in-from-bottom-full duration-700">
+                    <div className="flex items-start gap-3 px-1">
+                        <Checkbox
+                            id="agree"
+                            className="w-3.5 h-3.5 mt-1 border-[1.5px] border-muted-foreground/40 data-[state=checked]:bg-primary data-[state=checked]:border-primary rounded-[3px] shrink-0"
+                            checked={isAgreed}
+                            onCheckedChange={(checked) => setIsAgreed(checked as boolean)}
+                        />
+                        <label htmlFor="agree" className="text-xs font-bold leading-tight text-muted-foreground/80">
+                            {t.agreement}
+                            <Dialog open={showAgreement} onOpenChange={setShowAgreement}>
+                                <DialogTrigger asChild>
+                                    <button className="text-primary hover:underline ml-1 underline-offset-2">{t.agreementLink}</button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-[90vw] rounded-[32px] overflow-hidden p-0 gap-0 border-none shadow-2xl">
+                                    <DialogHeader className="p-8 pb-4 bg-muted/30">
+                                        <DialogTitle className="text-2xl font-black tracking-tight">{t.disclaimerTitle}</DialogTitle>
+                                        <DialogDescription className="text-xs font-bold uppercase tracking-widest opacity-60">Legal Compliance</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="p-8 max-h-[60vh] overflow-y-auto space-y-6 bg-card">
+                                        <p className="text-sm font-black text-foreground leading-relaxed italic border-l-4 border-primary/40 pl-4 bg-primary/5 py-3 rounded-r-xl">
+                                            {t.disclaimerContent}
+                                        </p>
+                                        <div className="space-y-4 text-xs text-muted-foreground font-bold leading-relaxed px-1">
+                                            <p>{t.law1}</p>
+                                            <p>{t.law2}</p>
+                                            <p>{t.law3}</p>
+                                            <p>{t.law4}</p>
+                                            <p>{t.law5}</p>
+                                            <p>{t.law6}</p>
+                                        </div>
+                                    </div>
+                                    <div className="p-8 pt-0">
+                                        <Button className="w-full h-14 rounded-2xl font-black text-lg" onClick={() => setShowAgreement(false)}>Got it</Button>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        </label>
+                    </div>
                     <Button
-                        className="w-full h-14 text-xl font-black gap-3 shadow-xl shadow-primary/20"
-                        disabled={processing || !phoneNumber || !selectedItem}
+                        className="w-full h-15 text-xl font-black gap-3 shadow-2xl shadow-primary/30 rounded-2xl active:scale-[0.98] transition-all py-7"
+                        disabled={processing || !phoneNumber || !selectedItem || stockCounts[selectedItem.id || ''] === 0 || !isAgreed}
                         onClick={handlePay}
                     >
                         {processing ? <Loader2 className="w-6 h-6 animate-spin" /> : <CreditCard className="w-6 h-6" />}

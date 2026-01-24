@@ -55,8 +55,9 @@ const Publish = () => {
 
             // Map post type to likely listing category
             let suggestedCategory = 'SERVICE';
-            if (post.postType === 'SECOND_HAND' || post.postType === 'GIVEAWAY') suggestedCategory = 'GOODS';
-            if (post.postType === 'WANTED' || post.postType === 'HELP') suggestedCategory = 'TASK';
+            const postType = post.postType as any;
+            if (postType === 'SECOND_HAND' || postType === 'GIVEAWAY') suggestedCategory = 'GOODS';
+            if (postType === 'WANTED' || postType === 'HELP') suggestedCategory = 'TASK';
 
             setInitialData({
                 title: post.title || post.content.slice(0, 20),
@@ -194,11 +195,32 @@ const Publish = () => {
             const images = formData.images as string[];
 
             const masterData = {
-                attributes: {
-                    ...(initialData?.attributes || {}), // Preserve existing attributes if editing
-                    pricingMode: formData.pricingMode || 'FIXED'
+                titleZh: title,
+                titleEn: title,
+                descriptionZh: description,
+                descriptionEn: description,
+                images: images || [],
+                mediaUrl: formData.mediaUrl as string || undefined,
+                type: selectedCategory as any,
+                categoryId: null, // Set to null to avoid FK constraint; type field is sufficient
+                nodeId: activeNodeId || 'NODE_LEES',
+                status: 'PUBLISHED',
+                location: {
+                    fullAddress: formData.pickupLocation || formData.location || '',
                 },
-                providerId: currentUser.id // Ensure providerId is always present to satisfy type
+                tags: formData.tags || [],
+                rating: 5,
+                reviewCount: 0,
+                attributes: {
+                    ...(initialData?.attributes || {}),
+                    pricingMode: formData.pricingMode || 'FIXED',
+                    stock: parseInt(formData.stock as string) || 1
+                },
+                metadata: {
+                    ...formData,
+                    _formVersion: 'v2',
+                    _submittedAt: new Date().toISOString()
+                }
             } as any;
 
             let finalItems: any[] = [];

@@ -133,10 +133,11 @@ export function AddInventoryDialog({ open, onOpenChange, providerId, listings, i
         }
     };
 
-    // Filter items that belong to serialized listings
+    // Filter items that belong to GOODS listings
     const serializedItems = items.filter(item => {
         const master = listings.find(l => l.id === item.masterId);
-        return (master?.metadata as Record<string, unknown>)?.isSerialized;
+        // Only show items from GOODS category
+        return master?.type === 'GOODS';
     });
 
     return (
@@ -186,7 +187,7 @@ export function AddInventoryDialog({ open, onOpenChange, providerId, listings, i
                                         value={secretCode}
                                         onChange={e => setSecretCode(e.target.value)}
                                         placeholder={t.placeholderSecret}
-                                        type="password"
+                                        type="text"
                                     />
                                 </div>
                             </TabsContent>

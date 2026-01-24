@@ -9,6 +9,7 @@ import {
     Consensus
 } from '@/types/community';
 import { communityPostRepository } from '@/services/repositories/supabase/CommunityPostRepository';
+import { useAuthStore } from './authStore';
 
 interface CommunityPostState {
     // Feed
@@ -125,6 +126,9 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
     fetchPostDetail: async (id: string) => {
         set({ isLoadingDetail: true });
         try {
+            const currentUser = useAuthStore.getState().currentUser;
+            const userId = currentUser?.id;
+
             const [post, comments] = await Promise.all([
                 communityPostRepository.getById(id),
                 communityPostRepository.getComments(id)
@@ -133,6 +137,25 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
             if (post) {
                 // Increment view count (fire and forget)
                 communityPostRepository.incrementViewCount(id);
+
+                // Fetch user-specific states if logged in
+                if (userId) {
+                    const [isLiked, isSaved, myVote, likedCommentIds] = await Promise.all([
+                        communityPostRepository.isLikedByUser(post.id, userId),
+                        communityPostRepository.isSavedByUser(post.id, userId),
+                        post.isFact ? communityPostRepository.getUserVote(post.id, userId) : Promise.resolve(null),
+                        communityPostRepository.getUserLikedCommentIds(userId, comments.map(c => c.id))
+                    ]);
+
+                    post.isLikedByMe = isLiked;
+                    post.isSavedByMe = isSaved;
+                    post.myVote = myVote || undefined;
+
+                    // Update comment like states
+                    comments.forEach(comment => {
+                        comment.isLikedByMe = likedCommentIds.has(comment.id);
+                    });
+                }
             }
 
             set({

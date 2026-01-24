@@ -12,6 +12,13 @@ export class SupabaseListingRepository implements IListingRepository {
             descriptionZh: row.description_zh,
             descriptionEn: row.description_en,
             images: row.images || [],
+            mediaUrl: row.media_url,
+
+            // New JSONB fields
+            attributes: row.attributes || {},
+            metadata: row.metadata || {},
+
+            // 真言相关字段
             type: row.type as ListingType,
             categoryId: row.category_id,
             nodeId: row.node_id, // New
@@ -41,6 +48,7 @@ export class SupabaseListingRepository implements IListingRepository {
             description_zh: listing.descriptionZh,
             description_en: listing.descriptionEn,
             images: listing.images,
+            media_url: listing.mediaUrl,
             type: listing.type,
             category_id: listing.categoryId,
             node_id: listing.nodeId, // New
@@ -52,6 +60,8 @@ export class SupabaseListingRepository implements IListingRepository {
             rating: listing.rating,
             review_count: listing.reviewCount,
             is_promoted: listing.isPromoted,
+            attributes: listing.attributes,
+            metadata: listing.metadata,
         };
 
         // Remove undefined fields

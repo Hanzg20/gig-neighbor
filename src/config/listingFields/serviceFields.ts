@@ -39,6 +39,14 @@ export const providerServiceFields: ListingFieldsConfig = {
                     importance: 'required',
                     placeholder: '详细介绍您的服务内容、流程及专业优势...',
                     rows: 6,
+                },
+                {
+                    name: 'mediaUrl',
+                    label: '展示视频 (YouTube/B站)',
+                    type: 'text',
+                    importance: 'optional',
+                    placeholder: '粘贴 YouTube 或 B站视频链接',
+                    helpText: '展示服务演示或作品集视频，提升客户信任',
                 }
             ]
         },

@@ -199,6 +199,209 @@ export class SupabaseUserRepository implements IUserRepository {
             updatedAt: db.updated_at
         };
     }
+
+    // ============================================
+    // User Follow Methods
+    // ============================================
+
+    /**
+     * Follow a user
+     */
+    async followUser(followerId: string, followingId: string): Promise<void> {
+        if (followerId === followingId) {
+            throw new Error('Cannot follow yourself');
+        }
+
+        const { error } = await supabase
+            .from('user_followers')
+            .insert({
+                follower_id: followerId,
+                following_id: followingId
+            });
+
+        if (error) {
+            if (error.code === '23505') {
+                // Already following - ignore
+                return;
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Unfollow a user
+     */
+    async unfollowUser(followerId: string, followingId: string): Promise<void> {
+        const { error } = await supabase
+            .from('user_followers')
+            .delete()
+            .eq('follower_id', followerId)
+            .eq('following_id', followingId);
+
+        if (error) throw error;
+    }
+
+    /**
+     * Check if user A is following user B
+     */
+    async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+        const { data, error } = await supabase
+            .from('user_followers')
+            .select('id')
+            .eq('follower_id', followerId)
+            .eq('following_id', followingId)
+            .maybeSingle();
+
+        if (error) throw error;
+        return !!data;
+    }
+
+    /**
+     * Get user's followers
+     */
+    async getFollowers(userId: string, limit: number = 20, offset: number = 0): Promise<{
+        users: UserProfileSummary[];
+        total: number;
+    }> {
+        // Get total count
+        const { count } = await supabase
+            .from('user_followers')
+            .select('*', { count: 'exact', head: true })
+            .eq('following_id', userId);
+
+        // Get followers with profile info
+        const { data, error } = await supabase
+            .from('user_followers')
+            .select(`
+                follower:user_profiles!follower_id (
+                    id, name, avatar, bio,
+                    follower_count, following_count, post_count
+                )
+            `)
+            .eq('following_id', userId)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        if (error) throw error;
+
+        return {
+            users: (data || []).map((d: any) => this.mapProfileSummary(d.follower)),
+            total: count || 0
+        };
+    }
+
+    /**
+     * Get users that this user is following
+     */
+    async getFollowing(userId: string, limit: number = 20, offset: number = 0): Promise<{
+        users: UserProfileSummary[];
+        total: number;
+    }> {
+        // Get total count
+        const { count } = await supabase
+            .from('user_followers')
+            .select('*', { count: 'exact', head: true })
+            .eq('follower_id', userId);
+
+        // Get following with profile info
+        const { data, error } = await supabase
+            .from('user_followers')
+            .select(`
+                following:user_profiles!following_id (
+                    id, name, avatar, bio,
+                    follower_count, following_count, post_count
+                )
+            `)
+            .eq('follower_id', userId)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        if (error) throw error;
+
+        return {
+            users: (data || []).map((d: any) => this.mapProfileSummary(d.following)),
+            total: count || 0
+        };
+    }
+
+    /**
+     * Get user profile by ID with follow stats
+     */
+    async getUserProfile(userId: string): Promise<UserProfileSummary | null> {
+        const { data, error } = await supabase
+            .from('user_profiles')
+            .select(`
+                id, name, avatar, bio,
+                follower_count, following_count, post_count,
+                created_at
+            `)
+            .eq('id', userId)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') return null;
+            throw error;
+        }
+
+        return this.mapProfileSummary(data);
+    }
+
+    /**
+     * Get user profile with follow status for current user
+     */
+    async getUserProfileWithFollowStatus(
+        targetUserId: string,
+        currentUserId?: string
+    ): Promise<UserProfileWithFollowStatus | null> {
+        const profile = await this.getUserProfile(targetUserId);
+        if (!profile) return null;
+
+        let isFollowedByMe = false;
+        let isFollowingMe = false;
+
+        if (currentUserId && currentUserId !== targetUserId) {
+            const [followedByMe, followingMe] = await Promise.all([
+                this.isFollowing(currentUserId, targetUserId),
+                this.isFollowing(targetUserId, currentUserId)
+            ]);
+            isFollowedByMe = followedByMe;
+            isFollowingMe = followingMe;
+        }
+
+        return {
+            ...profile,
+            isFollowedByMe,
+            isFollowingMe
+        };
+    }
+
+    private mapProfileSummary(db: any): UserProfileSummary {
+        return {
+            id: db.id,
+            name: db.name,
+            avatar: db.avatar,
+            bio: db.bio,
+            followerCount: db.follower_count || 0,
+            followingCount: db.following_count || 0,
+            postCount: db.post_count || 0
+        };
+    }
+}
+
+// Types for user profile
+export interface UserProfileSummary {
+    id: string;
+    name: string;
+    avatar?: string;
+    bio?: string;
+    followerCount: number;
+    followingCount: number;
+    postCount: number;
+}
+
+export interface UserProfileWithFollowStatus extends UserProfileSummary {
+    isFollowedByMe: boolean;
+    isFollowingMe: boolean;
 }
 
 // Export singleton instance

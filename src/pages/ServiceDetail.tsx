@@ -15,6 +15,7 @@ import { GoodsDetailView } from "@/components/checkout/GoodsDetailView";
 import { TaskDetailView } from "@/components/checkout/TaskDetailView";
 import { ShareSheet } from "@/components/common/ShareSheet";
 import { EnhancedReviewList } from "@/components/reviews/EnhancedReviewList";
+import { MediaEmbed } from "@/components/Community/MediaEmbed";
 import { Link } from "react-router-dom";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -311,7 +312,9 @@ const ServiceDetail = () => {
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-xl font-black text-foreground tracking-tight">{getTranslation(provider, 'businessName')}</h2>
+                  <h2 className="text-xl font-black text-foreground tracking-tight">
+                    {provider.businessNameEn || provider.businessNameZh || provider.name || t.neighbor}
+                  </h2>
                   <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black tracking-tighter uppercase px-2 py-0">
                     {provider.identity === 'MERCHANT' ? t.merchant : t.neighbor}
                   </Badge>
@@ -365,6 +368,17 @@ const ServiceDetail = () => {
               </span>
             ))}
           </div>
+
+          {/* Video Embed (if provided) */}
+          {master.mediaUrl && (
+            <div className="mb-8">
+              <h3 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2 mb-4">
+                <div className="w-1.5 h-4 bg-primary rounded-full" />
+                {language === 'zh' ? '视频介绍' : 'Video Introduction'}
+              </h3>
+              <MediaEmbed content={master.mediaUrl} />
+            </div>
+          )}
 
           {/* Trust Indicators (Insurance/License) - Meituan inspired professional transparency */}
           {(provider?.insuranceSummaryEn || provider?.licenseInfo) && (
@@ -539,13 +553,28 @@ const ServiceDetail = () => {
       {/* 4. Fixed Bottom Bar (Premium Meituan Sticky) */}
       <div className="fixed bottom-0 left-0 right-0 glass-sticky-bar px-4 py-5 z-50 safe-area-bottom">
         <div className="container max-w-4xl flex items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <button className="flex flex-col items-center gap-1 group">
+          <div className="flex items-center gap-4">
+            <button onClick={() => navigate('/chat')} className="flex flex-col items-center gap-1 group">
               <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-primary/5 transition-all">
                 <MessageCircle className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
               </div>
               <span className="text-[10px] font-black text-muted-foreground uppercase group-hover:text-primary">{t.chat}</span>
             </button>
+            <ShareSheet
+              title={getTranslation(master, 'title')}
+              content={getTranslation(master, 'description')}
+              imageUrl={master.images[currentImage]}
+              authorName={provider ? (provider.businessNameEn || provider.businessNameZh || provider.name || 'Gig Neighbor') : 'Gig Neighbor'}
+              authorAvatar={provider?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${provider?.id || 'default'}`}
+              trigger={
+                <button className="flex flex-col items-center gap-1 group">
+                  <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-primary/5 transition-all">
+                    <Share2 className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                  </div>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase group-hover:text-primary">{t.share}</span>
+                </button>
+              }
+            />
           </div>
           <div className="flex-1 flex items-center justify-between gap-4">
             {renderPricingCard()}
