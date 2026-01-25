@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Compass, MessageCircle, ShoppingCart, User, MapPin } from "lucide-react";
+import { Home, MapPin, MessageSquareQuote, MessageCircle, User } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useCartStore } from "@/stores/cartStore";
 import { useConfigStore } from "@/stores/configStore";
@@ -17,7 +17,7 @@ const MobileBottomNav = () => {
     const navItems = [
         { icon: Home, label: language === 'zh' ? '首页' : 'Home', path: '/', badge: null },
         { icon: MapPin, label: language === 'zh' ? '地图' : 'Map', path: '/discover', badge: null },
-        { icon: Compass, label: language === 'zh' ? '社区' : 'Social', path: '/community', badge: null },
+        { icon: MessageSquareQuote, label: language === 'zh' ? '真言' : 'JustTalk', path: '/community', badge: null },
         { icon: MessageCircle, label: language === 'zh' ? '消息' : 'Chat', path: '/chat', badge: 0 },
         { icon: User, label: language === 'zh' ? '我' : 'Me', path: '/profile', badge: null },
     ];
@@ -27,8 +27,11 @@ const MobileBottomNav = () => {
         return location.pathname.startsWith(path);
     };
 
-    // Hide bottom nav for scan purchases and payment success page
-    const shouldHideNav = location.pathname.startsWith('/scan/') ||
+    // Hide bottom nav for scan purchases, service details, checkout and payment success page
+    const shouldHideNav =
+        location.pathname.startsWith('/scan/') ||
+        location.pathname.startsWith('/service/') ||
+        location.pathname.startsWith('/checkout') ||
         location.pathname === '/payment-success';
 
     if (shouldHideNav) {
