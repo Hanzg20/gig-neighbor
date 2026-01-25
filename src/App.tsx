@@ -57,7 +57,6 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/service/:id" element={<ServiceDetail />} />
-              <Route path="/service/:id" element={<ServiceDetail />} />
               <Route path="/post-gig" element={<Publish />} />
               <Route path="/publish" element={<Publish />} />
               <Route path="/provider/publish-service" element={<Publish />} />
