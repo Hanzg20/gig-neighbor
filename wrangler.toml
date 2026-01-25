@@ -3,11 +3,10 @@ name = "gig-neighbor"
 compatibility_date = "2026-01-14"
 [assets]
 directory = "./dist"
+not_found_handling = "single-page-application"
 
 # Build Configuration
 [build]
 command = "npm run build"
 
-# Routes Configuration
-routes = ["/*"]
 # Note: For Cloudflare Pages, headers should be defined in a public/_headers file.
