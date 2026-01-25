@@ -14,6 +14,7 @@ import { AddInventoryDialog } from './AddInventoryDialog';
 import { useReactToPrint } from 'react-to-print';
 import { PrintableQrTemplate, PrintableQrData } from './PrintableQrTemplate';
 import { supabase } from '@/lib/supabase';
+import { getShareUrl } from '@/utils/url';
 
 interface ProviderInventoryDashboardProps {
     providerId: string;
@@ -177,8 +178,8 @@ export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDash
             serialNumber: language === 'zh' ? '通用二维码' : 'Universal QR',
             productName: masterToProduct.get(masterId) || 'Product',
             productImage: masterToImage.get(masterId),
-            // URL format: /scan/:masterId (Universal QR - shows all variants)
-            url: `${window.location.origin}/scan/${masterId}`
+            // Use standardized URL utility
+            url: getShareUrl(`/scan/${masterId}`)
         }));
 
         setItemsToPrint(printData);
@@ -198,14 +199,16 @@ export function ProviderInventoryDashboard({ providerId }: ProviderInventoryDash
             ? `${language === 'zh' ? listingItem.nameZh : listingItem.nameEn} - $${(listingItem.pricing.price.amount / 100).toFixed(2)}`
             : (language === 'zh' ? '扫码购买' : 'Scan to Buy');
 
+        // Construct path for single item
+        const singlePath = masterId
+            ? `/scan/${masterId}?preselect=${item.listingItemId}`
+            : `/scan/${item.listingItemId}`;
+
         setItemsToPrint([{
             serialNumber: variantLabel, // Display variant info instead of serial number
             productName: getProductName(item.listingItemId),
             productImage: master?.images?.[0], // Pass image
-            // URL format: /scan/:masterId?preselect=:itemId (Pre-select specific variant)
-            url: masterId
-                ? `${window.location.origin}/scan/${masterId}?preselect=${item.listingItemId}`
-                : `${window.location.origin}/scan/${item.listingItemId}` // Fallback
+            url: getShareUrl(singlePath)
         }]);
         setTimeout(() => {
             handlePrint();

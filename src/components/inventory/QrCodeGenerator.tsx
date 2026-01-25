@@ -1,5 +1,6 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '@/lib/utils';
+import { QR_LOGO_BASE64 } from '@/constants/assets';
 
 interface QrCodeGeneratorProps {
     value: string;
@@ -23,7 +24,7 @@ export function QrCodeGenerator({
     includeMargin = false,
     fgColor = "#000000",
     bgColor = "#FFFFFF",
-    logoUrl,
+    logoUrl = QR_LOGO_BASE64,
     logoSize = 20, // Logo占QR码的20%
     logoOpacity = 1,
     logoPadding = 4

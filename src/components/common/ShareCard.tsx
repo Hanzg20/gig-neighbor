@@ -1,5 +1,6 @@
 import { QRCodeSVG } from "qrcode.react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { QR_LOGO_BASE64 } from "@/constants/assets";
 
 interface ShareCardProps {
     title: string;
@@ -103,13 +104,13 @@ export const ShareCard = ({
                         <QRCodeSVG
                             value={qrUrl}
                             size={52}
-                            level="M"
+                            level="H"
                             imageSettings={{
-                                src: "/logo.png",
+                                src: QR_LOGO_BASE64,
                                 x: undefined,
                                 y: undefined,
-                                height: 12,
-                                width: 12,
+                                height: 16,
+                                width: 16,
                                 excavate: true,
                             }}
                         />
