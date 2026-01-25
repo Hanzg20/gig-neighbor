@@ -92,7 +92,8 @@ export const GoodsDetailView = ({ master, item, items = [], provider, onBuy, onC
                             {master.images.map((_, i) => (
                                 <div
                                     key={i}
-                                    className={`h-1.5 rounded-full transition-all duration-300 ${i === currentImage ? 'w-4 bg-white' : 'w-1.5 bg-white/50'}`}
+                                    onClick={() => setCurrentImage(i)}
+                                    className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${i === currentImage ? 'w-4 bg-white' : 'w-1.5 bg-white/50'}`}
                                 />
                             ))}
                         </div>
@@ -203,33 +204,13 @@ export const GoodsDetailView = ({ master, item, items = [], provider, onBuy, onC
                         {t.chat}
                     </Button>
 
-                    <ShareSheet
-                        title={getTranslation(master, 'title')}
-                        content={getTranslation(master, 'description')}
-                        imageUrl={master.images[currentImage]}
-                        authorName={
-                            (provider && 'businessNameEn' in provider)
-                                ? (provider.businessNameEn || provider.businessNameZh || t.postedBy)
-                                : (provider?.name || 'Neighbor')
-                        }
-                        authorAvatar={provider?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${provider?.id || 'default'}`}
-                        trigger={
-                            <Button variant="outline" size="lg" className="rounded-2xl font-bold gap-2">
-                                <Share2 className="w-5 h-5 text-primary" />
-                                {t.share}
-                            </Button>
-                        }
-                    />
-
-                    {import.meta.env.VITE_ENABLE_WEB_SHOPPING !== 'false' && (
-                        <Button size="lg" className="flex-[2] rounded-2xl font-black shadow-warm bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 border-none" onClick={() => {
-                            console.log('🛒 [GoodsDetailView] Buying item:', item.id, item.nameEn);
-                            onBuy();
-                        }}>
-                            <ShoppingBag className="w-5 h-5 mr-2" />
-                            {t.buyNow}
-                        </Button>
-                    )}
+                    <Button size="lg" className="flex-[2] rounded-2xl font-black shadow-warm bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 border-none" onClick={() => {
+                        console.log('🛒 [GoodsDetailView] Buying item:', item.id, item.nameEn);
+                        onBuy();
+                    }}>
+                        <ShoppingBag className="w-5 h-5 mr-2" />
+                        {t.buyNow}
+                    </Button>
                 </div>
             </div>
         </div>

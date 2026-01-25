@@ -5,7 +5,7 @@ import {
     Users, Calendar, ArrowUpRight, ChevronRight,
     QrCode, Power, MessageSquare, AlertCircle,
     LayoutDashboard, PlusCircle, CheckCircle2,
-    Search, Bell
+    Search, Bell, Ticket
 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -265,6 +265,15 @@ const ProviderDashboard = () => {
                                         <MessageSquare className="w-5 h-5" />
                                     </div>
                                     <span className="text-xs font-black tracking-tight">私信咨询</span>
+                                </button>
+                                <button
+                                    onClick={() => navigate(`/provider/${currentUser.providerProfileId}?tab=coupons`)}
+                                    className="p-4 rounded-[24px] bg-white/5 hover:bg-white/10 transition-all flex flex-col gap-3 group"
+                                >
+                                    <div className="w-10 h-10 rounded-2xl bg-rose-500/20 flex items-center justify-center text-rose-500 group-hover:scale-110 transition-transform">
+                                        <Ticket className="w-5 h-5" />
+                                    </div>
+                                    <span className="text-xs font-black tracking-tight">优惠券</span>
                                 </button>
                                 <button
                                     onClick={() => navigate('/publish')}

@@ -8,7 +8,7 @@ import { useConfigStore } from "@/stores/configStore";
 import { ListingMaster, ListingItem, Order } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Heart, Share2, Check, Shield, Award, MapPin, MessageCircle, Star, Sparkles, AlertCircle, Info, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { ArrowLeft, Heart, Share2, Check, Shield, Award, MapPin, MessageCircle, Star, Sparkles, AlertCircle, Info, Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { InstantPayFlow } from "@/components/checkout/InstantPayFlow";
 import { QuoteRequestFlow } from "@/components/checkout/QuoteRequestFlow";
 import { GoodsDetailView } from "@/components/checkout/GoodsDetailView";
@@ -278,7 +278,7 @@ const ServiceDetail = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-black/20" />
 
         {/* Glassmorphism Header */}
-        <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-10">
+        <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20">
           <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-xl border border-white/30 hover:bg-white/40 transition-all">
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
@@ -301,12 +301,25 @@ const ServiceDetail = () => {
           </div>
         </div>
 
+        {/* Carousel Navigation */}
+        {master.images.length > 1 && (
+          <>
+            <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center hover:bg-black/50 transition-all z-10">
+              <ChevronLeft className="w-6 h-6 text-white" />
+            </button>
+            <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center hover:bg-black/50 transition-all z-10">
+              <ChevronRight className="w-6 h-6 text-white" />
+            </button>
+          </>
+        )}
+
         {/* Carousel Indicators (Meituan Style) */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 bg-black/30 backdrop-blur-md rounded-full border border-white/10">
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 bg-black/30 backdrop-blur-md rounded-full border border-white/10 z-10">
           {master.images.map((_, i) => (
             <div
               key={i}
-              className={`h-1.5 rounded-full transition-all duration-300 ${i === currentImage ? 'w-4 bg-primary' : 'w-1.5 bg-white/50'}`}
+              onClick={() => setCurrentImage(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${i === currentImage ? 'w-4 bg-primary' : 'w-1.5 bg-white/50'}`}
             />
           ))}
         </div>
@@ -578,21 +591,6 @@ const ServiceDetail = () => {
               </div>
               <span className="text-[10px] font-black text-muted-foreground uppercase group-hover:text-primary">{t.chat}</span>
             </button>
-            <ShareSheet
-              title={getTranslation(master, 'title')}
-              content={getTranslation(master, 'description')}
-              imageUrl={master.images[currentImage]}
-              authorName={provider ? (provider.businessNameEn || provider.businessNameZh || provider.name || 'Gig Neighbor') : 'Gig Neighbor'}
-              authorAvatar={provider?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${provider?.id || 'default'}`}
-              trigger={
-                <button className="flex flex-col items-center gap-1 group">
-                  <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-primary/5 transition-all">
-                    <Share2 className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
-                  </div>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase group-hover:text-primary">{t.share}</span>
-                </button>
-              }
-            />
           </div>
           <div className="flex-1 flex items-center justify-between gap-4">
             {renderPricingCard()}

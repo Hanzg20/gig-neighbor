@@ -14,7 +14,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import { CheckCircle2, QrCode, CreditCard, Gift, Loader2, Phone, ShieldCheck, ChevronRight, Info } from "lucide-react";
+import { CheckCircle2, QrCode, CreditCard, Gift, Loader2, Phone, ShieldCheck, ChevronRight, Info, Ticket, X } from "lucide-react";
 import { repositoryFactory } from '@/services/repositories/factory';
 import { NotificationService } from '@/services/NotificationService';
 import { ListingMaster, ListingItem, InventoryItem } from '@/types/domain';
@@ -37,9 +37,10 @@ const QuickScanCheckout = () => {
     const { toast } = useToast();
     const { language } = useConfigStore();
 
-    // Get preselect parameter from URL query string
+    // Get URL query parameters
     const searchParams = new URLSearchParams(window.location.search);
     const preselectItemId = searchParams.get('preselect');
+    const couponFromUrl = searchParams.get('coupon');
 
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
@@ -53,6 +54,13 @@ const QuickScanCheckout = () => {
     const [provider, setProvider] = useState<{ name: string, avatar: string } | null>(null);
     const [isAgreed, setIsAgreed] = useState(false);
     const [showAgreement, setShowAgreement] = useState(false);
+
+    // Coupon state
+    const [couponCode, setCouponCode] = useState('');
+    const [couponId, setCouponId] = useState<string | null>(null);
+    const [couponDiscount, setCouponDiscount] = useState<number | null>(null);
+    const [couponError, setCouponError] = useState('');
+    const [validatingCoupon, setValidatingCoupon] = useState(false);
 
     const t = {
         zh: {
@@ -88,6 +96,18 @@ const QuickScanCheckout = () => {
             law4: "4. 电子卡券说明：支付成功后生成的电子凭据/卡号是服务的唯一领取凭证。请及时截图保存。除商家有特殊书面说明外，由于电子产品的特殊性，凭据一旦发放，JWD 不提供单方面退款申请受理。",
             law5: "5. 隐私保护：您的手机号仅用于发送交易凭证、领取通知以及必要的安全验证。我们将严格保护您的数据安全，不将其用于无关的第三方推销。",
             law6: "6. 纠纷处理：如遇服务无法使用、金额异议或挂失需求，请优先根据商家资料与其联系。JWD 提供必要的技术链路支持以协助双方沟通。",
+            // Coupon
+            couponCode: "优惠码",
+            couponPlaceholder: "输入优惠码",
+            couponApply: "验证",
+            couponApplied: "已优惠",
+            couponInvalid: "优惠码无效",
+            couponExpired: "优惠码已过期",
+            couponExhausted: "优惠码已用完",
+            couponMinPurchase: "需满 ${min} 可用",
+            originalPrice: "商品金额",
+            discount: "优惠抵扣",
+            finalPrice: "应付金额",
         },
         en: {
             title: "Scan to Buy",
@@ -123,6 +143,18 @@ const QuickScanCheckout = () => {
             law4: "4. Voucher Policy: Digital codes are equivalent to physical cards. Please save your code immediately. Digital products are non-refundable once the secret is issued, unless stated otherwise by the merchant.",
             law5: "5. Data Privacy: Your phone number is used solely for voucher delivery and transactional alerts. We do not share your contact info for unrelated marketing.",
             law6: "6. Disputes: For fulfillment issues or lost codes, please contact the Merchant first. JWD will assist in technical coordination for any unresolved disputes.",
+            // Coupon
+            couponCode: "Coupon Code",
+            couponPlaceholder: "Enter coupon code",
+            couponApply: "Apply",
+            couponApplied: "Saved",
+            couponInvalid: "Invalid coupon code",
+            couponExpired: "Coupon has expired",
+            couponExhausted: "Coupon is fully redeemed",
+            couponMinPurchase: "Min. ${min} purchase required",
+            originalPrice: "Subtotal",
+            discount: "Discount",
+            finalPrice: "Total",
         }
     }[language === 'zh' ? 'zh' : 'en'];
 
@@ -194,6 +226,75 @@ const QuickScanCheckout = () => {
         fetchData();
     }, [id, preselectItemId]);
 
+    // Validate coupon code
+    const validateCoupon = async (code: string, amount: number) => {
+        if (!code || !listing) return;
+
+        setValidatingCoupon(true);
+        setCouponError('');
+
+        try {
+            const { data, error } = await supabase.rpc('validate_and_apply_coupon', {
+                p_code: code.toUpperCase(),
+                p_provider_id: listing.providerId,
+                p_amount: amount / 100, // Convert cents to dollars
+                p_user_id: null,
+                p_user_phone: phoneNumber || null
+            });
+
+            if (error) throw error;
+
+            const result = data as any;
+            if (result.valid) {
+                setCouponId(result.coupon_id);
+                setCouponDiscount(result.discount_amount * 100); // Convert to cents
+                setCouponError('');
+            } else {
+                setCouponId(null);
+                setCouponDiscount(null);
+                // Map error codes to messages
+                const errorMessages: Record<string, string> = {
+                    invalid_code: t.couponInvalid,
+                    coupon_expired: t.couponExpired,
+                    coupon_exhausted: t.couponExhausted,
+                    min_purchase_not_met: result.message || t.couponInvalid,
+                    user_limit_exceeded: result.message || t.couponInvalid,
+                };
+                setCouponError(errorMessages[result.error] || result.message || t.couponInvalid);
+            }
+        } catch (error) {
+            console.error('Failed to validate coupon:', error);
+            setCouponError(t.couponInvalid);
+            setCouponId(null);
+            setCouponDiscount(null);
+        } finally {
+            setValidatingCoupon(false);
+        }
+    };
+
+    // Clear coupon when item changes
+    const handleClearCoupon = () => {
+        setCouponCode('');
+        setCouponId(null);
+        setCouponDiscount(null);
+        setCouponError('');
+    };
+
+    // Auto-apply coupon from URL
+    useEffect(() => {
+        if (couponFromUrl && selectedItem && listing) {
+            setCouponCode(couponFromUrl.toUpperCase());
+            validateCoupon(couponFromUrl, selectedItem.pricing.price.amount);
+        }
+    }, [couponFromUrl, selectedItem?.id, listing?.id]);
+
+    // Re-validate coupon when selected item changes
+    useEffect(() => {
+        if (couponCode && selectedItem && listing && couponId) {
+            validateCoupon(couponCode, selectedItem.pricing.price.amount);
+        }
+    }, [selectedItem?.id]);
+
     const handleRestockNotification = async (itemId: string) => {
         console.log('[📢 Restock] Triggering notification for item:', itemId);
         try {
@@ -238,8 +339,18 @@ const QuickScanCheckout = () => {
                 return;
             }
 
+            // Calculate final price with coupon discount
+            const originalPrice = selectedItem.pricing.price.amount;
+            const finalPrice = couponDiscount ? Math.max(0, originalPrice - couponDiscount) : originalPrice;
+
             // Create Stripe Checkout Session
-            console.log('[🔵 Checkout] Creating Stripe checkout session...');
+            console.log('[🔵 Checkout] Creating Stripe checkout session...', {
+                originalPrice,
+                couponDiscount,
+                finalPrice,
+                couponId,
+                couponCode
+            });
 
             const { data, error } = await supabase.functions.invoke('create-checkout-session', {
                 headers: {
@@ -251,9 +362,14 @@ const QuickScanCheckout = () => {
                     productName: (language === 'zh'
                         ? `${listing?.titleZh} - ${selectedItem.nameZh}`
                         : `${listing?.titleEn} - ${selectedItem.nameEn}`) || 'Neighbourhood Service',
-                    price: selectedItem.pricing.price.amount, // Amount in cents
+                    price: finalPrice, // Apply discount to final price
+                    originalPrice: originalPrice, // Keep original for records
                     currency: selectedItem.pricing.price.currency.toLowerCase(),
                     masterId: id,
+                    // Coupon info
+                    couponId: couponId || undefined,
+                    couponCode: couponCode || undefined,
+                    couponDiscount: couponDiscount || undefined,
                 },
             });
 
@@ -409,7 +525,77 @@ const QuickScanCheckout = () => {
                             </div>
                         )}
 
-                        {/* Step 2: Phone */}
+                        {/* Step 2: Coupon Code */}
+                        <div className="space-y-3">
+                            <Label htmlFor="coupon" className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1 flex items-center gap-2">
+                                <Ticket className="w-3.5 h-3.5" /> {t.couponCode}
+                            </Label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Input
+                                        id="coupon"
+                                        type="text"
+                                        placeholder={t.couponPlaceholder}
+                                        className="h-12 rounded-xl border-2 focus-visible:ring-primary/20 bg-white font-mono font-bold px-4 pr-10 uppercase"
+                                        value={couponCode}
+                                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                        disabled={!!couponDiscount}
+                                    />
+                                    {couponCode && !couponDiscount && (
+                                        <button
+                                            type="button"
+                                            onClick={handleClearCoupon}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                                {couponDiscount ? (
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleClearCoupon}
+                                        className="h-12 px-4 rounded-xl border-2 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                    >
+                                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                                        {t.couponApplied}
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        onClick={() => selectedItem && validateCoupon(couponCode, selectedItem.pricing.price.amount)}
+                                        disabled={!couponCode || validatingCoupon || !selectedItem}
+                                        className="h-12 px-6 rounded-xl font-bold"
+                                    >
+                                        {validatingCoupon ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            t.couponApply
+                                        )}
+                                    </Button>
+                                )}
+                            </div>
+                            {couponError && (
+                                <p className="text-sm text-red-500 font-medium px-1">{couponError}</p>
+                            )}
+                            {couponDiscount && selectedItem && (
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">{t.originalPrice}</span>
+                                        <span className="font-bold">${(selectedItem.pricing.price.amount / 100).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm text-emerald-600">
+                                        <span>{t.discount}</span>
+                                        <span className="font-bold">-${(couponDiscount / 100).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-lg font-black border-t border-emerald-200 pt-2">
+                                        <span>{t.finalPrice}</span>
+                                        <span className="text-primary">${((selectedItem.pricing.price.amount - couponDiscount) / 100).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Step 3: Phone */}
                         <div className="space-y-4">
                             <Label htmlFor="phone" className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1 flex items-center gap-2">
                                 <Phone className="w-3.5 h-3.5" /> {t.enterPhone}
@@ -563,7 +749,16 @@ const QuickScanCheckout = () => {
                         onClick={handlePay}
                     >
                         {processing ? <Loader2 className="w-6 h-6 animate-spin" /> : <CreditCard className="w-6 h-6" />}
-                        {processing ? t.paying : t.payBtn}
+                        {processing ? t.paying : (
+                            <>
+                                {t.payBtn}
+                                {selectedItem && (
+                                    <span className="ml-2">
+                                        ${((selectedItem.pricing.price.amount - (couponDiscount || 0)) / 100).toFixed(2)}
+                                    </span>
+                                )}
+                            </>
+                        )}
                     </Button>
                 </div>
             )}

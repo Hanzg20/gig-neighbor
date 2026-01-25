@@ -34,6 +34,8 @@ import { useConfigStore } from '@/stores/configStore';
 import { useAuthStore } from '@/stores/authStore';
 import { getTranslation } from '@/stores/listingStore';
 import { ProviderInventoryDashboard } from '@/components/inventory/ProviderInventoryDashboard';
+import { CouponManager } from '@/components/coupon';
+import { Ticket } from 'lucide-react';
 
 export default function ProviderProfile() {
     const { providerId } = useParams<{ providerId: string }>();
@@ -344,7 +346,7 @@ export default function ProviderProfile() {
 
                 {/* Tabs Section */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                    <TabsList className={`grid w-full ${isOwner ? 'grid-cols-4' : 'grid-cols-3'} max-w-md mx-auto`}>
+                    <TabsList className={`grid w-full ${isOwner ? 'grid-cols-5' : 'grid-cols-3'} max-w-xl mx-auto`}>
                         <TabsTrigger value="services">
                             {t.tabServices} ({listings.length})
                         </TabsTrigger>
@@ -358,6 +360,12 @@ export default function ProviderProfile() {
                             <TabsTrigger value="inventory" className="gap-2">
                                 <Box className="w-4 h-4" />
                                 {t.tabInventory}
+                            </TabsTrigger>
+                        )}
+                        {isOwner && (
+                            <TabsTrigger value="coupons" className="gap-2">
+                                <Ticket className="w-4 h-4" />
+                                {language === 'zh' ? '优惠券' : 'Coupons'}
                             </TabsTrigger>
                         )}
                     </TabsList>
@@ -564,6 +572,16 @@ export default function ProviderProfile() {
                     {isOwner && (
                         <TabsContent value="inventory">
                             <ProviderInventoryDashboard providerId={providerId!} />
+                        </TabsContent>
+                    )}
+
+                    {isOwner && (
+                        <TabsContent value="coupons">
+                            <CouponManager
+                                providerId={providerId!}
+                                providerName={provider?.businessNameZh || provider?.businessNameEn || 'Provider'}
+                                providerLogo={providerAvatar}
+                            />
                         </TabsContent>
                     )}
                 </Tabs>
