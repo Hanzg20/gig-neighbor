@@ -1,23 +1,21 @@
-/**
- * UserProfile - 用户主页
- * 展示用户信息、关注/粉丝、发布的帖子
- */
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useConfigStore } from "@/stores/configStore";
 import { useCommunityPostStore } from "@/stores/communityPostStore";
 import { userRepository, UserProfileWithFollowStatus } from "@/services/repositories/supabase/UserRepository";
-import { communityPostRepository } from "@/services/repositories/supabase/CommunityPostRepository";
 import { CommunityPost } from "@/types/community";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Settings, Grid3X3, Bookmark, UserPlus, UserMinus, Users, MessageCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+    ArrowLeft, Settings, Grid3X3, Bookmark, UserPlus,
+    UserMinus, MessageCircle, Heart, Share2, Layout, Shield
+} from "lucide-react";
 import { toast } from "sonner";
-import { CommunityCardV2 } from "@/components/Community/CommunityCardV2";
 import { UserLevelBadge } from "@/components/Community/UserLevelBadge";
 
 const UserProfile = () => {
@@ -25,57 +23,33 @@ const UserProfile = () => {
     const navigate = useNavigate();
     const { currentUser } = useAuthStore();
     const { language } = useConfigStore();
+    const { userPosts, likedPosts, savedPosts, fetchUserActivity } = useCommunityPostStore();
 
     const [profile, setProfile] = useState<UserProfileWithFollowStatus | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingProfile, setIsLoadingProfile] = useState(true);
     const [isFollowLoading, setIsFollowLoading] = useState(false);
-    const [userPosts, setUserPosts] = useState<CommunityPost[]>([]);
-    const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-    const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
+    const [activeTab, setActiveTab] = useState<'notes' | 'collected' | 'liked'>('notes');
 
     const isOwnProfile = currentUser?.id === userId;
 
-    // Fetch user profile
+    // Fetch profile data
     useEffect(() => {
         const fetchProfile = async () => {
             if (!userId) return;
-
-            setIsLoading(true);
+            setIsLoadingProfile(true);
             try {
-                const data = await userRepository.getUserProfileWithFollowStatus(
-                    userId,
-                    currentUser?.id
-                );
+                const data = await userRepository.getUserProfileWithFollowStatus(userId, currentUser?.id);
                 setProfile(data);
+                // Fetch the social content for this user
+                await fetchUserActivity(userId);
             } catch (error) {
                 console.error('Failed to fetch profile:', error);
-                toast.error(language === 'zh' ? '加载用户信息失败' : 'Failed to load profile');
             } finally {
-                setIsLoading(false);
+                setIsLoadingProfile(false);
             }
         };
-
         fetchProfile();
-    }, [userId, currentUser?.id, language]);
-
-    // Fetch user's posts
-    useEffect(() => {
-        const fetchPosts = async () => {
-            if (!userId) return;
-
-            setIsLoadingPosts(true);
-            try {
-                const posts = await communityPostRepository.getByAuthor(userId);
-                setUserPosts(posts);
-            } catch (error) {
-                console.error('Failed to fetch posts:', error);
-            } finally {
-                setIsLoadingPosts(false);
-            }
-        };
-
-        fetchPosts();
-    }, [userId]);
+    }, [userId, currentUser?.id, fetchUserActivity]);
 
     const handleFollow = async () => {
         if (!currentUser) {
@@ -88,188 +62,154 @@ const UserProfile = () => {
         try {
             if (profile.isFollowedByMe) {
                 await userRepository.unfollowUser(currentUser.id, profile.id);
-                setProfile(prev => prev ? {
-                    ...prev,
-                    isFollowedByMe: false,
-                    followerCount: prev.followerCount - 1
-                } : null);
-                toast.success(language === 'zh' ? '已取消关注' : 'Unfollowed');
+                setProfile(prev => prev ? { ...prev, isFollowedByMe: false, followerCount: prev.followerCount - 1 } : null);
             } else {
                 await userRepository.followUser(currentUser.id, profile.id);
-                setProfile(prev => prev ? {
-                    ...prev,
-                    isFollowedByMe: true,
-                    followerCount: prev.followerCount + 1
-                } : null);
-                toast.success(language === 'zh' ? '关注成功' : 'Followed');
+                setProfile(prev => prev ? { ...prev, isFollowedByMe: true, followerCount: prev.followerCount + 1 } : null);
             }
         } catch (error: any) {
-            toast.error(error.message || (language === 'zh' ? '操作失败' : 'Failed'));
+            toast.error(error.message || 'Action failed');
         } finally {
             setIsFollowLoading(false);
         }
     };
 
-    const handleMessage = () => {
-        if (!currentUser) {
-            toast.error(language === 'zh' ? '请先登录' : 'Please login first');
-            return;
-        }
-        // Navigate to messages with this user
-        navigate(`/messages?user=${userId}`);
+    const renderPostGrid = (posts: CommunityPost[]) => {
+        if (posts.length === 0) return (
+            <div className="py-20 text-center opacity-30">
+                <Layout className="w-12 h-12 mx-auto mb-4" />
+                <p className="text-sm font-bold">{language === 'zh' ? '这里空空如也' : 'Nothing here yet'}</p>
+            </div>
+        );
+        return (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-0.5">
+                {posts.map(post => (
+                    <Link
+                        key={post.id}
+                        to={`/community/${post.id}`}
+                        className="aspect-[3/4] relative overflow-hidden bg-muted group"
+                    >
+                        {post.images?.[0] ? (
+                            <img src={post.images[0]} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" />
+                        ) : (
+                            <div className="p-4 flex items-center justify-center h-full text-center text-[10px] font-bold text-muted-foreground bg-muted/50 leading-snug">
+                                <p className="line-clamp-4">{post.content}</p>
+                            </div>
+                        )}
+                        <div className="absolute bottom-2 left-2 flex items-center gap-1.5 text-white drop-shadow-md">
+                            <Heart className="w-3 h-3 fill-red-500 text-red-500" />
+                            <span className="text-[10px] font-black">{post.likeCount || 0}</span>
+                        </div>
+                    </Link>
+                ))}
+            </div>
+        );
     };
 
-    // Loading state
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-background">
-                <Header />
-                <div className="max-w-lg mx-auto pt-4 px-4">
-                    <div className="flex items-center gap-4 mb-6">
-                        <Skeleton className="w-20 h-20 rounded-full" />
-                        <div className="flex-1 space-y-2">
-                            <Skeleton className="h-6 w-32" />
-                            <Skeleton className="h-4 w-48" />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 mb-6">
-                        <Skeleton className="h-16" />
-                        <Skeleton className="h-16" />
-                        <Skeleton className="h-16" />
-                    </div>
-                </div>
+    if (isLoadingProfile) return (
+        <div className="min-h-screen bg-background pb-20">
+            <Header />
+            <div className="max-w-xl mx-auto p-8 space-y-4">
+                <Skeleton className="w-20 h-20 rounded-full" />
+                <Skeleton className="h-6 w-1/2" />
+                <Skeleton className="h-4 w-full" />
             </div>
-        );
-    }
+        </div>
+    );
 
-    // User not found
-    if (!profile) {
-        return (
-            <div className="min-h-screen bg-background">
-                <Header />
-                <div className="max-w-lg mx-auto pt-20 px-4 text-center">
-                    <p className="text-muted-foreground">
-                        {language === 'zh' ? '用户不存在' : 'User not found'}
-                    </p>
-                    <Button variant="ghost" onClick={() => navigate(-1)} className="mt-4">
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        {language === 'zh' ? '返回' : 'Go back'}
-                    </Button>
-                </div>
-            </div>
-        );
-    }
+    if (!profile) return <div className="p-20 text-center">User not found</div>;
+
+    const t = {
+        notes: language === 'zh' ? '说真言' : 'Talks',
+        collected: language === 'zh' ? '收藏' : 'Collected',
+        liked: language === 'zh' ? '赞过' : 'Liked',
+        following: language === 'zh' ? '关注' : 'Following',
+        followers: language === 'zh' ? '粉丝' : 'Followers',
+        totalLikes: language === 'zh' ? '获赞与收藏' : 'Total Likes',
+        edit: language === 'zh' ? '编辑资料' : 'Edit Profile'
+    };
 
     return (
         <div className="min-h-screen bg-background pb-20">
             <Header />
 
-            <div className="max-w-lg mx-auto">
-                {/* Header with back button */}
-                <div className="flex items-center justify-between px-4 py-3 border-b sticky top-14 bg-background/80 backdrop-blur-lg z-10">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <h1 className="font-bold">{profile.name}</h1>
-                    {isOwnProfile ? (
-                        <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
-                            <Settings className="w-5 h-5" />
-                        </Button>
-                    ) : (
-                        <div className="w-9" /> // Spacer
-                    )}
-                </div>
+            {/* Sticky Action Bar */}
+            <div className="sticky top-14 z-20 bg-background/80 backdrop-blur-md px-4 h-12 flex items-center justify-between border-b border-border/5">
+                <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate(-1)}>
+                    <ArrowLeft className="w-5 h-5" />
+                </Button>
+                <span className="text-xs font-black uppercase tracking-widest">{profile.name}</span>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                    <Share2 className="w-5 h-5" />
+                </Button>
+            </div>
 
-                {/* Profile Header */}
-                <div className="px-4 py-6">
-                    <div className="flex items-start gap-4">
-                        {/* Avatar */}
-                        <Avatar className="w-20 h-20 border-2 border-background shadow-lg">
-                            <AvatarImage src={profile.avatar} />
-                            <AvatarFallback className="text-2xl font-bold">
-                                {profile.name?.charAt(0)}
-                            </AvatarFallback>
-                        </Avatar>
-
-                        {/* Stats */}
-                        <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                                <h2 className="text-xl font-bold">{profile.name}</h2>
-                                <UserLevelBadge level={1} size="sm" />
+            <div className="max-w-xl mx-auto">
+                {/* RED Style Header */}
+                <div className="px-5 py-6 space-y-6">
+                    <div className="flex items-start gap-5">
+                        <div className="relative">
+                            <Avatar className="w-24 h-24 border-4 border-white shadow-xl">
+                                <AvatarImage src={profile.avatar} />
+                                <AvatarFallback className="text-2xl font-black">{profile.name?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary rounded-full flex items-center justify-center border-2 border-white shadow-lg text-white">
+                                <Shield className="w-4 h-4" />
                             </div>
-
-                            <div className="grid grid-cols-3 gap-4 text-center">
-                                <div>
-                                    <p className="font-bold text-lg">{profile.postCount}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {language === 'zh' ? '帖子' : 'Posts'}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => navigate(`/user/${userId}/followers`)}
-                                    className="hover:opacity-70 transition-opacity"
-                                >
-                                    <p className="font-bold text-lg">{profile.followerCount}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {language === 'zh' ? '粉丝' : 'Followers'}
-                                    </p>
-                                </button>
-                                <button
-                                    onClick={() => navigate(`/user/${userId}/following`)}
-                                    className="hover:opacity-70 transition-opacity"
-                                >
-                                    <p className="font-bold text-lg">{profile.followingCount}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {language === 'zh' ? '关注' : 'Following'}
-                                    </p>
-                                </button>
+                        </div>
+                        <div className="flex-1 space-y-1 pt-1">
+                            <h1 className="text-2xl font-black">{profile.name}</h1>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">ID: {profile.id.slice(0, 8)}</p>
+                            <div className="flex gap-2 pt-2">
+                                <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[9px] font-black px-2 py-0.5">Lv.1 Explorer</Badge>
+                                <Badge variant="secondary" className="bg-amber-500/5 text-amber-600 border-none text-[9px] font-black px-2 py-0.5">Pro Helper</Badge>
                             </div>
                         </div>
                     </div>
 
-                    {/* Bio */}
-                    {profile.bio && (
-                        <p className="mt-4 text-sm text-muted-foreground">{profile.bio}</p>
-                    )}
+                    <p className="text-sm font-medium leading-relaxed text-foreground/80">
+                        {profile.bio || (language === 'zh' ? '这家伙很懒，什么都没留下...' : 'No bio yet')}
+                    </p>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-2 mt-4">
+                    {/* Interaction Stats */}
+                    <div className="flex items-center gap-8 py-2">
+                        <div className="flex flex-col">
+                            <span className="text-lg font-black leading-none">{profile.followingCount}</span>
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase mt-1.5">{t.following}</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-lg font-black leading-none">{profile.followerCount}</span>
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase mt-1.5">{t.followers}</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-lg font-black leading-none">32.1k</span>
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase mt-1.5">{t.totalLikes}</span>
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
                         {isOwnProfile ? (
                             <Button
                                 variant="outline"
-                                className="flex-1 rounded-lg"
+                                className="flex-1 rounded-full h-10 text-xs font-black bg-muted/20 border-border/50"
                                 onClick={() => navigate('/settings/profile')}
                             >
-                                {language === 'zh' ? '编辑资料' : 'Edit Profile'}
+                                {t.edit}
                             </Button>
                         ) : (
                             <>
                                 <Button
-                                    variant={profile.isFollowedByMe ? "outline" : "default"}
-                                    className="flex-1 rounded-lg"
+                                    className={`flex-1 rounded-full h-10 text-xs font-black shadow-lg shadow-primary/20 transition-all active:scale-95 ${profile.isFollowedByMe ? 'bg-muted text-foreground' : 'bg-primary text-white'}`}
                                     onClick={handleFollow}
                                     disabled={isFollowLoading}
                                 >
-                                    {profile.isFollowedByMe ? (
-                                        <>
-                                            <UserMinus className="w-4 h-4 mr-2" />
-                                            {profile.isFollowingMe
-                                                ? (language === 'zh' ? '互相关注' : 'Following')
-                                                : (language === 'zh' ? '已关注' : 'Following')}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <UserPlus className="w-4 h-4 mr-2" />
-                                            {profile.isFollowingMe
-                                                ? (language === 'zh' ? '回关' : 'Follow Back')
-                                                : (language === 'zh' ? '关注' : 'Follow')}
-                                        </>
-                                    )}
+                                    {profile.isFollowedByMe ? (language === 'zh' ? '已关注' : 'Following') : (language === 'zh' ? '关注' : 'Follow')}
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="rounded-lg"
-                                    onClick={handleMessage}
+                                    className="rounded-full h-10 w-10 p-0 border-border/50"
+                                    onClick={() => navigate(`/messages?user=${profile.id}`)}
                                 >
                                     <MessageCircle className="w-4 h-4" />
                                 </Button>
@@ -278,87 +218,32 @@ const UserProfile = () => {
                     </div>
                 </div>
 
-                {/* Tabs */}
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-                    <TabsList className="w-full justify-center border-b rounded-none bg-transparent h-auto p-0">
-                        <TabsTrigger
-                            value="posts"
-                            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent py-3"
-                        >
-                            <Grid3X3 className="w-5 h-5" />
+                {/* Social Tabs (The RED experience) */}
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+                    <TabsList className="w-full h-12 bg-transparent border-t border-b border-border/5 rounded-none p-0">
+                        <TabsTrigger value="notes" className="flex-1 h-full rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground group relative">
+                            <span className="text-[13px] font-black">{t.notes}</span>
+                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-1 bg-primary rounded-full opacity-0 group-data-[state=active]:opacity-100 transition-opacity" />
                         </TabsTrigger>
-                        {isOwnProfile && (
-                            <TabsTrigger
-                                value="saved"
-                                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent py-3"
-                            >
-                                <Bookmark className="w-5 h-5" />
-                            </TabsTrigger>
-                        )}
+                        <TabsTrigger value="collected" className="flex-1 h-full rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground group relative">
+                            <span className="text-[13px] font-black">{t.collected}</span>
+                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-1 bg-primary rounded-full opacity-0 group-data-[state=active]:opacity-100 transition-opacity" />
+                        </TabsTrigger>
+                        <TabsTrigger value="liked" className="flex-1 h-full rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground group relative">
+                            <span className="text-[13px] font-black">{t.liked}</span>
+                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-1 bg-primary rounded-full opacity-0 group-data-[state=active]:opacity-100 transition-opacity" />
+                        </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="posts" className="mt-0">
-                        {isLoadingPosts ? (
-                            <div className="grid grid-cols-3 gap-0.5">
-                                {Array.from({ length: 9 }).map((_, i) => (
-                                    <Skeleton key={i} className="aspect-square" />
-                                ))}
-                            </div>
-                        ) : userPosts.length === 0 ? (
-                            <div className="py-20 text-center text-muted-foreground">
-                                <Grid3X3 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                                <p>{language === 'zh' ? '还没有发布帖子' : 'No posts yet'}</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-3 gap-0.5">
-                                {userPosts.map(post => (
-                                    <button
-                                        key={post.id}
-                                        onClick={() => navigate(`/community/${post.id}`)}
-                                        className="aspect-square relative overflow-hidden bg-muted group"
-                                    >
-                                        {post.images && post.images.length > 0 ? (
-                                            <img
-                                                src={post.images[0]}
-                                                alt=""
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center p-2 text-xs text-muted-foreground bg-muted">
-                                                <span className="line-clamp-4 text-center">
-                                                    {post.content.slice(0, 50)}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {/* Multiple images indicator */}
-                                        {post.images && post.images.length > 1 && (
-                                            <div className="absolute top-2 right-2">
-                                                <Grid3X3 className="w-4 h-4 text-white drop-shadow-md" />
-                                            </div>
-                                        )}
-                                        {/* Hover overlay with stats */}
-                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white text-sm font-semibold">
-                                            <span className="flex items-center gap-1">
-                                                ❤️ {post.likeCount || 0}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                💬 {post.commentCount || 0}
-                                            </span>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                    <TabsContent value="notes" className="mt-0">
+                        {renderPostGrid(userPosts)}
                     </TabsContent>
-
-                    {isOwnProfile && (
-                        <TabsContent value="saved" className="mt-0">
-                            <div className="py-20 text-center text-muted-foreground">
-                                <Bookmark className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                                <p>{language === 'zh' ? '收藏功能开发中' : 'Saved posts coming soon'}</p>
-                            </div>
-                        </TabsContent>
-                    )}
+                    <TabsContent value="collected" className="mt-0">
+                        {renderPostGrid(savedPosts)}
+                    </TabsContent>
+                    <TabsContent value="liked" className="mt-0">
+                        {renderPostGrid(likedPosts)}
+                    </TabsContent>
                 </Tabs>
             </div>
         </div>

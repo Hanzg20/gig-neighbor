@@ -8,7 +8,15 @@ export async function handleScanToBuy(
     supabase: SupabaseClient,
     metadata: any
 ) {
-    const { listingItemId: rawItemId, phoneNumber, buyerId } = metadata;
+    const {
+        listingItemId: rawItemId,
+        phoneNumber,
+        buyerId,
+        couponId,
+        couponCode,
+        couponDiscount,
+        originalPrice
+    } = metadata;
     const listingItemId = rawItemId?.trim();
     const DEMO_BUYER_ID = '99999999-9999-9999-9999-999999999999';
     const safeBuyerId = buyerId === DEMO_BUYER_ID ? null : buyerId;
@@ -41,6 +49,19 @@ export async function handleScanToBuy(
     if (!providerId) throw new Error('Provider ID not found');
 
     // 2. Insert Order (COMPLETED)
+    const orderSnapshot: any = {
+        session_id: session.id,
+        phone_number: phoneNumber,
+    };
+
+    // Add coupon info to snapshot if a coupon was used
+    if (couponId) {
+        orderSnapshot.coupon_id = couponId;
+        orderSnapshot.coupon_code = couponCode;
+        orderSnapshot.coupon_discount = couponDiscount;
+        orderSnapshot.original_price = originalPrice;
+    }
+
     const { error: insertError } = await supabase
         .from('orders')
         .insert({
@@ -52,14 +73,46 @@ export async function handleScanToBuy(
             status: 'COMPLETED',
             payment_status: 'PAID',
             payment_intent_id: session.payment_intent as string,
-            amount_base: session.amount_total || 0,
+            amount_base: originalPrice || session.amount_total || 0, // Use original price if available
             amount_total: session.amount_total || 0,
             currency: (session.currency || 'cad').toUpperCase(),
             actual_transaction_model: 'SCAN_TO_BUY',
-            snapshot: { session_id: session.id, phone_number: phoneNumber },
+            snapshot: orderSnapshot,
         });
 
     if (insertError) throw insertError;
+
+    // 2.5. Record Coupon Redemption if a coupon was used
+    if (couponId) {
+        console.log(`[🎟️ ScanToBuy] Recording coupon redemption for coupon ${couponCode}`);
+
+        const { error: redemptionError } = await supabase
+            .from('coupon_redemptions')
+            .insert({
+                coupon_id: couponId,
+                order_id: generatedOrderId,
+                user_id: safeBuyerId,
+                user_phone: phoneNumber,
+                original_amount: (originalPrice || session.amount_total || 0) / 100, // Convert from cents to dollars
+                discount_applied: (couponDiscount || 0) / 100, // Convert from cents to dollars
+                final_amount: (session.amount_total || 0) / 100, // Convert from cents to dollars
+                redemption_type: 'online',
+                redeemed_at: new Date().toISOString()
+            });
+
+        if (redemptionError) {
+            // Log the error but don't throw - we don't want to fail the order if coupon tracking fails
+            console.error('[⚠️ ScanToBuy] Failed to record coupon redemption:', redemptionError);
+            // Still record this in failed_fulfillments for manual review
+            await supabase.from('failed_fulfillments').insert({
+                order_id: generatedOrderId,
+                error_message: `Coupon redemption tracking failed: ${redemptionError.message}`,
+                retry_count: 0
+            });
+        } else {
+            console.log(`[✅ ScanToBuy] Coupon redemption recorded for ${couponCode}`);
+        }
+    }
 
     // 3. Allocate Inventory (WITH ERROR HANDLING)
     // If this fails, we DON'T throw - customer already paid, we'll handle manually

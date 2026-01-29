@@ -28,6 +28,8 @@ export class SupabaseProviderRepository implements IProviderRepository {
                 address: row.location_address,
                 radiusKm: row.service_radius_km || 5,
             } : { lat: 0, lng: 0, address: '', radiusKm: 5 },
+            isActive: row.is_active || false,
+            metadata: row.metadata || {},
             createdAt: row.created_at,
             updatedAt: row.updated_at,
             credentials: row.credentials_json ? row.credentials_json.map((c: any) => ({
@@ -58,7 +60,9 @@ export class SupabaseProviderRepository implements IProviderRepository {
                 total_income: profile.stats.totalIncome
             } : undefined,
             location_address: profile.location?.address,
-            service_radius_km: profile.location?.radiusKm
+            service_radius_km: profile.location?.radiusKm,
+            is_active: profile.isActive,
+            metadata: profile.metadata
         };
     }
 

@@ -48,9 +48,9 @@ export function PopularInCommunity({ listings }: PopularInCommunityProps) {
   };
 
   return (
-    <section className="py-6">
-      <div className="container">
-        <div className="flex items-center justify-between mb-4">
+    <section className="py-2 sm:py-6">
+      <div className="">
+        <div className="flex items-center justify-between mb-3 px-1">
           <div>
             <h2 className="text-2xl md:text-3xl font-extrabold text-foreground">
               {t.title}

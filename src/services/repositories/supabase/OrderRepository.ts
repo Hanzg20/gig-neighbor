@@ -207,4 +207,38 @@ export class SupabaseOrderRepository implements IOrderRepository {
             updatedAt: dbOrder.updated_at
         };
     }
+
+    subscribeToUserOrders(userId: string, callback: (order: Order) => void): () => void {
+        const channel = supabase
+            .channel(`user-orders:${userId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'orders',
+                    filter: `buyer_id=eq.${userId}`
+                },
+                (payload) => {
+                    callback(this.mapToDomain(payload.new));
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'orders',
+                    filter: `provider_id=eq.${userId}`
+                },
+                (payload) => {
+                    callback(this.mapToDomain(payload.new));
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }
 }

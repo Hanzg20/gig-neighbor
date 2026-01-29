@@ -1,98 +1,84 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, MapPin, MessageSquareQuote, MessageCircle, User } from "lucide-react";
-import { useAuthStore } from "@/stores/authStore";
-import { useCartStore } from "@/stores/cartStore";
+import { Home, MessageSquare, User, PlusSquare, Store, MessageSquareQuote } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useConfigStore } from "@/stores/configStore";
-import { motion } from "framer-motion";
 
-const MobileBottomNav = () => {
+export default function MobileBottomNav() {
     const navigate = useNavigate();
-    const language = useConfigStore(state => state.language);
     const location = useLocation();
-    const { currentUser } = useAuthStore();
-    const { getTotalItems } = useCartStore();
+    const language = useConfigStore(state => state.language);
 
-    const cartItemCount = currentUser ? getTotalItems() : 0;
-
-    const navItems = [
-        { icon: Home, label: language === 'zh' ? '首页' : 'Home', path: '/', badge: null },
-        { icon: MapPin, label: language === 'zh' ? '地图' : 'Map', path: '/discover', badge: null },
-        { icon: MessageSquareQuote, label: language === 'zh' ? '真言' : 'JustTalk', path: '/community', badge: null },
-        { icon: MessageCircle, label: language === 'zh' ? '消息' : 'Chat', path: '/chat', badge: 0 },
-        { icon: User, label: language === 'zh' ? '我' : 'Me', path: '/profile', badge: null },
-    ];
-
-    const isActive = (path: string) => {
-        if (path === '/') return location.pathname === '/';
-        return location.pathname.startsWith(path);
-    };
-
-    // Hide bottom nav for scan purchases, service details, checkout and payment success page
-    const shouldHideNav =
-        location.pathname.startsWith('/scan/') ||
-        location.pathname.startsWith('/service/') ||
-        location.pathname.startsWith('/checkout') ||
-        location.pathname === '/payment-success';
-
-    if (shouldHideNav) {
+    // Hide on specific pages
+    if (
+        location.pathname.startsWith("/scan") ||
+        location.pathname.startsWith("/service/") ||
+        location.pathname === "/checkout" ||
+        location.pathname === "/payment-success" ||
+        location.pathname.startsWith("/chat/")
+    ) {
         return null;
     }
 
+    const navItems = [
+        {
+            icon: Home,
+            label: language === 'zh' ? '首页' : 'Home',
+            path: "/",
+        },
+        {
+            icon: MessageSquareQuote, // Changed from Store to MessageSquareQuote for JustTalk
+            label: language === 'zh' ? '真言' : 'JustTalk',
+            path: "/community",
+        },
+        {
+            icon: PlusSquare,
+            label: language === 'zh' ? '发布' : 'Post',
+            path: "/publish", // Changed to central publish page
+        },
+        {
+            icon: MessageSquare,
+            label: language === 'zh' ? '消息' : 'Messages',
+            path: "/chat", // Confirmed route
+        },
+        {
+            icon: User,
+            label: language === 'zh' ? '我' : 'Me',
+            path: "/profile", // Confirmed route
+        },
+    ];
+
+
     return (
-        <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-sticky-bar safe-area-bottom"
-        >
-            <div className="grid grid-cols-5 h-16">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
+            <div className="flex justify-around items-center h-14">
                 {navItems.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.path);
+                    const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
 
                     return (
-                        <motion.button
+                        <button
                             key={item.path}
                             onClick={() => navigate(item.path)}
-                            whileTap={{ scale: 0.9 }}
-                            className={`relative flex flex-col items-center justify-center gap-1 transition-colors ${active
-                                ? 'text-primary'
-                                : 'text-muted-foreground hover:text-foreground'
-                                }`}
+                            className="flex-1 flex flex-col items-center justify-center h-full space-y-0.5 active:bg-gray-50 transition-colors"
                         >
-                            <motion.div
-                                animate={{ scale: active ? 1.1 : 1 }}
-                                transition={{ type: "spring", stiffness: 300 }}
-                            >
-                                <Icon className="w-6 h-6" />
-                                {item.badge !== null && item.badge > 0 && (
-                                    <motion.span
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-accent-foreground text-[10px] font-bold rounded-full flex items-center justify-center"
-                                    >
-                                        {item.badge > 9 ? '9+' : item.badge}
-                                    </motion.span>
+                            <item.icon
+                                strokeWidth={isActive ? 2.5 : 2}
+                                className={cn(
+                                    "w-6 h-6 transition-colors duration-200",
+                                    isActive ? "text-primary" : "text-gray-400"
                                 )}
-                            </motion.div>
-
-                            <span className={`text-[10px] font-medium ${active ? 'font-bold' : ''}`}>
+                            />
+                            <span
+                                className={cn(
+                                    "text-[10px] font-medium transition-colors duration-200",
+                                    isActive ? "text-primary" : "text-gray-400"
+                                )}
+                            >
                                 {item.label}
                             </span>
-
-                            {active && (
-                                <motion.div
-                                    layoutId="activeTab"
-                                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-primary rounded-t-full"
-                                    initial={false}
-                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                />
-                            )}
-                        </motion.button>
+                        </button>
                     );
                 })}
             </div>
-        </motion.div>
+        </div>
     );
-};
-
-export default MobileBottomNav;
+}

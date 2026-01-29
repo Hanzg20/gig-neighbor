@@ -20,6 +20,10 @@ export interface CouponData {
     providerLogo?: string;
     // 用于生成二维码的商品ID (可选)
     listingMasterId?: string;
+    // 自定义背景图片
+    backgroundImage?: string;
+    // 文字颜色 (浅色背景用深色文字)
+    textColor?: 'light' | 'dark';
 }
 
 interface CouponCardProps {
@@ -126,13 +130,28 @@ export function CouponCard({
         }
     };
 
+    // 文字颜色
+    const isDarkText = coupon.textColor === 'dark';
+    const textColorClass = isDarkText ? 'text-gray-800' : 'text-white';
+    const subTextColorClass = isDarkText ? 'text-gray-600' : 'text-white/80';
+
     return (
         <div className={cn("space-y-4", className)}>
             {/* 优惠券卡片 */}
             <div
                 ref={cardRef}
-                className="bg-gradient-to-br from-rose-500 via-red-500 to-orange-500 rounded-2xl overflow-hidden shadow-xl"
-                style={{ width: config.width }}
+                className={cn(
+                    "rounded-2xl overflow-hidden shadow-xl relative",
+                    !coupon.backgroundImage && "bg-gradient-to-br from-rose-500 via-red-500 to-orange-500"
+                )}
+                style={{
+                    width: config.width,
+                    ...(coupon.backgroundImage && {
+                        backgroundImage: `url(${coupon.backgroundImage})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center'
+                    })
+                }}
             >
                 {/* 顶部锯齿边缘 */}
                 <div className="h-4 flex justify-around bg-transparent">
@@ -144,17 +163,28 @@ export function CouponCard({
                     ))}
                 </div>
 
-                <div className={cn("text-white text-center", config.padding)}>
+                {/* 半透明遮罩 (自定义背景时) */}
+                {coupon.backgroundImage && (
+                    <div className={cn(
+                        "absolute inset-0",
+                        isDarkText ? "bg-white/30" : "bg-black/30"
+                    )} />
+                )}
+
+                <div className={cn("text-center relative z-10", textColorClass, config.padding)}>
                     {/* 商家信息 */}
                     <div className="flex items-center justify-center gap-2 mb-3">
                         {coupon.providerLogo && (
                             <img
                                 src={coupon.providerLogo}
                                 alt={coupon.providerName}
-                                className="w-8 h-8 rounded-full border-2 border-white/30 object-cover"
+                                className={cn(
+                                    "w-8 h-8 rounded-full border-2 object-cover",
+                                    isDarkText ? "border-gray-300" : "border-white/30"
+                                )}
                             />
                         )}
-                        <span className="text-sm opacity-90 font-medium">
+                        <span className={cn("text-sm font-medium", subTextColorClass)}>
                             {coupon.providerName}
                         </span>
                     </div>
@@ -166,10 +196,10 @@ export function CouponCard({
                     </div>
 
                     {/* 优惠券名称 */}
-                    <div className="text-lg opacity-95 mb-1">{coupon.name}</div>
+                    <div className={cn("text-lg mb-1", subTextColorClass)}>{coupon.name}</div>
 
                     {/* 使用条件 */}
-                    <div className="text-sm opacity-80 mb-4">
+                    <div className={cn("text-sm mb-4", subTextColorClass)}>
                         {coupon.minPurchase > 0
                             ? `${t.minPurchase} $${coupon.minPurchase} ${t.canUse}`
                             : t.noLimit
@@ -190,14 +220,17 @@ export function CouponCard({
                     </div>
 
                     {/* 券码 */}
-                    <div className="bg-white/20 backdrop-blur-sm rounded-lg py-2 px-4 inline-block mb-3">
+                    <div className={cn(
+                        "backdrop-blur-sm rounded-lg py-2 px-4 inline-block mb-3",
+                        isDarkText ? "bg-gray-800/20" : "bg-white/20"
+                    )}>
                         <span className="font-mono font-bold tracking-widest text-lg">
                             {coupon.code}
                         </span>
                     </div>
 
                     {/* 有效期 */}
-                    <div className="text-xs opacity-70">
+                    <div className={cn("text-xs", subTextColorClass)}>
                         {t.validUntil} {formatDate(coupon.validUntil)}
                     </div>
                 </div>

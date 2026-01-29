@@ -8,7 +8,7 @@ import {
     ConsensusVoteType,
     Consensus
 } from '@/types/community';
-import { communityPostRepository } from '@/services/repositories/supabase/CommunityPostRepository';
+import { repositoryFactory } from '@/services/repositories/factory';
 import { useAuthStore } from './authStore';
 
 interface CommunityPostState {
@@ -54,7 +54,16 @@ interface CommunityPostState {
     savePost: (postId: string, userId: string) => Promise<void>;
     unsavePost: (postId: string, userId: string) => Promise<void>;
 
+    trendingTags: { tag: string; count: number; trending?: boolean }[];
+    fetchTrendingTags: (limit?: number) => Promise<void>;
+
     reset: () => void;
+
+    // User Profile specific
+    userPosts: CommunityPost[];
+    likedPosts: CommunityPost[];
+    savedPosts: CommunityPost[];
+    fetchUserActivity: (userId: string) => Promise<void>;
 }
 
 export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
@@ -67,16 +76,53 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
     currentPost: null,
     currentPostComments: [],
     isLoadingDetail: false,
+    trendingTags: [],
+    userPosts: [],
+    likedPosts: [],
+    savedPosts: [],
+
+    fetchUserActivity: async (userId: string) => {
+        set({ isLoading: true });
+        try {
+            const repo = repositoryFactory.getCommunityPostRepository();
+            const [posts, liked, saved] = await Promise.all([
+                repo.getByAuthor(userId),
+                repo.getLikedPosts(userId),
+                repo.getSavedPosts(userId)
+            ]);
+            set({
+                userPosts: posts,
+                likedPosts: liked,
+                savedPosts: saved,
+                isLoading: false
+            });
+        } catch (error) {
+            console.error('Failed to fetch user activity:', error);
+            set({ isLoading: false });
+        }
+    },
+
+    fetchTrendingTags: async (limit = 12) => {
+        try {
+            const repo = repositoryFactory.getCommunityPostRepository();
+            const tags = await repo.getTrendingTags(limit);
+            set({ trendingTags: tags });
+        } catch (error) {
+            console.error('Failed to fetch trending tags:', error);
+        }
+    },
 
     fetchFeed: async (options = {}) => {
         const { refresh = true } = options;
         set({ isLoading: true, error: null });
         try {
+            const repo = repositoryFactory.getCommunityPostRepository();
             const { pageSize } = get();
-            const posts = await communityPostRepository.getFeed({
+            const posts = await repo.getFeed({
                 nodeId: options.nodeId,
                 postType: options.postType,
                 query: options.query,
+                scope: options.scope,
                 limit: pageSize,
                 offset: 0
             });
@@ -100,13 +146,15 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
 
         set({ isLoading: true });
         try {
+            const repo = repositoryFactory.getCommunityPostRepository();
             const nextPage = page + 1;
             const offset = page * pageSize;
 
-            const newPosts = await communityPostRepository.getFeed({
+            const newPosts = await repo.getFeed({
                 nodeId: options.nodeId,
                 postType: options.postType,
                 query: options.query,
+                scope: options.scope,
                 limit: pageSize,
                 offset
             });
@@ -126,25 +174,26 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
     fetchPostDetail: async (id: string) => {
         set({ isLoadingDetail: true });
         try {
+            const repo = repositoryFactory.getCommunityPostRepository();
             const currentUser = useAuthStore.getState().currentUser;
             const userId = currentUser?.id;
 
             const [post, comments] = await Promise.all([
-                communityPostRepository.getById(id),
-                communityPostRepository.getComments(id)
+                repo.getById(id),
+                repo.getComments(id)
             ]);
 
             if (post) {
                 // Increment view count (fire and forget)
-                communityPostRepository.incrementViewCount(id);
+                repo.incrementViewCount(id);
 
                 // Fetch user-specific states if logged in
                 if (userId) {
                     const [isLiked, isSaved, myVote, likedCommentIds] = await Promise.all([
-                        communityPostRepository.isLikedByUser(post.id, userId),
-                        communityPostRepository.isSavedByUser(post.id, userId),
-                        post.isFact ? communityPostRepository.getUserVote(post.id, userId) : Promise.resolve(null),
-                        communityPostRepository.getUserLikedCommentIds(userId, comments.map(c => c.id))
+                        repo.isLikedByUser(post.id, userId),
+                        repo.isSavedByUser(post.id, userId),
+                        post.isFact ? repo.getUserVote(post.id, userId) : Promise.resolve(null),
+                        repo.getUserLikedCommentIds(userId, comments.map(c => c.id))
                     ]);
 
                     post.isLikedByMe = isLiked;
@@ -170,13 +219,15 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
     },
 
     createPost: async (authorId: string, input: CreateCommunityPostInput) => {
-        const newPost = await communityPostRepository.create(authorId, input);
+        const repo = repositoryFactory.getCommunityPostRepository();
+        const newPost = await repo.create(authorId, input);
         set(state => ({ posts: [newPost, ...state.posts] }));
         return newPost;
     },
 
     updatePost: async (id: string, input: Partial<CreateCommunityPostInput>) => {
-        const updated = await communityPostRepository.update(id, input);
+        const repo = repositoryFactory.getCommunityPostRepository();
+        const updated = await repo.update(id, input);
         set(state => ({
             posts: state.posts.map(p => p.id === id ? updated : p),
             currentPost: state.currentPost?.id === id ? updated : state.currentPost
@@ -184,7 +235,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
     },
 
     deletePost: async (id: string) => {
-        await communityPostRepository.delete(id);
+        const repo = repositoryFactory.getCommunityPostRepository();
+        await repo.delete(id);
         set(state => ({
             posts: state.posts.filter(p => p.id !== id),
             currentPost: state.currentPost?.id === id ? null : state.currentPost
@@ -192,7 +244,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
     },
 
     markAsResolved: async (id: string) => {
-        await communityPostRepository.update(id, { isResolved: true, status: 'RESOLVED' });
+        const repo = repositoryFactory.getCommunityPostRepository();
+        await repo.update(id, { isResolved: true, status: 'RESOLVED' });
         set(state => ({
             posts: state.posts.map(p => p.id === id ? { ...p, isResolved: true, status: 'RESOLVED' as const } : p),
             currentPost: state.currentPost?.id === id
@@ -202,7 +255,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
     },
 
     likePost: async (postId: string, userId: string) => {
-        await communityPostRepository.likePost(postId, userId);
+        const repo = repositoryFactory.getCommunityPostRepository();
+        await repo.likePost(postId, userId);
         set(state => ({
             posts: state.posts.map(p =>
                 p.id === postId
@@ -216,7 +270,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
     },
 
     unlikePost: async (postId: string, userId: string) => {
-        await communityPostRepository.unlikePost(postId, userId);
+        const repo = repositoryFactory.getCommunityPostRepository();
+        await repo.unlikePost(postId, userId);
         set(state => ({
             posts: state.posts.map(p =>
                 p.id === postId
@@ -230,7 +285,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
     },
 
     addComment: async (authorId: string, input: CreateCommentInput) => {
-        const newComment = await communityPostRepository.createComment(authorId, input);
+        const repo = repositoryFactory.getCommunityPostRepository();
+        const newComment = await repo.createComment(authorId, input);
         set(state => ({
             currentPostComments: [...state.currentPostComments, newComment],
             // Update comment count in post
@@ -250,7 +306,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
         const comment = get().currentPostComments.find(c => c.id === commentId);
         if (!comment) return;
 
-        await communityPostRepository.deleteComment(commentId);
+        const repo = repositoryFactory.getCommunityPostRepository();
+        await repo.deleteComment(commentId);
         set(state => ({
             currentPostComments: state.currentPostComments.filter(c => c.id !== commentId),
             // Update comment count in post
@@ -276,7 +333,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
         }));
 
         try {
-            await communityPostRepository.likeComment(commentId, userId);
+            const repo = repositoryFactory.getCommunityPostRepository();
+            await repo.likeComment(commentId, userId);
         } catch (error) {
             // Rollback on error
             set(state => ({
@@ -301,7 +359,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
         }));
 
         try {
-            await communityPostRepository.unlikeComment(commentId, userId);
+            const repo = repositoryFactory.getCommunityPostRepository();
+            await repo.unlikeComment(commentId, userId);
         } catch (error) {
             // Rollback on error
             set(state => ({
@@ -316,7 +375,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
     },
 
     convertToService: async (postId: string, listingId: string) => {
-        await communityPostRepository.convertToListing(postId, listingId);
+        const repo = repositoryFactory.getCommunityPostRepository();
+        await repo.convertToListing(postId, listingId);
         set(state => ({
             posts: state.posts.map(p =>
                 p.id === postId
@@ -377,7 +437,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
         }));
 
         try {
-            await communityPostRepository.voteOnFact(postId, userId, voteType);
+            const repo = repositoryFactory.getCommunityPostRepository();
+            await repo.voteOnFact(postId, userId, voteType);
         } catch (error) {
             // 回滚
             set(state => ({
@@ -430,7 +491,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
         }));
 
         try {
-            await communityPostRepository.removeVote(postId, userId);
+            const repo = repositoryFactory.getCommunityPostRepository();
+            await repo.removeVote(postId, userId);
         } catch (error) {
             // 回滚
             set(state => ({
@@ -462,7 +524,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
         }));
 
         try {
-            await communityPostRepository.savePost(postId, userId);
+            const repo = repositoryFactory.getCommunityPostRepository();
+            await repo.savePost(postId, userId);
         } catch (error) {
             // 回滚
             set(state => ({
@@ -493,7 +556,8 @@ export const useCommunityPostStore = create<CommunityPostState>((set, get) => ({
         }));
 
         try {
-            await communityPostRepository.unsavePost(postId, userId);
+            const repo = repositoryFactory.getCommunityPostRepository();
+            await repo.unsavePost(postId, userId);
         } catch (error) {
             // 回滚
             set(state => ({

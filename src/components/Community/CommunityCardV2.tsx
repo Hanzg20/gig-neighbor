@@ -132,17 +132,16 @@ export const CommunityCardV2 = ({ post, onDoubleTap }: CommunityCardV2Props) => 
     >
       <div
         onClick={() => {
-          // Only navigate if no text is selected (to allow copying text)
           if (!window.getSelection()?.toString()) {
             navigate(`/community/${post.id}`);
           }
         }}
-        className={`block cursor-pointer rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 ${post.isFact
-          ? 'bg-gradient-to-b from-amber-50 to-white border-2 border-amber-200/50'
+        className={`block cursor-pointer rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-border/40 ${post.isFact
+          ? 'bg-gradient-to-b from-amber-50/30 to-white'
           : 'bg-white'
           }`}
       >
-        {/* 图片/视频媒体区域 - Image carousel takes priority; video fallback used if no images */}
+        {/* 图片区域 - Compact 4:5 or 1:1 Aspect Ratio Focus */}
         <div className="relative w-full overflow-hidden bg-muted" onDoubleClick={handleDoubleTap}>
           {post.images.length > 0 ? (
             <ImageCarousel images={post.images} onImageClick={handleImageClick} showArrows={false} />
@@ -150,31 +149,34 @@ export const CommunityCardV2 = ({ post, onDoubleTap }: CommunityCardV2Props) => 
             <MediaEmbed content={post.mediaUrl || ""} isCover={true} />
           )}
 
-          {/* 类型标签 (左上角) */}
-          <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-            <Badge className={`${typeConfig.bgClass} text-white border-none shadow-md text-xs font-bold px-2.5 py-1`}>
-              {typeConfig.label}
+          {/* Badge Overlays - Top left, minimal */}
+          <div className="absolute top-2 left-2 z-20 flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+            <Badge className={`${typeConfig.bgClass} text-white border-none shadow-sm text-[9px] font-bold px-1.5 py-0.5 rounded-md`}>
+              {typeConfig.label.split(' ')[1] || typeConfig.label}
             </Badge>
-            {/* 真言标识 */}
             {post.isFact && (
-              <Badge className="bg-amber-500/90 text-white border-none shadow-md text-xs font-bold px-2.5 py-1 flex items-center gap-1">
-                <Shield className="w-3 h-3" />
+              <Badge className="bg-amber-500/90 text-white border-none shadow-sm text-[9px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                <Shield className="w-2.5 h-2.5" />
                 {language === 'zh' ? '真言' : 'Fact'}
               </Badge>
             )}
           </div>
 
-          {/* 价格标签 (左下角) */}
-          {post.priceHint && (
-            <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1.5 rounded-xl text-sm font-bold flex items-center gap-1 z-20" onClick={(e) => e.stopPropagation()}>
-              <span className="text-base">${(post.priceHint / 100).toFixed(0)}</span>
-              {post.priceNegotiable && (
-                <span className="text-xs opacity-80">{language === 'zh' ? '可议' : 'OBO'}</span>
-              )}
+          {/* Image Count Indicator - Top right */}
+          {hasMultipleImages && (
+            <div className="absolute top-2 right-2 z-20 bg-black/30 backdrop-blur-md text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
+              {post.images.length}
             </div>
           )}
 
-          {/* 点赞爆炸动画 */}
+          {/* Price Hint Overlay - Bottom left */}
+          {post.priceHint && (
+            <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white px-2 py-0.5 rounded-lg text-xs font-black z-20">
+              ${(post.priceHint / 100).toFixed(0)}
+            </div>
+          )}
+
+          {/* Like Explosion Animation */}
           {showLikeExplosion && (
             <motion.div
               className="absolute inset-0 flex items-center justify-center pointer-events-none z-30"
@@ -185,176 +187,70 @@ export const CommunityCardV2 = ({ post, onDoubleTap }: CommunityCardV2Props) => 
               }}
               transition={{ duration: 0.6 }}
             >
-              <Heart className="w-24 h-24 fill-red-500 text-red-500 drop-shadow-2xl" />
+              <Heart className="w-16 h-16 fill-red-500 text-red-500 drop-shadow-2xl" />
             </motion.div>
           )}
         </div>
 
-        {/* 内容区域 */}
-        <div className="p-4 space-y-2">
-          {/* 标题 (2行截断) */}
+        {/* 内容区域 - Compact Padding */}
+        <div className="p-2.5 space-y-1.5">
+          {/* Title - Bold, compact */}
           {post.title && (
-            <h3 className="font-semibold text-base leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+            <h3 className="font-bold text-sm leading-[1.3] line-clamp-2 text-foreground break-words">
               {post.title}
             </h3>
           )}
 
-          <HashtagText
-            text={post.content}
-            className="text-sm text-muted-foreground leading-snug line-clamp-2"
-          />
-
-          {/* 真言信息 (仅真言帖显示) */}
-          {post.isFact && post.factData && (
-            <div className="flex flex-wrap items-center gap-2 text-xs" onClick={(e) => e.stopPropagation()}>
-              {/* 事件类型 */}
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
-                {FACT_TYPE_CONFIG[post.factData.factType]?.icon}
-                {language === 'zh'
-                  ? FACT_TYPE_CONFIG[post.factData.factType]?.zh
-                  : FACT_TYPE_CONFIG[post.factData.factType]?.en}
-              </span>
-              {/* 时间 */}
-              <span className="inline-flex items-center gap-1 text-muted-foreground">
-                <Calendar className="w-3 h-3" />
-                {post.factData.occurredAt}
-              </span>
-              {/* 地点 */}
-              <span className="inline-flex items-center gap-1 text-muted-foreground truncate max-w-[120px]">
-                <MapPin className="w-3 h-3 shrink-0" />
-                {post.factData.location}
-              </span>
-            </div>
+          {/* Snippet - Optional if title exists, or just show snippet if no title */}
+          {!post.title && (
+            <p className="text-xs text-muted-foreground leading-snug line-clamp-2">
+              {post.content}
+            </p>
           )}
 
-          {/* 共识条 (仅真言帖显示) */}
+          {/* Minimal Consensus Strip (if Fact) */}
           {post.isFact && post.consensus && (
-            <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
-              {/* 共识进度条 */}
-              <div className="flex h-1.5 rounded-full overflow-hidden bg-gray-100">
-                {post.consensus.totalVotes > 0 && (
-                  <>
-                    <div
-                      className="bg-green-500 transition-all"
-                      style={{ width: `${(post.consensus.agree / post.consensus.totalVotes) * 100}%` }}
-                    />
-                    <div
-                      className="bg-blue-400 transition-all"
-                      style={{ width: `${(post.consensus.partial / post.consensus.totalVotes) * 100}%` }}
-                    />
-                    <div
-                      className="bg-orange-500 transition-all"
-                      style={{ width: `${(post.consensus.disagree / post.consensus.totalVotes) * 100}%` }}
-                    />
-                    <div
-                      className="bg-gray-300 transition-all"
-                      style={{ width: `${(post.consensus.uncertain / post.consensus.totalVotes) * 100}%` }}
-                    />
-                  </>
-                )}
-              </div>
-              {/* 共识状态 */}
-              <div className="flex items-center justify-between text-xs">
-                <span className={`font-medium ${getConsensusLevelConfig(post.consensus.level).color}`}>
-                  {getConsensusLevelConfig(post.consensus.level).icon}{' '}
-                  {language === 'zh'
-                    ? CONSENSUS_LEVEL_HINTS[post.consensus.level]?.zh
-                    : CONSENSUS_LEVEL_HINTS[post.consensus.level]?.en}
-                </span>
-                <span className="text-muted-foreground">
-                  {post.consensus.totalVotes} {language === 'zh' ? '人验证' : 'verified'}
-                </span>
-              </div>
+            <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden flex">
+              <div className="bg-green-500" style={{ width: `${(post.consensus.agree / (post.consensus.totalVotes || 1)) * 100}%` }} />
+              <div className="bg-blue-400" style={{ width: `${(post.consensus.partial / (post.consensus.totalVotes || 1)) * 100}%` }} />
+              <div className="bg-orange-400" style={{ width: `${(post.consensus.disagree / (post.consensus.totalVotes || 1)) * 100}%` }} />
             </div>
           )}
 
-          {/* 标签云 (如果有) */}
-          {post.tags && post.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {post.tags.slice(0, 3).map((tag, index) => (
-                <Link
-                  key={index}
-                  to={`/community?tag=${encodeURIComponent(tag)}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-xs text-primary/70 hover:text-primary cursor-pointer transition-colors hover:underline relative z-20"
-                >
-                  #{tag}
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {/* 底部栏 */}
-          <div className="flex items-center justify-between pt-2">
-            {/* 作者信息 */}
-            <div className="flex items-center gap-2 min-w-0 flex-1" onClick={(e) => e.stopPropagation()}>
-              <Avatar className={`w-6 h-6 border ${post.isFact ? 'border-amber-300' : 'border-border'}`}>
+          {/* Bottom Bar: RED Style Author & Likes */}
+          <div className="flex items-center justify-between pt-1">
+            {/* Author */}
+            <div className="flex items-center gap-1.5 min-w-0" onClick={(e) => e.stopPropagation()}>
+              <Avatar className="w-5 h-5">
                 <AvatarImage src={post.author?.avatar} loading="lazy" />
-                <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                  {post.author?.name?.[0] || 'U'}
+                <AvatarFallback className="text-[8px] bg-primary/10 text-primary">
+                  {post.author?.name?.[0]}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-xs text-muted-foreground font-medium truncate">
-                {post.author?.name || 'User'}
+              <span className="text-[10px] text-muted-foreground font-semibold truncate">
+                {post.author?.name}
               </span>
-              {/* 用户等级徽章 */}
-              {post.author?.levelIcon && (
-                <span className="text-xs" title={`Level ${post.author.level}`}>
-                  {post.author.levelIcon}
-                </span>
-              )}
             </div>
 
-            {/* 互动数据 */}
-            <div className="flex items-center gap-3 shrink-0">
-              {/* 点赞 */}
-              <button
-                onClick={handleLikeClick}
-                className="flex items-center gap-1 text-muted-foreground hover:text-red-500 transition-colors relative z-20"
-              >
-                <Heart
-                  className={`w-4 h-4 transition-all ${post.isLikedByMe
-                    ? 'fill-red-500 text-red-500 scale-110'
-                    : 'hover:scale-110'
-                    }`}
-                />
-                {post.likeCount > 0 && (
-                  <span className="text-xs font-medium">{post.likeCount}</span>
-                )}
-              </button>
-
-              {/* 评论 */}
-              {post.commentCount > 0 && (
-                <div className="flex items-center gap-1 text-muted-foreground relative z-20" onClick={(e) => e.stopPropagation()}>
-                  <MessageCircle className="w-4 h-4" />
-                  <span className="text-xs font-medium">{post.commentCount}</span>
-                </div>
-              )}
-
-              {/* 分享 */}
-              <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} className="relative z-20">
-                <ShareSheet
-                  title={post.title || "分享一条动态"}
-                  content={post.content}
-                  url={`${window.location.origin}/community/${post.id}`}
-                  imageUrl={post.images[0]}
-                  authorName={post.author?.name}
-                  authorAvatar={post.author?.avatar}
-                  brandingTitle="渥帮 · 真言"
-                  brandingSubtitle="Just telling it like it is"
-                  trigger={
-                    <button className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors">
-                      <Share2 className="w-4 h-4" />
-                    </button>
-                  }
-                />
-              </div>
-            </div>
+            {/* Like Counter Only (Xiaohongshu style) */}
+            <button
+              onClick={handleLikeClick}
+              className="flex items-center gap-1 text-muted-foreground/80 relative z-20"
+            >
+              <Heart
+                className={`w-3.5 h-3.5 transition-all ${post.isLikedByMe
+                  ? 'fill-red-500 text-red-500'
+                  : ''
+                  }`}
+              />
+              <span className="text-[10px] font-bold">
+                {post.likeCount > 0 ? (post.likeCount > 999 ? '999+' : post.likeCount) : (language === 'zh' ? '赞' : 'Like')}
+              </span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* 沉浸式图片查看器 */}
       <ImageViewer
         images={post.images}
         initialIndex={viewerInitialIndex}

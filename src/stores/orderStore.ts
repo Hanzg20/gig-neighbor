@@ -11,13 +11,51 @@ interface OrderState {
     updateOrderStatus: (orderId: string, status: any, metadata?: any) => Promise<void>;
     updateOrder: (orderId: string, updates: Partial<Order>) => Promise<void>;
     createOrder: (order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Order | null>;
+    subscribeToOrders: (userId: string) => void;
+    unsubscribeFromOrders: () => void;
+    unsubscribe: (() => void) | null;
 }
 
-export const useOrderStore = create<OrderState>((set) => ({
+export const useOrderStore = create<OrderState>((set, get) => ({
     orders: [],
     isLoading: false,
     error: null,
+    unsubscribe: null,
     setOrders: (orders) => set({ orders }),
+
+    subscribeToOrders: (userId: string) => {
+        const { unsubscribe } = get() as any;
+        if (unsubscribe) unsubscribe();
+
+        const repo = repositoryFactory.getOrderRepository();
+        const newUnsubscribe = repo.subscribeToUserOrders(userId, (updatedOrder) => {
+            set((state) => {
+                const existing = state.orders.find(o => o.id === updatedOrder.id);
+                if (existing) {
+                    // Update existing
+                    return {
+                        orders: state.orders.map(o => o.id === updatedOrder.id ? updatedOrder : o)
+                    };
+                } else {
+                    // Add new order at the top
+                    return {
+                        orders: [updatedOrder, ...state.orders]
+                    };
+                }
+            });
+        });
+
+        set({ unsubscribe: newUnsubscribe });
+    },
+
+    unsubscribeFromOrders: () => {
+        const { unsubscribe } = get() as any;
+        if (unsubscribe) {
+            unsubscribe();
+            set({ unsubscribe: null });
+        }
+    },
+
     updateOrderStatus: async (orderId, status, metadata) => {
         set({ isLoading: true, error: null });
         try {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Header from "@/components/Header";
-import { Search, MoreVertical, Phone, Video, Image, Mic, Send, MessageCircle, DollarSign, Package, CheckCircle2, Clock, ChevronRight, Hash } from "lucide-react";
+import { Search, MoreVertical, Phone, Video, Image, Mic, Send, MessageCircle, DollarSign, Package, CheckCircle2, Clock, ChevronRight, Hash, Loader2 } from "lucide-react";
 import { useMessageStore } from "@/stores/messageStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useOrderStore } from "@/stores/orderStore";
@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useMessageReadStatus } from "@/hooks/useMessageReadStatus";
+import { MessageNotificationService } from "@/services/MessageNotificationService";
+import { QuickReplyTemplates } from "@/components/chat/QuickReplyTemplates";
+import { useMessagePagination } from "@/hooks/useMessagePagination";
 
 const Chat = () => {
     const navigate = useNavigate();
@@ -28,11 +32,23 @@ const Chat = () => {
 
     const [input, setInput] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const notificationService = useRef<MessageNotificationService | null>(null);
+
+    // Initialize notification service
+    useEffect(() => {
+        notificationService.current = MessageNotificationService.getInstance();
+        notificationService.current.loadOptions();
+    }, []);
+
+    // Integrate message read status sync
+    useMessageReadStatus(activeConversationId, currentUser?.id || '');
 
     // Load conversations on mount
     useEffect(() => {
         if (currentUser?.id) {
             loadConversations(currentUser.id);
+            // Check for offline messages
+            notificationService.current?.checkOfflineMessages(currentUser.id);
         }
         return () => cleanup();
     }, [currentUser?.id]);
@@ -286,7 +302,15 @@ const Chat = () => {
                                                         <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-tighter opacity-50">
                                                             {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
-                                                        {isMe && <CheckCircle2 className="w-3 h-3 text-secondary" />}
+                                                        {isMe && (
+                                                            <CheckCircle2
+                                                                className={cn(
+                                                                    "w-3 h-3",
+                                                                    msg.isRead ? "text-primary" : "text-muted-foreground"
+                                                                )}
+                                                                title={msg.isRead ? "Read" : "Sent"}
+                                                            />
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -306,6 +330,10 @@ const Chat = () => {
                                                 <DollarSign className="w-3 h-3 mr-1" /> SEND QUOTE
                                             </Button>
                                         )}
+                                        <QuickReplyTemplates
+                                            onSelectReply={(text) => setInput(text)}
+                                            context={currentUser?.id === activeOrder?.providerId ? 'seller' : 'buyer'}
+                                        />
                                         <Badge variant="outline" className="h-6 rounded-full border-muted text-[9px] cursor-pointer hover:bg-muted font-bold opacity-60">
                                             📷 PHOTO
                                         </Badge>

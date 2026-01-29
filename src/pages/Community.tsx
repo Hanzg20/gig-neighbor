@@ -28,7 +28,8 @@ const Community = () => {
         fetchFeed({
             postType: typeFilter,
             query: selectedTag || undefined,
-            // Pass scope or radius here once the repository supports it
+            scope: scope,
+            nodeId: currentUser?.nodeId
         });
     }, [activeFilter, selectedTag, scope, fetchFeed]);
 

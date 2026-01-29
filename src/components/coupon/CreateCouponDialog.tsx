@@ -14,7 +14,7 @@ import { CouponCard, CouponData } from './CouponCard';
 import { useConfigStore } from '@/stores/configStore';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Shuffle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Loader2, Shuffle, ArrowLeft, ArrowRight, Upload, X, Image as ImageIcon } from 'lucide-react';
 
 interface CreateCouponDialogProps {
     open: boolean;
@@ -55,6 +55,15 @@ const i18n = {
         creating: '创建中...',
         success: '优惠券创建成功',
         error: '创建失败，请重试',
+        // Background
+        background: '优惠券背景',
+        backgroundHint: '上传自定义背景图片 (推荐尺寸 750x1200)',
+        uploadBackground: '上传背景图',
+        removeBackground: '移除',
+        useDefaultBg: '使用默认渐变背景',
+        textColor: '文字颜色',
+        lightText: '浅色文字 (深色背景)',
+        darkText: '深色文字 (浅色背景)',
     },
     en: {
         title: 'Create Coupon',
@@ -85,6 +94,15 @@ const i18n = {
         creating: 'Creating...',
         success: 'Coupon created successfully',
         error: 'Failed to create coupon',
+        // Background
+        background: 'Coupon Background',
+        backgroundHint: 'Upload custom background image (recommended 750x1200)',
+        uploadBackground: 'Upload Background',
+        removeBackground: 'Remove',
+        useDefaultBg: 'Use default gradient',
+        textColor: 'Text Color',
+        lightText: 'Light text (for dark backgrounds)',
+        darkText: 'Dark text (for light backgrounds)',
     }
 };
 
@@ -123,6 +141,9 @@ export function CreateCouponDialog({
     const [maxDiscount, setMaxDiscount] = useState('');
     const [maxUses, setMaxUses] = useState('');
     const [validDays, setValidDays] = useState('30');
+    // 背景图片
+    const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+    const [textColor, setTextColor] = useState<'light' | 'dark'>('light');
 
     // 重置表单
     const resetForm = () => {
@@ -136,6 +157,31 @@ export function CreateCouponDialog({
         setMaxDiscount('');
         setMaxUses('');
         setValidDays('30');
+        setBackgroundImage(null);
+        setTextColor('light');
+    };
+
+    // 处理背景图片上传
+    const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // 验证文件类型
+            if (!file.type.startsWith('image/')) {
+                toast({ title: 'Please select an image file', variant: 'destructive' });
+                return;
+            }
+            // 验证文件大小 (最大 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                toast({ title: 'Image must be less than 5MB', variant: 'destructive' });
+                return;
+            }
+            // 转换为 base64
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setBackgroundImage(event.target?.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     // 关闭时重置
@@ -158,7 +204,9 @@ export function CreateCouponDialog({
         maxDiscount: maxDiscount ? parseFloat(maxDiscount) : undefined,
         validUntil: new Date(Date.now() + parseInt(validDays || '30') * 86400000).toISOString(),
         providerName,
-        providerLogo
+        providerLogo,
+        backgroundImage: backgroundImage || undefined,
+        textColor
     };
 
     // 表单验证
@@ -363,6 +411,78 @@ export function CreateCouponDialog({
                                     min="1"
                                 />
                             </div>
+                        </div>
+
+                        {/* 背景图片上传 */}
+                        <div className="space-y-3 pt-4 border-t">
+                            <Label className="flex items-center gap-2">
+                                <ImageIcon className="w-4 h-4" />
+                                {t.background}
+                            </Label>
+                            <p className="text-xs text-muted-foreground">{t.backgroundHint}</p>
+
+                            {backgroundImage ? (
+                                <div className="relative">
+                                    <div className="relative w-full h-32 rounded-xl overflow-hidden border-2 border-dashed border-primary/30">
+                                        <img
+                                            src={backgroundImage}
+                                            alt="Background preview"
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={() => setBackgroundImage(null)}
+                                            >
+                                                <X className="w-4 h-4 mr-1" />
+                                                {t.removeBackground}
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {/* 文字颜色选择 */}
+                                    <div className="mt-3">
+                                        <Label className="text-sm">{t.textColor}</Label>
+                                        <RadioGroup
+                                            value={textColor}
+                                            onValueChange={v => setTextColor(v as 'light' | 'dark')}
+                                            className="mt-2"
+                                        >
+                                            <div className="flex gap-4">
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="light" id="light-text" />
+                                                    <Label htmlFor="light-text" className="cursor-pointer text-sm">
+                                                        {t.lightText}
+                                                    </Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="dark" id="dark-text" />
+                                                    <Label htmlFor="dark-text" className="cursor-pointer text-sm">
+                                                        {t.darkText}
+                                                    </Label>
+                                                </div>
+                                            </div>
+                                        </RadioGroup>
+                                    </div>
+                                </div>
+                            ) : (
+                                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-muted/50 transition-colors">
+                                    <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                                    <span className="text-sm text-muted-foreground font-medium">
+                                        {t.uploadBackground}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground mt-1">
+                                        {t.useDefaultBg}
+                                    </span>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleBackgroundUpload}
+                                    />
+                                </label>
+                            )}
                         </div>
 
                         {/* 按钮 */}

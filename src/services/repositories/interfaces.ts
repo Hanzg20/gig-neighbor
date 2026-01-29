@@ -67,6 +67,7 @@ export interface IOrderRepository {
     updateStatus(id: string, status: Order['status']): Promise<Order>;
     // New method for partial updates, including metadata, payment status, and web ordering extensions
     update(id: string, updates: Partial<Order>): Promise<Order>;
+    subscribeToUserOrders(userId: string, callback: (order: Order) => void): () => void;
 }
 
 export interface ICartRepository {
@@ -128,6 +129,66 @@ export interface IMessageRepository {
     subscribeToUserEvents(userId: string, callback: (event: { type: 'CONVERSATION_UPDATE' | 'NEW_MESSAGE', data: any }) => void): () => void;
     getUnreadCount(userId: string): Promise<number>;
     getConversationUnreadCounts(userId: string): Promise<Map<string, number>>;
+}
+
+import {
+    CommunityPost,
+    CommunityComment,
+    CommunityPostType,
+    CreateCommunityPostInput,
+    UpdateCommunityPostInput,
+    CreateCommentInput,
+    ConsensusVoteType,
+    FactVoteRecord
+} from '@/types/community';
+
+export interface ICommunityPostRepository {
+    getFeed(options?: {
+        nodeId?: string;
+        postType?: CommunityPostType;
+        query?: string;
+        scope?: 'nearby' | 'city';
+        limit?: number;
+        offset?: number;
+    }): Promise<CommunityPost[]>;
+    getById(id: string): Promise<CommunityPost | null>;
+    getByAuthor(authorId: string): Promise<CommunityPost[]>;
+    create(authorId: string, input: CreateCommunityPostInput): Promise<CommunityPost>;
+    update(id: string, input: UpdateCommunityPostInput): Promise<CommunityPost>;
+    delete(id: string): Promise<void>;
+    incrementViewCount(id: string): Promise<void>;
+
+    // Likes
+    likePost(postId: string, userId: string): Promise<void>;
+    unlikePost(postId: string, userId: string): Promise<void>;
+    isLikedByUser(postId: string, userId: string): Promise<boolean>;
+    getLikedPostIds(userId: string, postIds: string[]): Promise<Set<string>>;
+
+    // Comments
+    getComments(postId: string): Promise<CommunityComment[]>;
+    createComment(authorId: string, input: CreateCommentInput): Promise<CommunityComment>;
+    deleteComment(id: string): Promise<void>;
+    likeComment(commentId: string, userId: string): Promise<void>;
+    unlikeComment(commentId: string, userId: string): Promise<void>;
+    getUserLikedCommentIds(userId: string, commentIds: string[]): Promise<Set<string>>;
+
+    // Conversion
+    convertToListing(postId: string, listingId: string): Promise<void>;
+
+    // Fact Voting
+    getUserVote(postId: string, userId: string): Promise<ConsensusVoteType | null>;
+    voteOnFact(postId: string, userId: string, voteType: ConsensusVoteType): Promise<void>;
+    removeVote(postId: string, userId: string): Promise<void>;
+
+    // Saves
+    savePost(postId: string, userId: string): Promise<void>;
+    unsavePost(postId: string, userId: string): Promise<void>;
+    isSavedByUser(postId: string, userId: string): Promise<boolean>;
+    getSavedPosts(userId: string, limit?: number, offset?: number): Promise<CommunityPost[]>;
+    getLikedPosts(userId: string, limit?: number, offset?: number): Promise<CommunityPost[]>;
+
+    // Tags
+    getTrendingTags(limit?: number): Promise<{ tag: string; count: number; trending?: boolean }[]>;
 }
 
 export interface CommunityStats {

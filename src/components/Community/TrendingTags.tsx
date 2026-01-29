@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Hash, TrendingUp, Flame } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
+import { useCommunityPostStore } from '@/stores/communityPostStore';
 
 interface TagData {
   tag: string;
@@ -20,29 +21,17 @@ export const TrendingTags = ({
   maxTags = 12,
   className = ''
 }: TrendingTagsProps) => {
-  const [tags, setTags] = useState<TagData[]>([]);
+  const { trendingTags, fetchTrendingTags } = useCommunityPostStore();
   const [isLoading, setIsLoading] = useState(true);
 
-  // 模拟数据 - 实际应从 API 获取
   useEffect(() => {
-    setTimeout(() => {
-      setTags([
-        { tag: '二手交易', count: 234, trending: true },
-        { tag: '免费赠送', count: 189, trending: true },
-        { tag: '求购', count: 156 },
-        { tag: '家具', count: 143 },
-        { tag: '电子产品', count: 128 },
-        { tag: '搬家甩卖', count: 112, trending: true },
-        { tag: '社区活动', count: 98 },
-        { tag: '互帮互助', count: 87 },
-        { tag: '宠物', count: 76 },
-        { tag: '美食', count: 65 },
-        { tag: '图书', count: 54 },
-        { tag: '运动健身', count: 43 },
-      ]);
+    const load = async () => {
+      setIsLoading(true);
+      await fetchTrendingTags(maxTags);
       setIsLoading(false);
-    }, 500);
-  }, []);
+    };
+    load();
+  }, [fetchTrendingTags, maxTags]);
 
   const handleTagClick = (tag: string) => {
     if (onTagClick) {
@@ -79,7 +68,7 @@ export const TrendingTags = ({
 
       {/* 标签云 */}
       <div className="flex flex-wrap gap-2">
-        {tags.slice(0, maxTags).map((tagData, index) => (
+        {trendingTags.slice(0, maxTags).map((tagData, index) => (
           <motion.button
             key={tagData.tag}
             initial={{ opacity: 0, scale: 0.8 }}

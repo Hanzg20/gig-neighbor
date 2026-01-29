@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ListingMaster, ListingItem, ListingType } from '@/types/domain';
+import { toast } from 'sonner';
 
 interface ListingState {
     listings: ListingMaster[];
@@ -14,11 +15,12 @@ interface ListingState {
     deleteListing: (id: string) => Promise<void>;
     fetchListings: () => Promise<void>;
     searchListings: (options: { query?: string, isSemantic?: boolean, nodeId?: string, categoryId?: string, type?: ListingType }) => Promise<void>;
+    toggleItemAvailability: (itemId: string) => Promise<void>;
 }
 
 import { repositoryFactory } from '@/services/repositories/factory';
 
-export const useListingStore = create<ListingState>((set) => ({
+export const useListingStore = create<ListingState>((set, get) => ({
     listings: [],
     listingItems: [],
     isLoading: false,
@@ -162,6 +164,28 @@ export const useListingStore = create<ListingState>((set) => ({
             set({ error: err.message, isLoading: false });
         }
     },
+
+    toggleItemAvailability: async (itemId: string) => {
+        const { listingItems } = get() as any;
+        const item = listingItems.find((i: any) => i.id === itemId);
+        if (!item) return;
+
+        const newStatus = item.status === 'AVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE';
+
+        try {
+            const repo = repositoryFactory.getListingItemRepository();
+            const updatedItem = await repo.update(itemId, { status: newStatus });
+
+            set((state: any) => ({
+                listingItems: state.listingItems.map((i: any) => i.id === itemId ? updatedItem : i)
+            }));
+
+            toast.success(newStatus === 'AVAILABLE' ? "已上线" : "已下架");
+        } catch (err: any) {
+            console.error('Failed to toggle item availability:', err);
+            toast.error("操作失败");
+        }
+    }
 }));
 
 // Translation Helpers (Meituan Essence: Efficient & Direct)

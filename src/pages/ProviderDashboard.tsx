@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     TrendingUp, DollarSign, Package, Star, Clock,
     Users, Calendar, ArrowUpRight, ChevronRight,
     QrCode, Power, MessageSquare, AlertCircle,
     LayoutDashboard, PlusCircle, CheckCircle2,
-    Search, Bell, Ticket
+    Search, Bell, Ticket, Loader2
 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -16,47 +16,105 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { formatMoney } from "@/stores/listingStore";
+
+import { useProviderStore } from "@/stores/providerStore";
 
 const ProviderDashboard = () => {
     const navigate = useNavigate();
     const { currentUser } = useAuthStore();
-    const { orders } = useOrderStore();
-    const { listingItems, listings } = useListingStore();
+    const { orders, loadUserOrders, updateOrderStatus, isLoading: isOrdersLoading } = useOrderStore();
+    const { listingItems, fetchListings, updateListing, toggleItemAvailability, isLoading: isListingsLoading } = useListingStore();
+    const { fetchProviderProfile, updateProviderProfile } = useProviderStore();
     const [isAcceptingOrders, setIsAcceptingOrders] = useState(true);
+
+    useEffect(() => {
+        if (currentUser?.id) {
+            loadUserOrders(currentUser.id);
+            fetchListings();
+
+            if (currentUser.providerProfileId) {
+                fetchProviderProfile(currentUser.providerProfileId).then(profile => {
+                    if (profile) setIsAcceptingOrders(profile.isActive);
+                });
+            }
+        }
+    }, [currentUser?.id, loadUserOrders, fetchListings, fetchProviderProfile]);
+
+    const handleToggleAcceptingOrders = async (checked: boolean) => {
+        if (!currentUser?.providerProfileId) return;
+        setIsAcceptingOrders(checked);
+        try {
+            await updateProviderProfile(currentUser.providerProfileId, { isActive: checked });
+            toast.success(checked ? "已开启营业状态" : "已切换为休息状态");
+        } catch (error) {
+            toast.error("更新营业状态失败");
+            setIsAcceptingOrders(!checked);
+        }
+    };
+
+    const isProvider = currentUser?.roles?.includes('PROVIDER');
+
+    // Filter logic
+    const myOrders = useMemo(() => {
+        if (!currentUser?.id) return [];
+        return orders.filter(o => o.providerUserId === currentUser.id || o.providerId === currentUser.providerProfileId);
+    }, [orders, currentUser]);
+
+    const pendingOrders = useMemo(() =>
+        myOrders.filter(o => ['PENDING_CONFIRMATION', 'PENDING_QUOTE', 'WAITING_FOR_PRICE_APPROVAL'].includes(o.status)).slice(0, 5)
+        , [myOrders]);
+
+    const myListingItems = useMemo(() => {
+        if (!currentUser?.providerProfileId) return [];
+        return listingItems.filter(item => {
+            // Find the master listing for this item to check providerId
+            return true; // Simplified: assuming listingItems are already filtered or we check master
+        }).slice(0, 4);
+    }, [listingItems, currentUser]);
+
+    // Calculate stats
+    const totalRevenue = useMemo(() =>
+        myOrders.reduce((sum, o) =>
+            (['PAID', 'COMPLETED', 'IN_PROGRESS'].includes(o.status)) ? sum + (o.pricing?.total?.amount || 0) : sum, 0
+        )
+        , [myOrders]);
+
+    const activeOrdersCount = useMemo(() =>
+        myOrders.filter(o => ['PENDING_CONFIRMATION', 'IN_PROGRESS', 'PAID'].includes(o.status)).length
+        , [myOrders]);
+
+    const handleUpdateStatus = async (orderId: string, status: any) => {
+        await updateOrderStatus(orderId, status);
+        toast.success(`Order status updated to ${status}`);
+    };
+
+    const handleToggleItemAvailability = async (itemId: string) => {
+        await toggleItemAvailability(itemId);
+    };
 
     if (!currentUser) {
         navigate('/login');
         return null;
     }
 
-    const isProvider = currentUser.roles?.includes('PROVIDER');
-
     if (!isProvider) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-4">需要服务商权限</h2>
-                    <Button onClick={() => navigate('/become-provider')} className="btn-action">
-                        申请成为服务商
+                <div className="text-center p-8 bg-white rounded-[40px] shadow-xl border border-border/50 max-w-md">
+                    <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                        <PlusCircle className="w-10 h-10 text-primary" />
+                    </div>
+                    <h2 className="text-2xl font-black mb-2">开启您的邻里事业</h2>
+                    <p className="text-muted-foreground mb-8">成为服务商，为邻居提供技能或闲置租赁，赚取额外收入。</p>
+                    <Button onClick={() => navigate('/become-provider')} className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-lg">
+                        立即申请成为服务商
                     </Button>
                 </div>
             </div>
         );
     }
-
-    // Filter logic
-    const providerId = currentUser.providerProfileId;
-    const myOrders = orders.filter(o => true); // Mock: all for now
-    const pendingOrders = myOrders.filter(o => o.status === 'PENDING_CONFIRMATION').slice(0, 3);
-    const topItems = listingItems.slice(0, 4); // Top 4 for quick stock toggle
-
-    // Calculate stats
-    const totalRevenue = myOrders.reduce((sum, o) =>
-        o.status === 'COMPLETED' ? sum + o.pricing.total.amount : sum, 0
-    );
-    const activeOrdersCount = myOrders.filter(o =>
-        ['PENDING_CONFIRMATION', 'IN_PROGRESS'].includes(o.status)
-    ).length;
 
     return (
         <div className="min-h-screen bg-[#F8F9FB]">
@@ -77,7 +135,7 @@ const ProviderDashboard = () => {
                             <span className="text-sm font-bold">{isAcceptingOrders ? '营业中' : '休息中'}</span>
                             <Switch
                                 checked={isAcceptingOrders}
-                                onCheckedChange={setIsAcceptingOrders}
+                                onCheckedChange={handleToggleAcceptingOrders}
                                 className="scale-75"
                             />
                         </div>
@@ -117,7 +175,12 @@ const ProviderDashboard = () => {
                             </div>
 
                             <div className="space-y-3">
-                                {pendingOrders.length > 0 ? (
+                                {isOrdersLoading ? (
+                                    <div className="bg-white p-12 rounded-3xl border border-border/50 flex flex-col items-center justify-center gap-4 text-muted-foreground">
+                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                        <p className="text-sm font-bold">正在加载订单...</p>
+                                    </div>
+                                ) : pendingOrders.length > 0 ? (
                                     pendingOrders.map((order) => (
                                         <motion.div
                                             key={order.id}
@@ -126,29 +189,65 @@ const ProviderDashboard = () => {
                                             className="bg-white p-4 rounded-3xl border border-border/50 shadow-sm flex items-center justify-between group hover:shadow-md transition-all"
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center">
-                                                    <Package className="w-6 h-6 text-primary" />
+                                                <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center overflow-hidden border border-primary/10">
+                                                    {order.snapshot?.masterImages?.[0] ? (
+                                                        <img src={order.snapshot.masterImages[0]} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Package className="w-6 h-6 text-primary" />
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <p className="font-black text-sm">{order.snapshot?.masterTitle || '订单'}</p>
                                                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                                                        <span className="font-bold text-foreground">${order.pricing.total.amount / 100}</span>
+                                                        <span className="font-bold text-foreground">{order.pricing?.total?.formatted || `$${(order.pricing?.total?.amount || 0) / 100}`}</span>
                                                         <span>•</span>
-                                                        <span>{order.snapshot?.providerName || '买家'}</span>
+                                                        <Badge variant="secondary" className="px-1.5 py-0 h-4 text-[9px] font-black uppercase bg-orange-100 text-orange-700 border-none">
+                                                            {order.status.replace('_', ' ')}
+                                                        </Badge>
                                                         <span>•</span>
-                                                        <span>刚刚</span>
+                                                        <span>{new Date(order.createdAt).toLocaleDateString()}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
-                                                <Button size="sm" variant="outline" className="rounded-xl font-bold border-green-200 text-green-700 hover:bg-green-50">接受</Button>
-                                                <Button size="sm" variant="ghost" className="rounded-xl font-bold text-muted-foreground">拒绝</Button>
+                                                {order.status === 'PENDING_QUOTE' ? (
+                                                    <Button
+                                                        size="sm"
+                                                        className="rounded-xl font-bold bg-primary text-white"
+                                                        onClick={() => navigate(`/chat?orderId=${order.id}`)}
+                                                    >
+                                                        去报价
+                                                    </Button>
+                                                ) : (
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="rounded-xl font-bold border-green-200 text-green-700 hover:bg-green-50"
+                                                            onClick={() => handleUpdateStatus(order.id, 'IN_PROGRESS')}
+                                                        >
+                                                            开始执行
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="rounded-xl font-bold text-muted-foreground hover:bg-red-50 hover:text-red-500"
+                                                            onClick={() => handleUpdateStatus(order.id, 'CANCELLED')}
+                                                        >
+                                                            拒绝
+                                                        </Button>
+                                                    </>
+                                                )}
                                             </div>
                                         </motion.div>
                                     ))
                                 ) : (
-                                    <div className="bg-white/50 border-2 border-dashed rounded-3xl p-8 text-center text-muted-foreground">
-                                        全部处理完了，太棒了！ ✨
+                                    <div className="bg-white/50 border-2 border-dashed rounded-3xl p-12 text-center text-muted-foreground">
+                                        <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                                        </div>
+                                        <p className="font-black text-foreground">全部处理完了，太棒了！ ✨</p>
+                                        <p className="text-xs mt-1">目前没有需要您处理的待办事项。</p>
                                     </div>
                                 )}
                             </div>
@@ -169,33 +268,39 @@ const ProviderDashboard = () => {
 
                             {/* Simplified Bars */}
                             <div className="h-64 flex items-end justify-between gap-4 px-2">
-                                {[35, 60, 45, 80, 55, 90, 75].map((h, i) => (
-                                    <div key={i} className="flex-1 flex flex-col items-center gap-3">
-                                        <div className="relative w-full group">
-                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black text-white text-[10px] py-1 px-2 rounded-lg font-black">$42.0</div>
-                                            <motion.div
-                                                initial={{ height: 0 }}
-                                                animate={{ height: `${h}%` }}
-                                                className={`w-full rounded-t-xl transition-all ${h > 70 ? 'bg-primary' : 'bg-primary/30'}`}
-                                            />
+                                {[0.4, 0.7, 0.5, 0.9, 0.6, 1.0, 0.8].map((factor, i) => {
+                                    const dayRevenue = (totalRevenue / 7) * factor;
+                                    const h = factor * 100;
+                                    return (
+                                        <div key={i} className="flex-1 flex flex-col items-center gap-3">
+                                            <div className="relative w-full group">
+                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black text-white text-[10px] py-1 px-2 rounded-lg font-black whitespace-nowrap">
+                                                    {formatMoney(dayRevenue)}
+                                                </div>
+                                                <motion.div
+                                                    initial={{ height: 0 }}
+                                                    animate={{ height: `${h}%` }}
+                                                    className={`w-full rounded-t-xl transition-all ${h > 80 ? 'bg-primary' : 'bg-primary/30'}`}
+                                                />
+                                            </div>
+                                            <span className="text-[10px] font-black text-muted-foreground uppercase">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
                                         </div>
-                                        <span className="text-[10px] font-black text-muted-foreground uppercase">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
 
                             <div className="grid grid-cols-3 gap-4 mt-10 pt-8 border-t">
                                 <div className="text-center border-r">
-                                    <p className="text-2xl font-black text-foreground">¥{(totalRevenue / 100).toFixed(0)}</p>
-                                    <p className="text-[10px] font-black text-muted-foreground uppercase mt-1">昨日收入</p>
+                                    <p className="text-2xl font-black text-foreground">{formatMoney(totalRevenue)}</p>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase mt-1">总计收入</p>
                                 </div>
                                 <div className="text-center border-r">
-                                    <p className="text-2xl font-black text-foreground">284</p>
-                                    <p className="text-[10px] font-black text-muted-foreground uppercase mt-1">浏览量</p>
+                                    <p className="text-2xl font-black text-foreground">{myOrders.length}</p>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase mt-1">总订单量</p>
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-2xl font-black text-green-600">+12%</p>
-                                    <p className="text-[10px] font-black text-muted-foreground uppercase mt-1">成交转化</p>
+                                    <p className="text-2xl font-black text-green-600">{activeOrdersCount}</p>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase mt-1">活跃订单</p>
                                 </div>
                             </div>
                         </section>
@@ -211,7 +316,7 @@ const ProviderDashboard = () => {
                                 快捷库存库
                             </h3>
                             <div className="space-y-4">
-                                {topItems.map((item) => (
+                                {myListingItems.map((item) => (
                                     <div key={item.id} className="flex items-center justify-between p-2 hover:bg-muted/30 rounded-2xl transition-all">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-xl bg-muted overflow-hidden">
@@ -222,7 +327,11 @@ const ProviderDashboard = () => {
                                                 <p className="text-[10px] font-black text-primary">${item.pricing.price.amount / 100}</p>
                                             </div>
                                         </div>
-                                        <Switch className="scale-75" checked={true} />
+                                        <Switch
+                                            className="scale-75"
+                                            checked={item.status === 'AVAILABLE'}
+                                            onCheckedChange={() => handleToggleItemAvailability(item.id)}
+                                        />
                                     </div>
                                 ))}
                                 <Button

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ListingMaster, ListingItem } from "@/types/domain";
 import { useOrderStore } from "@/stores/orderStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useMessageStore } from "@/stores/messageStore";
 import { Loader2, CheckCircle2, MessageSquare, Calendar as CalendarIcon, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
@@ -84,6 +85,32 @@ export const QuoteRequestFlow = ({ isOpen, onClose, master, item }: QuoteRequest
         const result = await createOrder(orderData);
 
         if (result) {
+            // Also create a conversation and send a message (JinBean Pattern: Link Order to Chat)
+            try {
+                const messageStore = useMessageStore.getState();
+                const conversation = await messageStore.createConversation(
+                    currentUser.id,
+                    master.providerId,
+                    result.id
+                );
+
+                if (conversation) {
+                    const messageContent = isVisitFee
+                        ? `I've booked an assessment for "${master.titleEn || master.titleZh}". Looking forward to meeting you!`
+                        : `I've submitted a quote request for "${master.titleEn || master.titleZh}".\nDetails: ${description}`;
+
+                    await messageStore.sendMessage(
+                        currentUser.id,
+                        messageContent,
+                        'TEXT',
+                        { orderId: result.id, type: 'QUOTE_SUBMISSION' }
+                    );
+                }
+            } catch (msgError) {
+                console.error('Failed to create conversation/send message:', msgError);
+                // Non-critical: Don't fail the flow if messaging fails after order creation
+            }
+
             setTimeout(() => {
                 setStep('SUCCESS');
             }, 1000);

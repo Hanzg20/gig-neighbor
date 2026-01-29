@@ -54,6 +54,8 @@ const OrderDetail = () => {
         buyer: language === 'zh' ? '买家' : 'Buyer',
         provider: language === 'zh' ? '提供商' : 'Provider',
         basePrice: language === 'zh' ? '基础价格' : 'Base Price',
+        couponDiscount: language === 'zh' ? '优惠券折扣' : 'Coupon Discount',
+        couponCode: language === 'zh' ? '优惠码' : 'Coupon Code',
         tax: language === 'zh' ? '税费' : 'Tax',
         platformFee: language === 'zh' ? '平台费' : 'Platform Fee',
         bookingFee: language === 'zh' ? '预约费（不退还）' : 'Booking Fee (Non-refundable)',
@@ -326,6 +328,15 @@ const OrderDetail = () => {
                                         <span className="text-muted-foreground">{t.basePrice}</span>
                                         <span>{order.pricing.baseAmount.formatted}</span>
                                     </div>
+                                    {order.snapshot?.coupon_code && (
+                                        <div className="flex justify-between text-sm text-emerald-600">
+                                            <span className="flex items-center gap-1">
+                                                <span>{t.couponDiscount}</span>
+                                                <span className="text-xs font-mono">({order.snapshot.coupon_code})</span>
+                                            </span>
+                                            <span>-${((order.snapshot.coupon_discount || 0) / 100).toFixed(2)}</span>
+                                        </div>
+                                    )}
                                     {order.pricing.taxAmount?.amount > 0 && (
                                         <div className="flex justify-between text-sm">
                                             <span className="text-muted-foreground">{t.tax}</span>

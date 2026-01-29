@@ -5,6 +5,8 @@ interface ProviderState {
     providers: ProviderProfile[];
     setProviders: (providers: ProviderProfile[]) => void;
     getProviderById: (id: string) => ProviderProfile | undefined;
+    fetchProviderProfile: (id: string) => Promise<ProviderProfile | null>;
+    updateProviderProfile: (id: string, data: Partial<ProviderProfile>) => Promise<void>;
     upgradeToProvider: (userId: string, data: { identity: 'NEIGHBOR' | 'MERCHANT', nameZh: string, nameEn?: string, location: any }) => Promise<void>;
 }
 
@@ -13,13 +15,41 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
     setProviders: (providers) => set({ providers }),
     getProviderById: (id) => get().providers.find(p => p.id === id),
 
-    upgradeToProvider: async (userId, data) => {
-        // dynamic import to avoid circular dep if possible, or just standard import
-        const { SupabaseProviderRepository } = await import('@/services/repositories/supabase/ProviderRepository');
-        const { supabase } = await import('@/lib/supabase');
-        const { useAuthStore } = await import('@/stores/authStore'); // Access auth store to update user
+    fetchProviderProfile: async (id) => {
+        const { repositoryFactory } = await import('@/services/repositories/factory');
+        const repo = repositoryFactory.getProviderRepository();
+        const profile = await repo.getById(id);
+        if (profile) {
+            set(state => ({
+                providers: [...state.providers.filter(p => p.id !== id), profile]
+            }));
+        }
+        return profile;
+    },
 
-        const repo = new SupabaseProviderRepository();
+    updateProviderProfile: async (id, data) => {
+        const { repositoryFactory } = await import('@/services/repositories/factory');
+        const repo = repositoryFactory.getProviderRepository();
+        const updated = await repo.update(id, data);
+        set(state => ({
+            providers: state.providers.map(p => p.id === id ? updated : p)
+        }));
+
+        // Update user profile if the current user is this provider
+        const { useAuthStore } = await import('@/stores/authStore');
+        const authStore = useAuthStore.getState();
+        if (authStore.currentUser?.providerProfileId === id) {
+            // We don't have a specific way to refresh user profile from here easily without re-fetching
+            // but we can assume the UI reflects the providerStore state
+        }
+    },
+
+    upgradeToProvider: async (userId, data) => {
+        const { repositoryFactory } = await import('@/services/repositories/factory');
+        const { supabase } = await import('@/lib/supabase');
+        const { useAuthStore } = await import('@/stores/authStore');
+
+        const repo = repositoryFactory.getProviderRepository();
 
         // 1. Create Provider Profile
         const newProvider = await repo.create({
@@ -31,7 +61,8 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
             verificationLevel: 1,
             badges: [],
             stats: { totalOrders: 0, totalIncome: 0, averageRating: 0, reviewCount: 0 },
-            location: data.location
+            location: data.location,
+            isActive: true
         });
 
         // 2. Update User Profile (Add Role)

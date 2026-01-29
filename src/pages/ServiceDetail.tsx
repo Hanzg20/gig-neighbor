@@ -174,7 +174,7 @@ const ServiceDetail = () => {
       master={master}
       item={selectedItem}
       author={provider}
-      onQuote={() => navigate(`/checkout?item_id=${selectedItem.id}`)}
+      onQuote={() => setIsQuoteOpen(true)}
       onChat={() => navigate('/chat')}
     />;
   }

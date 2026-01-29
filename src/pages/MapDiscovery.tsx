@@ -89,6 +89,8 @@ const MapDiscovery = () => {
         fetchListings(center.lat, center.lng, radius);
     };
 
+    const [viewMode, setViewMode] = useState<'MAP' | 'LIST'>('MAP');
+
     if (locLoading) return (
         <div className="flex flex-col items-center justify-center h-[calc(100vh-64px)] bg-muted/20">
             <Loader2 className="w-10 h-10 animate-spin text-primary" />
@@ -97,7 +99,7 @@ const MapDiscovery = () => {
     );
 
     return (
-        <div className="h-[calc(100vh-64px)] relative flex flex-col">
+        <div className="h-[calc(100vh-64px)] relative flex flex-col overflow-hidden">
             {/* Filter Bar */}
             <div className="absolute top-4 left-0 right-0 z-[1000] px-4 flex justify-center pointer-events-none">
                 <div className="bg-background/80 backdrop-blur-md border shadow-lg rounded-full px-2 py-1 flex gap-1 pointer-events-auto">
@@ -115,8 +117,8 @@ const MapDiscovery = () => {
                 </div>
             </div>
 
-            {/* Map Container */}
-            <div className="flex-1 w-full relative">
+            {/* Map Container - Hidden in List Mode on Mobile */}
+            <div className={`flex-1 w-full relative transition-opacity duration-300 ${viewMode === 'LIST' ? 'opacity-0 md:opacity-100 pointer-events-none md:pointer-events-auto' : 'opacity-100'}`}>
                 {mapCenter && (
                     <MapContainer
                         center={mapCenter}
@@ -167,44 +169,72 @@ const MapDiscovery = () => {
                 )}
             </div>
 
-            {/* Nearby Listings List (Bottom Drawer Style for Mobile, Sidebar Style for Desktop) */}
-            {listings.length > 0 && (
-                <div className="absolute bottom-4 left-4 right-4 z-[1000] md:left-auto md:right-4 md:top-20 md:bottom-20 md:w-80 pointer-events-none">
-                    <div className="bg-background/90 backdrop-blur-md border shadow-2xl rounded-3xl p-4 pointer-events-auto flex flex-col h-full max-h-[40vh] md:max-h-none overflow-hidden hover:shadow-glow transition-all duration-300">
-                        <div className="flex items-center justify-between mb-4 px-2">
-                            <h3 className="text-lg font-black tracking-tight">{language === 'zh' ? '推荐服务' : 'Recommended'}</h3>
-                            <Badge className="bg-primary/10 text-primary border-none font-bold">{listings.length}</Badge>
+            {/* List Toggle Button (Floating) */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1010] md:hidden">
+                <Button
+                    size="lg"
+                    className="rounded-full shadow-2xl px-6 font-black tracking-widest bg-foreground text-background hover:bg-foreground/90 transition-transform hover:scale-105 active:scale-95"
+                    onClick={() => setViewMode(prev => prev === 'MAP' ? 'LIST' : 'MAP')}
+                >
+                    {viewMode === 'MAP' ? (
+                        <span className="flex items-center gap-2">
+                            <Filter className="w-4 h-4" /> {language === 'zh' ? '列表' : 'List'}
+                        </span>
+                    ) : (
+                        <span className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" /> {language === 'zh' ? '地图' : 'Map'}
+                        </span>
+                    )}
+                </Button>
+            </div>
+
+            {/* Nearby Listings List (Full Screen Overlay in List Mode, Hidden/Drawer in Map Mode) */}
+            <div className={`
+                absolute inset-0 z-[1005] bg-background md:static md:inset-auto md:z-auto md:w-80 md:h-auto md:bg-transparent
+                transition-transform duration-300 ease-in-out flex flex-col
+                ${viewMode === 'LIST' ? 'translate-y-0' : 'translate-y-full md:translate-y-0'}
+                md:absolute md:top-20 md:right-4 md:bottom-20 md:bg-transparent md:pointer-events-none
+            `}>
+                <div className="flex-1 bg-background md:bg-background/90 md:backdrop-blur-md md:border md:shadow-2xl md:rounded-3xl md:pointer-events-auto flex flex-col h-full overflow-hidden p-4 pt-20 md:pt-4">
+                    <div className="flex items-center justify-between mb-4 px-2">
+                        <h3 className="text-lg font-black tracking-tight">{language === 'zh' ? '推荐服务' : 'Recommended'}</h3>
+                        <Badge className="bg-primary/10 text-primary border-none font-bold">{listings.length}</Badge>
+                    </div>
+
+                    {listings.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground opacity-50">
+                            <Search className="w-12 h-12 mb-2" />
+                            <p className="text-sm font-bold">{language === 'zh' ? '该区域暂无服务' : 'No results in this area'}</p>
                         </div>
-                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
-                            {listings.slice(0, 10).map(listing => (
+                    ) : (
+                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 pb-20 md:pb-0 scrollbar-hide">
+                            {listings.slice(0, 50).map(listing => (
                                 <div
                                     key={listing.id}
                                     className="p-3 bg-muted/30 rounded-2xl hover:bg-muted/50 transition-colors cursor-pointer group flex gap-3"
                                     onClick={() => {
-                                        if (listing.location?.coordinates) {
-                                            // Panning to marker is handled via state or ref ideally, 
-                                            // for now we'll just navigate or use a map ref if we had it but MapContainer is already set.
-                                            // The markers are already there.
-                                            navigate(`/service/${listing.id}`);
-                                        }
+                                        navigate(`/service/${listing.id}`);
                                     }}
                                 >
-                                    <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 shadow-sm">
+                                    <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 shadow-sm">
                                         <img src={listing.images?.[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-sm truncate mb-0.5">{language === 'zh' ? listing.titleZh : listing.titleEn}</h4>
+                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                        <div className="flex justify-between items-start">
+                                            <h4 className="font-bold text-sm truncate mb-0.5">{language === 'zh' ? listing.titleZh : listing.titleEn}</h4>
+                                            <Badge variant="outline" className="text-[10px] h-5 px-1">{listing.type}</Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground line-clamp-1 mb-2">{language === 'zh' ? listing.descriptionZh : listing.descriptionEn}</p>
                                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold">
-                                            <span className="text-primary">
+                                            <span className="text-primary bg-primary/5 px-1.5 py-0.5 rounded">
                                                 {listing.distanceMeters
                                                     ? (listing.distanceMeters > 1000
                                                         ? `${(listing.distanceMeters / 1000).toFixed(1)} km`
                                                         : `${Math.round(listing.distanceMeters)} m`)
                                                     : 'Nearby'}
                                             </span>
-                                            <span>•</span>
-                                            <span className="flex items-center">
-                                                <Star className="w-2 h-2 mr-0.5 fill-amber-400 text-amber-400" />
+                                            <span className="flex items-center text-amber-500">
+                                                <Star className="w-3 h-3 mr-0.5 fill-current" />
                                                 {listing.rating}
                                             </span>
                                         </div>
@@ -212,9 +242,9 @@ const MapDiscovery = () => {
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     );
 };

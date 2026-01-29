@@ -21,6 +21,9 @@ export interface Message {
     senderId: string;
     content: string;
     isRead: boolean;
+    readAt?: string;
+    messageType?: string;
+    metadata?: Record<string, any>;
     createdAt: string;
 }
 
@@ -36,12 +39,13 @@ interface MessageState {
     loadConversations: (userId: string) => Promise<void>;
     loadMessages: (conversationId: string) => Promise<void>;
     loadUnreadCount: (userId: string) => Promise<void>;
-    sendMessage: (senderId: string, content: string, type?: string, metadata?: Record<string, any>) => Promise<void>;
+    sendMessage: (senderId: string, content: string, type?: string, metadata?: Record<string, any>, conversationId?: string) => Promise<void>;
     sendQuote: (senderId: string, orderId: string, amount: number, description?: string) => Promise<void>;
     createConversation: (userA: string, userB: string, orderId?: string) => Promise<Conversation>;
     setActiveConversation: (conversationId: string) => void;
     subscribeToActiveConversation: () => void;
     subscribeToGlobalEvents: (userId: string) => void;
+    updateMessageReadStatus: (messageIds: string[], isRead: boolean) => void;
     cleanup: () => void;
 }
 
@@ -90,19 +94,21 @@ export const useMessageStore = create<MessageState>((set, get) => ({
         }
     },
 
-    sendMessage: async (senderId: string, content: string, type: string = 'TEXT', metadata: Record<string, any> = {}) => {
-        const { activeConversationId } = get();
-        if (!activeConversationId || !content.trim()) return;
+    sendMessage: async (senderId: string, content: string, type: string = 'TEXT', metadata: Record<string, any> = {}, conversationId?: string) => {
+        const targetConversationId = conversationId || get().activeConversationId;
+        if (!targetConversationId || !content.trim()) return;
 
         try {
             const repo = repositoryFactory.getMessageRepository();
-            const newMessage = await repo.sendMessage(activeConversationId, senderId, content, type, metadata);
+            const newMessage = await repo.sendMessage(targetConversationId, senderId, content, type, metadata);
 
-            // Optimistic update
-            set(state => {
-                if (state.messages.find(m => m.id === newMessage.id)) return state;
-                return { messages: [...state.messages, newMessage] };
-            });
+            // Optimistic update if it's the active conversation
+            if (targetConversationId === get().activeConversationId) {
+                set(state => {
+                    if (state.messages.find(m => m.id === newMessage.id)) return state;
+                    return { messages: [...state.messages, newMessage] };
+                });
+            }
         } catch (error: any) {
             console.error('Failed to send message:', error);
             set({ error: error.message });
@@ -110,9 +116,19 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     },
 
     sendQuote: async (senderId: string, orderId: string, amount: number, description: string = '') => {
+        // 1. Find conversation for this order
+        const repo = repositoryFactory.getMessageRepository();
+        const convs = await repo.getConversations(senderId);
+        const conversation = convs.find(c => c.orderId === orderId);
+
+        if (!conversation) {
+            console.warn('No conversation found for order:', orderId);
+            return;
+        }
+
         const content = `[QUOTE] Custom Price: $${(amount / 100).toFixed(2)}`;
         const metadata = { orderId, amount, description };
-        await get().sendMessage(senderId, content, 'QUOTE', metadata);
+        await get().sendMessage(senderId, content, 'QUOTE', metadata, conversation.id);
     },
 
     createConversation: async (userA: string, userB: string, orderId?: string) => {
@@ -183,6 +199,33 @@ export const useMessageStore = create<MessageState>((set, get) => ({
                     }
                 });
             }
+        });
+    },
+
+    updateMessageReadStatus: (messageIds: string[], isRead: boolean) => {
+        set(state => ({
+            messages: state.messages.map(msg =>
+                messageIds.includes(msg.id) ? { ...msg, isRead } : msg
+            )
+        }));
+
+        // Update unread count in conversations
+        set(state => {
+            const updatedConversations = state.conversations.map(conv => {
+                const unreadInConv = state.messages.filter(
+                    msg => msg.conversationId === conv.id && !msg.isRead
+                ).length;
+                return { ...conv, unreadCount: unreadInConv };
+            });
+
+            const newTotalUnread = updatedConversations.reduce(
+                (sum, conv) => sum + (conv.unreadCount || 0), 0
+            );
+
+            return {
+                conversations: updatedConversations,
+                totalUnreadCount: newTotalUnread
+            };
         });
     },
 

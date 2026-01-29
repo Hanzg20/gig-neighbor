@@ -1,4 +1,4 @@
-import { Bell, User, Menu, PlusCircle, MessageCircle, Globe } from "lucide-react";
+import { Bell, User, Menu, PlusCircle, MessageCircle, Globe, MapPin } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
@@ -48,132 +48,104 @@ const Header = () => {
   const isProvider = currentUser?.roles?.includes('PROVIDER');
 
   return (
-    <header className="sticky top-0 z-50 glass-header">
-      <div className="container flex items-center justify-between h-16">
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2">
-          <img src="/logo.png" alt="JUSTWEDO" className="w-10 h-10 rounded-2xl object-cover shadow-warm" />
-          <div className="hidden sm:block">
-            <h1 className="text-xl font-black tracking-tighter text-gradient">{t.brandName}</h1>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest -mt-1 text-center sm:text-left">{t.neighborly}</p>
-          </div>
-        </Link>
+    <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-border/5">
+      <div className="container flex items-center justify-between h-14 px-4 max-w-7xl mx-auto">
+        {/* Logo & Node */}
+        <div className="flex items-center gap-4">
+          <Link to="/" className="flex items-center gap-2 focus:scale-95 transition-transform">
+            <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-xl object-cover shadow-sm" />
+            <div className="flex flex-col">
+              <h1 className="text-lg font-black tracking-tighter text-gradient leading-none">{t.brandName}</h1>
+              <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground leading-none mt-1">
+                {t.neighborly}
+              </p>
+            </div>
+          </Link>
+
+          <div className="h-4 w-px bg-border/20 hidden sm:block" />
+
+          <button className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 rounded-full hover:bg-muted transition-colors">
+            <MapPin className="w-3 h-3 text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-widest">{activeNodeId || 'Kanata Lakes'}</span>
+          </button>
+        </div>
 
         {/* Desktop Nav */}
-        <nav className="hidden lg:flex items-center gap-8">
-          <Link to="/" className="text-sm font-bold text-foreground hover:text-primary transition-colors">
-            {t.discover}
-          </Link>
-          <Link to="/discover" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
-            {t.map}
-          </Link>
-          <Link to="/community" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
-            {t.community}
-          </Link>
-          <Link to="/orders" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
-            {t.orders}
-          </Link>
-          <Link to={isProvider ? "/provider/dashboard" : "/become-provider"} className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">
-            {isProvider ? t.proHub : t.becomeProvider}
-          </Link>
+        <nav className="hidden lg:flex items-center gap-6">
+          {[
+            { label: t.discover, path: '/' },
+            { label: t.community, path: '/community' },
+            { label: t.map, path: '/discover' },
+            ...(isProvider ? [{ label: t.proHub, path: '/provider/dashboard' }] : []),
+          ].map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors relative group"
+            >
+              {item.label}
+              <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
+            </Link>
+          ))}
         </nav>
 
         {/* Actions */}
-        <div className="flex items-center gap-3">
-          {/* Language Switcher */}
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
+            <LitePost
+              trigger={
+                <Button variant="ghost" size="sm" className="rounded-full h-9 px-4 font-black text-xs uppercase tracking-widest gap-2">
+                  <PlusCircle className="w-4 h-4" /> {t.post}
+                </Button>
+              }
+            />
+            {currentUser && <BeanBalance showLabel={false} size="sm" />}
+          </div>
+
+          {/* Mobile Map Icon */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden rounded-full w-9 h-9"
+            onClick={() => navigate('/discover')}
+          >
+            <MapPin className="w-4 h-4 text-muted-foreground" />
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full w-9 h-9">
                 <Globe className="w-4 h-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setLanguage('en')}>
+            <DropdownMenuContent align="end" className="rounded-2xl border-border/10">
+              <DropdownMenuItem className="font-bold text-xs" onClick={() => setLanguage('en')}>
                 English {language === 'en' && '✓'}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLanguage('zh')}>
+              <DropdownMenuItem className="font-bold text-xs" onClick={() => setLanguage('zh')}>
                 中文 {language === 'zh' && '✓'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="hidden sm:block">
-            <LitePost
-              trigger={
-                <Button size="sm" className="btn-action shadow-warm px-5">
-                  <PlusCircle className="w-4 h-4 mr-2" /> {t.post}
-                </Button>
-              }
-            />
-          </div>
-
-          {currentUser && (
-            <div className="hidden sm:block">
-              <BeanBalance showLabel={true} size="md" />
-            </div>
-          )}
-
           <button
             onClick={() => navigate(currentUser ? '/profile' : '/login')}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50"
+            className="relative overflow-hidden w-9 h-9 rounded-full border border-border/10 focus:scale-90 transition-transform"
           >
             {isLoading ? (
-              <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
             ) : currentUser ? (
-              <img src={currentUser.avatar} className="w-7 h-7 rounded-full object-cover border border-card" />
+              <img src={currentUser.avatar} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
-                <User className="w-4 h-4 text-primary" />
+              <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary">
+                <User className="w-4 h-4" />
               </div>
             )}
-            <span className="hidden sm:block text-sm font-bold text-foreground">
-              {isLoading ? t.wait : currentUser ? t.me : t.join}
-            </span>
-          </button>
-
-          <button
-            className="md:hidden w-10 h-10 rounded-2xl bg-muted flex items-center justify-center"
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
-          >
-            <Menu className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
       </div>
-
-      {/* Mobile Menu */}
-      {showMobileMenu && (
-        <div className="md:hidden border-t border-border/20 bg-card/95 backdrop-blur-xl animate-scale-in">
-          <nav className="container py-4 flex flex-col gap-2">
-            <Link to="/" className="px-5 py-3 rounded-2xl text-sm font-bold text-foreground bg-primary/10 text-primary">
-              {t.discover}
-            </Link>
-            <Link to="/discover" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
-              {t.map}
-            </Link>
-            <Link to="/community" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
-              {t.community}
-            </Link>
-            <Link to={isProvider ? "/provider/dashboard" : "/become-provider"} className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
-              {isProvider ? t.proHub : t.becomeProvider}
-            </Link>
-            <LitePost
-              trigger={
-                <button className="px-5 py-3 flex items-center gap-3 rounded-2xl text-sm font-bold text-primary bg-primary/10">
-                  <PlusCircle className="w-4 h-4" />
-                  {t.post}
-                </button>
-              }
-            />
-            <Link to="/my-listings" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
-              {t.myPosts}
-            </Link>
-            <Link to="/profile" className="px-5 py-3 rounded-2xl text-sm font-bold text-muted-foreground">
-              {t.myProfile}
-            </Link>
-          </nav>
-        </div>
-      )}
     </header>
   );
 };

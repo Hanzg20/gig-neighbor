@@ -638,6 +638,67 @@ export class SupabaseCommunityPostRepository {
             .filter(row => row.post)
             .map(row => this.mapPostFromDb(row.post));
     }
+
+    /**
+     * 获取用户点赞的所有帖子
+     */
+    async getLikedPosts(userId: string, limit = 20, offset = 0): Promise<CommunityPost[]> {
+        const { data, error } = await supabase
+            .from('community_post_likes')
+            .select(`
+                post:community_posts (
+                    *,
+                    author:user_profiles!author_id (id, name, avatar)
+                )
+            `)
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        if (error) throw error;
+
+        return (data || [])
+            .filter(row => row.post)
+            .map(row => this.mapPostFromDb(row.post));
+    }
+
+    async getTrendingTags(limit: number = 10): Promise<{ tag: string; count: number; trending?: boolean }[]> {
+        // In a real app, this would be a materialized view or a complex query.
+        // For now, we'll fetch recent posts and count tags manually or use a simple RPC if available.
+        // Let's assume we have a 'get_trending_tags' RPC.
+        const { data, error } = await supabase.rpc('get_trending_tags', { p_limit: limit });
+
+        if (error) {
+            console.warn('RPC get_trending_tags failed, falling back to basic count:', error);
+            // Fallback: Fetch all tags from active posts
+            const { data: posts, error: fetchError } = await supabase
+                .from('community_posts')
+                .select('tags')
+                .in('status', ['ACTIVE', 'RESOLVED'])
+                .order('created_at', { ascending: false })
+                .limit(100);
+
+            if (fetchError) return [];
+
+            const tagCounts: Record<string, number> = {};
+            posts?.forEach(p => {
+                p.tags?.forEach((tag: string) => {
+                    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                });
+            });
+
+            return Object.entries(tagCounts)
+                .map(([tag, count]) => ({ tag, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, limit);
+        }
+
+        return (data || []).map((row: any) => ({
+            tag: row.tag,
+            count: row.count,
+            trending: row.is_trending
+        }));
+    }
 }
 
 // Export singleton instance

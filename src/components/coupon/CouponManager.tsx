@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Dialog,
     DialogContent,
@@ -27,12 +28,14 @@ import {
     Users,
     Percent,
     DollarSign,
+    BarChart3,
 } from 'lucide-react';
 import { useConfigStore } from '@/stores/configStore';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { CouponCard, CouponData } from './CouponCard';
 import { CreateCouponDialog } from './CreateCouponDialog';
+import { CouponAnalytics } from './CouponAnalytics';
 import { cn } from '@/lib/utils';
 
 interface CouponManagerProps {
@@ -62,6 +65,8 @@ const i18n = {
     zh: {
         title: '优惠券管理',
         create: '创建优惠券',
+        coupons: '优惠券列表',
+        analytics: '数据分析',
         empty: '暂无优惠券',
         emptyDesc: '创建您的第一张优惠券，吸引更多顾客',
         active: '生效中',
@@ -85,6 +90,8 @@ const i18n = {
     en: {
         title: 'Coupon Management',
         create: 'Create Coupon',
+        coupons: 'Coupons',
+        analytics: 'Analytics',
         empty: 'No coupons yet',
         emptyDesc: 'Create your first coupon to attract more customers',
         active: 'Active',
@@ -240,8 +247,22 @@ export function CouponManager({
                 </Button>
             </div>
 
-            {/* 空状态 */}
-            {coupons.length === 0 ? (
+            {/* Tabs */}
+            <Tabs defaultValue="coupons" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="coupons" className="flex items-center gap-2">
+                        <Ticket className="w-4 h-4" />
+                        {t.coupons}
+                    </TabsTrigger>
+                    <TabsTrigger value="analytics" className="flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4" />
+                        {t.analytics}
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="coupons" className="space-y-4">
+                    {/* 空状态 */}
+                    {coupons.length === 0 ? (
                 <Card>
                     <CardContent className="flex flex-col items-center justify-center py-12">
                         <Ticket className="w-12 h-12 text-muted-foreground mb-4" />
@@ -366,8 +387,14 @@ export function CouponManager({
                             </Card>
                         );
                     })}
-                </div>
-            )}
+                        </div>
+                    )}
+                </TabsContent>
+
+                <TabsContent value="analytics" className="space-y-4">
+                    <CouponAnalytics />
+                </TabsContent>
+            </Tabs>
 
             {/* 创建优惠券弹窗 */}
             <CreateCouponDialog

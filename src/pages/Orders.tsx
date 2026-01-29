@@ -10,21 +10,33 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { SellerQuoteModal } from "@/components/checkout/SellerQuoteModal";
+import { useMessageStore } from "@/stores/messageStore";
+import { Order } from "@/types/orders";
 
 const Orders = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const paymentStatus = searchParams.get('payment');
     const { currentUser } = useAuthStore();
-    const { orders, updateOrderStatus, loadUserOrders } = useOrderStore();
+    const { orders, updateOrderStatus, updateOrder, loadUserOrders, subscribeToOrders, unsubscribeFromOrders } = useOrderStore();
     const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'completed'>('all');
     const [viewMode, setViewMode] = useState<'buyer' | 'seller'>('buyer');
+
+    // Seller Quote Flow
+    const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+    const [selectedOrderForQuote, setSelectedOrderForQuote] = useState<Order | null>(null);
+    const sendQuoteMessage = useMessageStore(state => state.sendQuote);
 
     useEffect(() => {
         if (currentUser?.id) {
             loadUserOrders(currentUser.id);
+            subscribeToOrders(currentUser.id);
         }
-    }, [currentUser?.id, loadUserOrders]);
+        return () => {
+            unsubscribeFromOrders();
+        };
+    }, [currentUser?.id, loadUserOrders, subscribeToOrders, unsubscribeFromOrders]);
 
     const userOrders = orders.filter(o =>
         viewMode === 'buyer' ? o.buyerId === currentUser?.id : o.providerId === currentUser?.id
@@ -130,16 +142,89 @@ const Orders = () => {
         await updateOrderStatus(orderId, 'IN_PROGRESS');
     };
 
-    const submitQuote = async (orderId: string) => {
-        const priceStr = prompt('Enter quote price (CAD cents):');
-        if (!priceStr) return;
-        const price = parseInt(priceStr, 10);
-        if (isNaN(price)) return;
-        await updateOrderStatus(orderId, 'WAITING_FOR_PRICE_APPROVAL', { quoteAmount: price });
+    const handleQuoteSubmit = async (orderId: string) => {
+        const order = orders.find(o => o.id === orderId);
+        if (order) {
+            setSelectedOrderForQuote(order);
+            setIsQuoteModalOpen(true);
+        }
+    };
+
+    const onQuoteSuccess = async (amount: number, notes: string) => {
+        if (!selectedOrderForQuote || !currentUser) return;
+
+        const orderId = selectedOrderForQuote.id;
+
+        // 1. Update order status
+        await updateOrderStatus(orderId, 'WAITING_FOR_PRICE_APPROVAL', {
+            quoteAmount: amount,
+            sellerNotes: notes
+        });
+
+        // 2. Send automated message to buyer
+        try {
+            await sendQuoteMessage(
+                currentUser.id,
+                orderId,
+                amount,
+                notes
+            );
+        } catch (msgError) {
+            console.error('Failed to send quote message:', msgError);
+            // Non-critical, but maybe toast?
+        }
     };
 
     const completeOrder = async (orderId: string) => {
         await updateOrderStatus(orderId, 'COMPLETED');
+    };
+
+    const handleAcceptQuote = async (orderId: string) => {
+        const order = orders.find(o => o.id === orderId);
+        if (!order || !order.metadata?.quoteAmount) {
+            toast.error("Invalid quote data");
+            return;
+        }
+
+        const quoteAmount = order.metadata.quoteAmount;
+
+        // 1. Update order status and pricing (Optimistic local update will be handled by store)
+        try {
+            await updateOrder(orderId, {
+                status: 'PENDING_PAYMENT',
+                pricing: {
+                    ...order.pricing,
+                    baseAmount: {
+                        ...order.pricing.baseAmount,
+                        amount: quoteAmount,
+                        formatted: `$${(quoteAmount / 100).toFixed(2)}`
+                    },
+                    total: {
+                        ...order.pricing.total,
+                        amount: quoteAmount,
+                        formatted: `$${(quoteAmount / 100).toFixed(2)}`
+                    }
+                }
+            });
+
+            // 2. Refresh orders to ensure we have the latest state before payment
+            if (currentUser) {
+                await loadUserOrders(currentUser.id);
+            }
+
+            // 3. Trigger payment flow
+            handlePayOrder(orderId);
+        } catch (error) {
+            console.error('Failed to accept quote:', error);
+            toast.error("Failed to accept quote");
+        }
+    };
+
+    const handleRejectQuote = async (orderId: string) => {
+        if (window.confirm('Are you sure you want to reject this quote?')) {
+            await updateOrderStatus(orderId, 'CANCELLED');
+            toast.info("Quote rejected");
+        }
     };
 
     return (
@@ -289,6 +374,13 @@ const Orders = () => {
                                         </div>
                                     )}
 
+                                    {viewMode === 'buyer' && order.status === 'WAITING_FOR_PRICE_APPROVAL' && (
+                                        <div className="mt-4 pt-4 border-t border-border flex gap-2 justify-end">
+                                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleRejectQuote(order.id); }}>Reject</Button>
+                                            <Button size="sm" className="btn-action bg-blue-600 hover:bg-blue-700" onClick={(e) => { e.stopPropagation(); handleAcceptQuote(order.id); }}>Accept & Pay</Button>
+                                        </div>
+                                    )}
+
                                     {/* Seller Actions */}
                                     {viewMode === 'seller' && order.status === 'PENDING_CONFIRMATION' && (
                                         <div className="mt-4 pt-4 border-t border-border flex gap-2 justify-end">
@@ -298,7 +390,7 @@ const Orders = () => {
                                     )}
                                     {viewMode === 'seller' && order.status === 'PENDING_QUOTE' && (
                                         <div className="mt-4 pt-4 border-t border-border flex gap-2 justify-end">
-                                            <Button size="sm" className="btn-action" onClick={(e) => { e.stopPropagation(); submitQuote(order.id); }}>Submit Quote</Button>
+                                            <Button size="sm" className="btn-action" onClick={(e) => { e.stopPropagation(); handleQuoteSubmit(order.id); }}>Submit Quote</Button>
                                         </div>
                                     )}
                                 </div>
@@ -309,6 +401,13 @@ const Orders = () => {
             </div>
 
             <Footer />
+
+            <SellerQuoteModal
+                isOpen={isQuoteModalOpen}
+                onClose={() => setIsQuoteModalOpen(false)}
+                order={selectedOrderForQuote}
+                onSuccess={onQuoteSuccess}
+            />
         </div>
     );
 };

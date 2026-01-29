@@ -74,7 +74,7 @@ export const TaskDetailView = ({ master, item, author, onQuote, onChat }: TaskDe
                         <p className="font-black text-lg">
                             {(author && 'businessNameEn' in author)
                                 ? (author.businessNameEn || author.businessNameZh || 'Neighbor')
-                                : (author?.name || 'Neighbor')}
+                                : ((author as any)?.name || 'Neighbor')}
                         </p>
                     </div>
                 </Link>

@@ -144,6 +144,9 @@ export interface ProviderProfile extends BaseEntity {
     radiusKm: number; // Service area
   };
 
+  isActive: boolean; // Whether the provider is currently accepting orders
+  metadata?: Record<string, any>;
+
   // Professional Directory Extensions
   credentials?: ProfessionalCredential[];
 }

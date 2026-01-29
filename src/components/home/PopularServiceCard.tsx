@@ -79,10 +79,10 @@ export function PopularServiceCard({
     <motion.div
       whileHover={{ scale: 1.02 }}
       onClick={() => navigate(`/service/${listing.id}`)}
-      className="relative w-80 md:w-96 flex-shrink-0 card-warm overflow-hidden cursor-pointer group"
+      className="relative w-72 sm:w-80 md:w-96 flex-shrink-0 card-warm overflow-hidden cursor-pointer group"
     >
       {/* Image */}
-      <div className="relative aspect-video overflow-hidden bg-muted/50">
+      <div className="relative aspect-video sm:aspect-square md:aspect-video overflow-hidden bg-muted/50">
         <img
           src={listing.images[0] || '/placeholder.svg'}
           alt={getTranslation(listing, 'title')}
@@ -121,10 +121,10 @@ export function PopularServiceCard({
       </div>
 
       {/* Content */}
-      <div className="p-4 space-y-3">
+      <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
         {/* Provider Info */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-foreground">{providerName}</span>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="text-xs sm:text-sm font-black text-foreground">{providerName}</span>
           <VerificationBadge
             level={verificationLevel as 1 | 2 | 3 | 4 | 5}
             nodeName=""
@@ -135,14 +135,14 @@ export function PopularServiceCard({
         {/* Rating */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-bold">{rating.toFixed(1)}</span>
+            <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+            <span className="text-xs sm:text-sm font-black">{rating.toFixed(1)}</span>
           </div>
-          <span className="text-xs text-muted-foreground">({reviewCount} {t.reviews})</span>
+          <span className="text-[10px] sm:text-xs text-muted-foreground font-bold">({reviewCount} {t.reviews})</span>
         </div>
 
         {/* Service Name */}
-        <h3 className="font-bold text-base line-clamp-2 group-hover:text-primary transition-colors">
+        <h3 className="font-extrabold text-sm sm:text-base line-clamp-2 group-hover:text-primary transition-colors leading-tight">
           {getTranslation(listing, 'title')}
         </h3>
 
@@ -165,8 +165,8 @@ export function PopularServiceCard({
                     setSelectedItem(item);
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${itemSelected
-                      ? 'bg-primary text-white'
-                      : 'bg-muted text-foreground hover:bg-muted/80'
+                    ? 'bg-primary text-white'
+                    : 'bg-muted text-foreground hover:bg-muted/80'
                     }`}
                 >
                   {getTranslation(item, 'name')}

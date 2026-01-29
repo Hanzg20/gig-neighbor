@@ -202,7 +202,7 @@ const Index = () => {
         <PromoBanner />
       </motion.div>
 
-      <main className="container max-w-7xl py-6 sm:py-8 px-4 sm:px-6 space-y-12 sm:space-y-16">
+      <main className="container max-w-7xl py-4 sm:py-8 px-4 sm:px-6 space-y-8 sm:space-y-16">
         {/* Popular In Community - Enhanced Card Design */}
         {nearbyHotServices.length > 0 && (
           <motion.section
@@ -210,6 +210,7 @@ const Index = () => {
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
             variants={sectionVariants}
+            className="py-1"
           >
             <PopularInCommunity listings={nearbyHotServices} />
           </motion.section>
@@ -221,6 +222,7 @@ const Index = () => {
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={sectionVariants}
+          className="py-1"
         >
           <TodayStories />
         </motion.section>
@@ -231,7 +233,7 @@ const Index = () => {
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={sectionVariants}
-          className="relative"
+          className="relative py-1"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-orange-50/50 to-yellow-50/50 rounded-3xl blur-3xl opacity-30" />
           <div className="relative">

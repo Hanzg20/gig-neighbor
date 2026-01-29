@@ -18,18 +18,18 @@ export const TodayStories: React.FC = () => {
     }, [fetchStories]);
 
     return (
-        <section className="py-12 bg-gradient-to-b from-transparent to-muted/30">
+        <section className="py-4 sm:py-12 bg-gradient-to-b from-transparent to-muted/10">
             <div className="container px-4">
-                <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+                <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 sm:mb-8 gap-1 sm:gap-4">
                     <div>
-                        <div className="text-xs font-bold text-primary uppercase tracking-wider mb-2">
+                        <div className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">
                             COMMUNITY SPIRIT
                         </div>
-                        <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
+                        <h2 className="text-2xl sm:text-4xl font-black text-foreground tracking-tight">
                             Neighbor Stories
                         </h2>
                     </div>
-                    <p className="text-slate-500 max-w-sm text-sm font-medium">
+                    <p className="hidden sm:block text-slate-500 max-w-sm text-sm font-medium">
                         More than just transactions, we record the warmth of neighbors helping neighbors.
                     </p>
                 </div>
